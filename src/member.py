@@ -1,14 +1,40 @@
-from region import Region
+#from region import Region
 
+#prismatic uniform members
 class Member:
 	def __init__(self, material, xsection, length):
 		self.material = material
 		self.xsection = xsection
 		self.length = length
+		self.placed = False
+		self.img_ref = None
 	def __str__(self):
 		s = self.material["name"] + " member with cross section=("
 		s += str(self.xsection) + "), and length=" + str(self.length)
 		return s
+	#Define the position in the xy plane. Units are meters.
+	#vh True = vertical. vh False = horizontal.
+	def place(self, x, y, vh):
+		self.x0 = x
+		self.y0 = y
+		if vh:
+			self.x1 = x
+			self.y1 = y+self.length
+		else:
+			self.x1 = x+self.length
+			self.y1 = y
+		self.placed = True
+	def get_pos(self):
+		if self.placed:
+			return (self.x0, self.y0, self.x1, self.y1)
+		return None
+	def get_vh(self):
+		if self.placed:
+			if self.x1 == self.x0:
+				return True
+			else:
+				return False
+		return None
 	@property
 	def E(self):
 		return self.material["E"]

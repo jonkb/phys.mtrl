@@ -3,72 +3,75 @@ import tkinter as tk
 from member import *
 from region import *
 
+
 num_e_wid = 8
 
+#Toolbar to add a new member
 class Add_mem:
 	def __init__(self, main_frm):
-		self.add_mode = False
+		self.tb_frm = tk.Frame(main_frm)
+		self.tb_frm.config(highlightcolor="grey", highlightbackground="grey", highlightthickness=1)
+		self.tb_frm.pack(side=tk.TOP, fill=tk.X)
+		self.tb_frm.grid_rowconfigure(1,weight=1)
 		
-		#Toolbar to add a new member
-		self.add_mem_frm = tk.Frame(main_frm)
-		self.add_mem_frm.config(highlightcolor="grey", highlightbackground="grey", highlightthickness=1)
-		self.add_mem_frm.pack(side=tk.TOP, fill=tk.X)
-		self.add_mem_frm.grid_rowconfigure(1,weight=1)
+		#First label
+		tb_lbl = tk.Label(self.tb_frm, text="Add New\nMember")
+		tb_lbl.grid(row=0, column=0, rowspan=2)
 
 		#Choose material label
-		self.matl_lbl = tk.Label(self.add_mem_frm, text="Material:")
-		self.matl_lbl.grid(row=0, column=0)
+		matl_lbl = tk.Label(self.tb_frm, text="Material:")
+		matl_lbl.grid(row=0, column=1)
 		#Choose material pulldown
-		self.add_matl = tk.StringVar(self.add_mem_frm)
-		self.add_matl.set(Materials.materials[0])
-		self.add_matl_option = tk.OptionMenu(self.add_mem_frm, self.add_matl, *Materials.materials)
-		self.add_matl_option.config(width=12)
-		self.add_matl_option.grid(row=1, column=0)
+		self.matl = tk.StringVar(self.tb_frm)
+		self.matl.set(Materials.materials[0])
+		matl_option = tk.OptionMenu(self.tb_frm, self.matl, *Materials.materials)
+		matl_option.config(width=12)
+		matl_option.grid(row=1, column=1)
 
 		#Choose material label
-		self.xsec_lbl = tk.Label(self.add_mem_frm, text="Cross Section Type:")
-		self.xsec_lbl.grid(row=0, column=1)
+		xsec_lbl = tk.Label(self.tb_frm, text="Cross Section Type:")
+		xsec_lbl.grid(row=0, column=2)
 		#Choose xsection pulldown
-		self.add_xsec = tk.StringVar(self.add_mem_frm)
-		self.add_xsec.set(Region.regions[0])
-		self.add_xsec.trace("w", self.update_xparam)
-		self.add_xsec_option = tk.OptionMenu(self.add_mem_frm, self.add_xsec, *Region.regions)
-		self.add_xsec_option.config(width=12)
-		self.add_xsec_option.grid(row=1, column=1)
+		self.xsec = tk.StringVar(self.tb_frm)
+		self.xsec.set(Region.regions[0])
+		self.xsec.trace("w", self.update_xparam)
+		xsec_option = tk.OptionMenu(self.tb_frm, self.xsec, *Region.regions)
+		xsec_option.config(width=12)
+		xsec_option.grid(row=1, column=2)
 
 		#Frame that adjusts itself to the chosen xsection to have the needed parameters
-		self.xparam_frm = tk.Frame(self.add_mem_frm)
+		self.xparam_frm = tk.Frame(self.tb_frm)
 		self.xparam_frm.config(borderwidth=2, relief=tk.SUNKEN)
-		self.xparam_frm.grid(row=0, column=2, rowspan=2, sticky=tk.N+tk.S)
+		self.xparam_frm.grid(row=0, column=3, rowspan=2, sticky=tk.N+tk.S)
 		self.xparam_frm.grid_rowconfigure(1,weight=1)
 		self.xparam_entries = []
 		self.update_xparam()
 
 		#Length label
-		self.L_lbl = tk.Label(self.add_mem_frm, text="Length (m):")
-		self.L_lbl.grid(row=0, column=3)
+		L_lbl = tk.Label(self.tb_frm, text="Length (m):")
+		L_lbl.grid(row=0, column=4)
 		#Length entry
-		self.add_L_entry = tk.Entry(self.add_mem_frm)
-		self.add_L_entry.config(width=num_e_wid)
-		self.add_L_entry.grid(row=1, column=3)
+		self.L_entry = tk.Entry(self.tb_frm)
+		self.L_entry.config(width=num_e_wid)
+		self.L_entry.grid(row=1, column=4)
 
 		#Radio buttons for vert/horiz
-		self.add_vh = tk.IntVar(self.add_mem_frm)
-		self.add_vh.set(1)
-		self.add_v_btn = tk.Radiobutton(self.add_mem_frm, variable=self.add_vh, value=1)
-		self.add_v_btn.config(indicatoron=0, text="Vertical")
-		self.add_v_btn.grid(row=0, column=4, sticky=tk.W+tk.E)
-		self.add_h_btn = tk.Radiobutton(self.add_mem_frm, variable=self.add_vh, value=0)
-		self.add_h_btn.config(indicatoron=0, text="Horizontal")
-		self.add_h_btn.grid(row=1, column=4, sticky=tk.W+tk.E)
+		self.vh = tk.IntVar(self.tb_frm)
+		self.vh.set(1)
+		v_btn = tk.Radiobutton(self.tb_frm, variable=self.vh, value=1)
+		v_btn.config(indicatoron=0, text="Vertical")
+		v_btn.grid(row=0, column=5, sticky=tk.W+tk.E)
+		h_btn = tk.Radiobutton(self.tb_frm, variable=self.vh, value=0)
+		h_btn.config(indicatoron=0, text="Horizontal")
+		h_btn.grid(row=1, column=5, sticky=tk.W+tk.E)
 
 		#Button to add the new member
-		self.add_btn = tk.Button(self.add_mem_frm, text="Add")
-		self.add_btn.config(command=self.toggle_add)
-		self.add_btn.grid(row=0, column=5, padx=2, pady=2, ipadx=8, rowspan=2, sticky=tk.N+tk.S)
+		self.add_btn = tk.Button(self.tb_frm, text="Add")
+		#self.add_btn.config(command=self.toggle_add)
+		self.add_btn.grid(row=0, column=6, padx=2, pady=2, ipadx=8, rowspan=2, sticky=tk.N+tk.S)
 
 	def update_xparam(self, *args):
-		region = self.add_xsec.get()
+		region = self.xsec.get()
 		self.xparam_entries.clear()
 		for widget in self.xparam_frm.winfo_children():
 			widget.destroy()
@@ -110,15 +113,9 @@ class Add_mem:
 			tw_entry = tk.Entry(self.xparam_frm, width=num_e_wid)
 			tw_entry.grid(row=1, column=3)
 			self.xparam_entries.append(tw_entry)
-	def toggle_add(self):
-		try:
-			L = float(self.add_L_entry.get())
-		except:#Flash the L field red here?
-			return
-		self.add_mode = not self.add_mode
 	#Return half of the height of the beam being added (in m)
 	def half_h(self):
-		xsec = self.add_xsec.get()
+		xsec = self.xsec.get()
 		if xsec == "circle":
 			try:
 				r = float(self.get_xparams()[0])/1000 #mm
@@ -142,3 +139,53 @@ class Add_mem:
 		for param in self.xparam_entries:
 			params.append(param.get())
 		return params
+	def get_L(self):
+		return self.L_entry.get()
+	def get_matl(self):
+		return self.matl.get()
+	def get_xsec(self):
+		return self.xsec.get()
+	def get_vh(self):
+		return self.vh.get()
+
+#Add support toolbar
+class Add_sup:
+	sup_types = {
+		0: "Fixed",
+		1: "Pin",
+		2: "Roller"
+	}
+	def __init__(self, main_frm):
+		self.tb_frm = tk.Frame(main_frm)
+		self.tb_frm.config(highlightcolor="grey", highlightbackground="grey", highlightthickness=1)
+		self.tb_frm.pack(side=tk.TOP, fill=tk.X)
+		
+		#First label
+		tb_lbl = tk.Label(self.tb_frm, text="Add New\nSupport")
+		tb_lbl.grid(row=0, column=0, rowspan=2)
+		
+		next_col = 1
+		#Radio buttons for support type
+		self.sup_type = tk.IntVar(self.tb_frm)
+		self.sup_type.set(0)
+		for val in self.sup_types:
+			txt = self.sup_types[val]
+			s_btn = tk.Radiobutton(self.tb_frm, variable=self.sup_type, value=val)
+			s_btn.config(indicatoron=0, text=txt, width=8)
+			s_btn.grid(row=0, column=next_col)
+			next_col += 1
+		
+		#Button to add the new support
+		self.add_btn = tk.Button(self.tb_frm, text="Add")
+		#self.add_btn.config(command=self.toggle_add)
+		self.add_btn.grid(row=0, column=next_col, padx=2, pady=2, ipadx=8, sticky=tk.N+tk.S)
+	
+	def get_sup_type(self):
+		return self.sup_type.get()
+
+
+
+#END
+
+
+
