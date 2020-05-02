@@ -148,6 +148,14 @@ class Add_mem:
 		return self.xsec.get()
 	def get_vh(self):
 		return self.vh.get()
+	def has_float_vals(self):
+		try:
+			float(self.get_L())
+			for v in self.get_xparams():
+				float(v)
+		except:#Flash fields red here?
+			return False
+		return True
 
 #Add support toolbar
 class Add_sup:

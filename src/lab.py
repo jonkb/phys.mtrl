@@ -18,14 +18,11 @@ class Lab:
 		self.c_ht = 500
 		#mode: 0=None, 1=add_mem, 2=add_sup
 		self.add_mode = 0#
+		self.floating = None
 		add_mem_bar.add_btn.config(command=self.toggle_mem_mode)
 		self.add_mem_bar = add_mem_bar
-		self.floating_mem = None
-		self.mem_mode = False
 		add_sup_bar.add_btn.config(command=self.toggle_sup_mode)
 		self.add_sup_bar = add_sup_bar
-		self.floating_sup = None
-		self.sup_mode = False
 		self.members = []
 		
 		self.canv = tk.Canvas(main_frm, width=self.c_wd, height=self.c_ht, bg='white')
@@ -100,64 +97,54 @@ class Lab:
 	def mouse_moved(self, event):
 		x = event.x
 		y = event.y
-		if self.mem_mode:
-			if self.floating_mem == None:
+		if self.add_mode == 1:
+			if self.floating == None:
 				self.floating_x = x
 				self.floating_y = y
 				L = float(self.add_mem_bar.get_L())
-				self.floating_mem = self.canv.create_rectangle(*self.rect_mem_coords(x, y, L*self.px_per_m))
+				self.floating = self.canv.create_rectangle(*self.rect_mem_coords(x, y, L*self.px_per_m))
 			else:
-				self.canv.move(self.floating_mem, x-self.floating_x, y-self.floating_y)
+				self.canv.move(self.floating, x-self.floating_x, y-self.floating_y)
 				self.floating_x = x
 				self.floating_y = y
-		elif self.sup_mode:
-			if self.floating_sup == None:
+		elif self.add_mode == 2:
+			if self.floating == None:
 				self.floating_x = x
 				self.floating_y = y
 				r = 15
-				self.floating_sup = self.canv.create_oval(x-r,y-r,x+r,y+r)
+				self.floating = self.canv.create_oval(x-r,y-r,x+r,y+r)
 			else:
 				(x,y),*_ = self.snap_to_mem(x,y)
-				self.canv.move(self.floating_sup, x-self.floating_x, y-self.floating_y)
+				self.canv.move(self.floating, x-self.floating_x, y-self.floating_y)
 				self.floating_x = x
 				self.floating_y = y
 	def mouse_click(self, event):
-		if self.mem_mode:
+		if self.add_mode == 1:
 			self.add_member(event)
-		#print(canv.find_all())
-		if self.sup_mode:
+		elif self.add_mode == 2:
 			self.add_support(event)
+		print(self.canv.find_all())
 	def add_member(self, event):
+		if not self.add_mem_bar.has_float_vals():
+			return
 		x = event.x
 		y = event.y
-		try:
-			L = float(self.add_mem_bar.get_L())
-		except:#Flash the L field red here?
-			return
+		L = float(self.add_mem_bar.get_L())
 		matl = getattr(Materials,self.add_mem_bar.get_matl())
 		rgb = matl["color"]
 		xsec = self.add_mem_bar.get_xsec()
 		if xsec == "circle":
-			try:
-				r = float(self.add_mem_bar.get_xparams()[0])/1000 #mm->m
-			except:
-				return
+			r = float(self.add_mem_bar.get_xparams()[0])/1000 #mm->m
 			xsec = Circle(r)
 		elif xsec == "rectangle":
-			try:
-				b = float(self.add_mem_bar.get_xparams()[0])/1000 #mm->m
-				h = float(self.add_mem_bar.get_xparams()[1])/1000 
-			except:
-				return
+			b = float(self.add_mem_bar.get_xparams()[0])/1000 #mm->m
+			h = float(self.add_mem_bar.get_xparams()[1])/1000 
 			xsec = Rectangle(b, h)
 		elif xsec == "I-beam":
-			try:
-				d = float(self.add_mem_bar.get_xparams()[0])/1000 #mm->m
-				w = float(self.add_mem_bar.get_xparams()[1])/1000 
-				tf = float(self.add_mem_bar.get_xparams()[2])/1000 
-				tw = float(self.add_mem_bar.get_xparams()[3])/1000 
-			except:
-				return
+			d = float(self.add_mem_bar.get_xparams()[0])/1000 #mm->m
+			w = float(self.add_mem_bar.get_xparams()[1])/1000 
+			tf = float(self.add_mem_bar.get_xparams()[2])/1000 
+			tw = float(self.add_mem_bar.get_xparams()[3])/1000 
 			xsec = W_F_I(d, w, tf, tw)
 		m = Member(matl, xsec, L)
 		xc,yc = self.px_to_coords(x,y)
@@ -165,7 +152,7 @@ class Lab:
 		m.img_ref = self.canv.create_rectangle(*self.rect_mem_coords(x, y, L*self.px_per_m), fill=rgb)
 		self.members.append(m)
 		#print("Added new " + str(m))
-		self.set_mem_mode(False)
+		self.set_add_mode(0)
 	def add_support(self, event):
 		x = event.x
 		y = event.y
@@ -173,10 +160,11 @@ class Lab:
 		if closest_r < self.snap_dist:
 			stype = self.add_sup_bar.get_sup_type()
 			stag = 'sup_'+str(mem.img_ref)+'s'+str(side)
+			self.canv.delete(stag)#Delete the support img if it exists
 			sup = Support(stype, stag)
 			sup.draw(self.canv, xp, yp, mem.sup_dir(side))
 			mem.sup[side] = sup
-			self.set_sup_mode(False)
+			self.set_add_mode(0)
 	def rect_mem_coords(self, x, y, L_px):
 		hh = self.add_mem_bar.half_h()
 		if hh=="NaN":
@@ -193,29 +181,17 @@ class Lab:
 			x2 = x + L_px
 			y2 = y + hh
 		return (x1, y1, x2, y2)
-	def set_mem_mode(self, on_off):
-		if on_off:
-			try:
-				L = float(self.add_mem_bar.get_L())
-			except:#Flash the L field red here?
+	#Mode: 0=None, 1=mem, 2=sup
+	def set_add_mode(self, mode):
+		if mode == self.add_mode:
+			return
+		if mode == 1:
+			if not self.add_mem_bar.has_float_vals():
 				return
-			self.mem_mode = True
-			if self.sup_mode:
-				self.set_sup_mode(False)
-		else:
-			self.mem_mode = False
-			self.canv.delete(self.floating_mem)
-			self.floating_mem = None
-	def set_sup_mode(self, on_off):
-		if on_off:
-			self.sup_mode = True
-			if self.mem_mode:
-				self.set_mem_mode(False)
-		else:
-			self.sup_mode = False
-			self.canv.delete(self.floating_sup)
-			self.floating_sup = None
+		self.canv.delete(self.floating)
+		self.floating = None
+		self.add_mode = mode
 	def toggle_mem_mode(self):
-		self.set_mem_mode(False) if self.mem_mode else self.set_mem_mode(True)
+		self.set_add_mode(0) if self.add_mode==1 else self.set_add_mode(1)
 	def toggle_sup_mode(self):
-		self.set_sup_mode(False) if self.sup_mode else self.set_sup_mode(True)
+		self.set_add_mode(0) if self.add_mode==2 else self.set_add_mode(2)
