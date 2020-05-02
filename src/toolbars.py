@@ -2,6 +2,7 @@ import tkinter as tk
 
 from member import *
 from region import *
+from support import Support
 
 
 num_e_wid = 8
@@ -94,14 +95,14 @@ class Add_mem:
 			self.xparam_entries.append(h_entry)
 		if(region == "I-beam"):
 			d_lbl = tk.Label(self.xparam_frm, text="Depth (mm):")
-			d_lbl.grid(row=0, column=1)
+			d_lbl.grid(row=0, column=0)
 			d_entry = tk.Entry(self.xparam_frm, width=num_e_wid)
-			d_entry.grid(row=1, column=1)
+			d_entry.grid(row=1, column=0)
 			self.xparam_entries.append(d_entry)
 			w_lbl = tk.Label(self.xparam_frm, text="Width (mm):")
-			w_lbl.grid(row=0, column=0)
+			w_lbl.grid(row=0, column=1)
 			w_entry = tk.Entry(self.xparam_frm, width=num_e_wid)
-			w_entry.grid(row=1, column=0)
+			w_entry.grid(row=1, column=1)
 			self.xparam_entries.append(w_entry)
 			tf_lbl = tk.Label(self.xparam_frm, text="Flange t (mm):")
 			tf_lbl.grid(row=0, column=2)
@@ -150,11 +151,6 @@ class Add_mem:
 
 #Add support toolbar
 class Add_sup:
-	sup_types = {
-		0: "Fixed",
-		1: "Pin",
-		2: "Roller"
-	}
 	def __init__(self, main_frm):
 		self.tb_frm = tk.Frame(main_frm)
 		self.tb_frm.config(highlightcolor="grey", highlightbackground="grey", highlightthickness=1)
@@ -168,8 +164,7 @@ class Add_sup:
 		#Radio buttons for support type
 		self.sup_type = tk.IntVar(self.tb_frm)
 		self.sup_type.set(0)
-		for val in self.sup_types:
-			txt = self.sup_types[val]
+		for val, txt in Support.sup_types.items():
 			s_btn = tk.Radiobutton(self.tb_frm, variable=self.sup_type, value=val)
 			s_btn.config(indicatoron=0, text=txt, width=8)
 			s_btn.grid(row=0, column=next_col)

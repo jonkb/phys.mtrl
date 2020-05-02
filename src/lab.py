@@ -3,18 +3,21 @@ import math
 #My files
 from member import *
 from region import *
+from support import Support
 
 
 class Lab:
 	#Constants
-	px_per_m = 200#scale
+	px_per_m = 180#scale
 	dash_len = int(px_per_m/6)
 	snap_dist = 15
 	
 	def __init__(self, main_frm, add_mem_bar, add_sup_bar):
 		self.c_wd = 800
-		self.c_ht = 500
 		#Remember that when c_wd = 800 pixels, this corrosponds to x=[0,799]
+		self.c_ht = 500
+		#mode: 0=None, 1=add_mem, 2=add_sup
+		self.add_mode = 0#
 		add_mem_bar.add_btn.config(command=self.toggle_mem_mode)
 		self.add_mem_bar = add_mem_bar
 		self.floating_mem = None
@@ -54,30 +57,27 @@ class Lab:
 	#Snap x,y (in px) to the ends of existing members
 	def snap_to_mem(self, xp, yp):
 		xc, yc = self.px_to_coords(xp,yp)
-		#Direction 0,1,2,3 --> Up, Left, Down, Right -- Pointing away from member
-		dir = 0
+		side = 0
 		closest_r = self.snap_dist / self.px_per_m
+		closest = None
 		for m in self.members:
 			r0 = math.sqrt((m.x0-xc)**2 + (m.y0-yc)**2)
 			if r0 < closest_r:
 				xp,yp = self.coords_to_px(m.x0, m.y0)
 				closest_r = r0
-				if m.get_vh():
-					dir = 2
-				else:
-					dir = 1
+				closest = m
+				side = 0
 			r1 = math.sqrt((m.x1-xc)**2 + (m.y1-yc)**2)
 			if r1 < closest_r:
 				xp,yp = self.coords_to_px(m.x1, m.y1)
 				closest_r = r1
-				if m.get_vh():
-					dir = 0
-				else:
-					dir = 3
+				closest = m
+				side = 1
 		#xc, yc = self.px_to_coords(x,y)
 		closest_r_px = closest_r * self.px_per_m
-		return ((xp, yp),closest_r_px,dir)
+		return ((xp, yp), closest_r_px, side, closest)
 	def resize(self, event):
+		#This can actually be way simplified by calculating a delta y just once.
 		for m in self.members:
 			m.oldx, m.oldy = self.coords_to_px(m.x0, m.y0)
 		self.c_wd, self.c_ht = event.width, event.height
@@ -85,6 +85,9 @@ class Lab:
 		for m in self.members:
 			newx, newy = self.coords_to_px(m.x0, m.y0)
 			self.canv.move(m.img_ref, newx-m.oldx, newy-m.oldy)
+			for s in m.sup:
+				if not s == None:
+					self.canv.move(s.tag, newx-m.oldx, newy-m.oldy)
 		
 		self.canv.delete(*self.bggrid)
 		#Make 1.0m^2 grid
@@ -140,14 +143,14 @@ class Lab:
 			except:
 				return
 			xsec = Circle(r)
-		if xsec == "rectangle":
+		elif xsec == "rectangle":
 			try:
 				b = float(self.add_mem_bar.get_xparams()[0])/1000 #mm->m
 				h = float(self.add_mem_bar.get_xparams()[1])/1000 
 			except:
 				return
 			xsec = Rectangle(b, h)
-		if xsec == "I-beam":
+		elif xsec == "I-beam":
 			try:
 				d = float(self.add_mem_bar.get_xparams()[0])/1000 #mm->m
 				w = float(self.add_mem_bar.get_xparams()[1])/1000 
@@ -166,10 +169,15 @@ class Lab:
 	def add_support(self, event):
 		x = event.x
 		y = event.y
-		(xp,yp), closest_r, dir = self.snap_to_mem(x,y)
+		(xp,yp), closest_r, side, mem = self.snap_to_mem(x,y)
 		if closest_r < self.snap_dist:
+			stype = self.add_sup_bar.get_sup_type()
+			stag = 'sup_'+str(mem.img_ref)+'s'+str(side)
+			sup = Support(stype, stag)
+			sup.draw(self.canv, xp, yp, mem.sup_dir(side))
+			mem.sup[side] = sup
 			self.set_sup_mode(False)
-	def rect_mem_coords(self, x,y,L_px):
+	def rect_mem_coords(self, x, y, L_px):
 		hh = self.add_mem_bar.half_h()
 		if hh=="NaN":
 			return "NaN"

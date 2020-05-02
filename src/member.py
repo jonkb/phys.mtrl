@@ -8,6 +8,7 @@ class Member:
 		self.length = length
 		self.placed = False
 		self.img_ref = None
+		self.sup = [None, None]
 	def __str__(self):
 		s = self.material["name"] + " member with cross section=("
 		s += str(self.xsection) + "), and length=" + str(self.length)
@@ -28,13 +29,24 @@ class Member:
 		if self.placed:
 			return (self.x0, self.y0, self.x1, self.y1)
 		return None
-	def get_vh(self):
+	def is_vert(self):
 		if self.placed:
 			if self.x1 == self.x0:
 				return True
 			else:
 				return False
 		return None
+	#side: 0 or 1 (start or end)
+	#direction: 0,1,2,3 --> Up, Left, Down, Right (Pointing away from member)
+	def sup_dir(self, side):
+		# (vert/horiz, side) --> dir
+		dir_switch = {
+			(True, 0) : 2,
+			(True, 1) : 0,
+			(False, 0) : 1,
+			(False, 1) : 3
+		}
+		return dir_switch[(self.is_vert(), side)]
 	@property
 	def E(self):
 		return self.material["E"]
