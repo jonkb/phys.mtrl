@@ -10,7 +10,19 @@ class Support:
 		self.type = type
 		self.tag = tag #tag on the canvas
 	
+	#Returns a binary tuple (x,y,th) for which directions the joint constrains
+	def constraints(self):
+		#Needs dir for roller...
+		#Note, something like a thrust joint is actually (0,2,0), not (0,1,1)
+		if self.type == 0:
+			return (1,1,1)
+		if self.type == 1:
+			return (1,1,0)
+	#Returns the degrees of freedom allowed by the support
+	#def d_of_f(self):
+	#	return 3 - sum(self.constraints())
 	def draw(self, canv, x, y, dir):
+		self.dir = dir#Move this somewhere else
 		if self.type == 0:
 			self.draw_fixed(canv, x, y, dir)
 	#draws the lines making up a fixed support
@@ -39,3 +51,4 @@ class Support:
 			canv.create_line(x+10, y+10, x, y, tags=self.tag)
 			canv.create_line(x+10, y, x, y-10, tags=self.tag)
 			canv.create_line(x+10, y-10, x, y-20, tags=self.tag)
+			

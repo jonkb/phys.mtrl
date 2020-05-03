@@ -1,4 +1,5 @@
 import tkinter as tk
+import math
 
 from member import *
 from region import *
@@ -148,11 +149,14 @@ class Add_mem:
 		return self.xsec.get()
 	def get_vh(self):
 		return self.vh.get()
+	#Return true if all fields have numbers. Also returns false if any dim<=0
 	def has_float_vals(self):
 		try:
-			float(self.get_L())
+			if float(self.get_L()) <= 0:
+				return false
 			for v in self.get_xparams():
-				float(v)
+				if float(v) <= 0:
+					return false
 		except:#Flash fields red here?
 			return False
 		return True
@@ -166,7 +170,7 @@ class Add_sup:
 		
 		#First label
 		tb_lbl = tk.Label(self.tb_frm, text="Add New\nSupport")
-		tb_lbl.grid(row=0, column=0, rowspan=2)
+		tb_lbl.grid(row=0, column=0)
 		
 		next_col = 1
 		#Radio buttons for support type
@@ -186,9 +190,88 @@ class Add_sup:
 	def get_sup_type(self):
 		return self.sup_type.get()
 
-
-
-#END
-
-
+#Add load toolbar
+class Add_load:
+	xctext = "x-comp. (kN):"
+	yctext = "y-comp. (kN):"
+	rtext = "load (kN):"
+	thtext = "angle (deg):"
+	def __init__(self, main_frm):
+		self.tb_frm = tk.Frame(main_frm)
+		self.tb_frm.config(highlightcolor="grey", highlightbackground="grey", highlightthickness=1)
+		self.tb_frm.pack(side=tk.TOP, fill=tk.X)
+		
+		#First label
+		tb_lbl = tk.Label(self.tb_frm, text="Add New\nLoad")
+		tb_lbl.grid(row=0, column=0, rowspan=2)
+		
+		#Choose components or r,theta
+		self.c_p = tk.IntVar(self.tb_frm)
+		self.c_p.set(0)
+		c_btn = tk.Radiobutton(self.tb_frm, variable=self.c_p, value=0, command=self.setcomp)
+		c_btn.config(indicatoron=0, text="Components")
+		c_btn.grid(row=0, column=1, sticky=tk.W+tk.E)
+		p_btn = tk.Radiobutton(self.tb_frm, variable=self.c_p, value=1, command=self.setpol)
+		p_btn.config(indicatoron=0, text="Polar")
+		p_btn.grid(row=1, column=1, sticky=tk.W+tk.E)
+		
+		#Load comp. 1 label
+		self.Pc1_lbl = tk.Label(self.tb_frm, text=self.xctext)
+		self.Pc1_lbl.grid(row=0, column=2)
+		#Load comp. 1  entry
+		self.Pc1_entry = tk.Entry(self.tb_frm)
+		self.Pc1_entry.config(width=num_e_wid)
+		self.Pc1_entry.grid(row=1, column=2)
+		
+		#Load comp. 2  label
+		self.Pc2_lbl = tk.Label(self.tb_frm, text=self.yctext)
+		self.Pc2_lbl.grid(row=0, column=3)
+		#Load comp. 2  entry
+		self.Pc2_entry = tk.Entry(self.tb_frm)
+		self.Pc2_entry.config(width=num_e_wid)
+		self.Pc2_entry.grid(row=1, column=3)
+		
+		#Add option for distributed loads
+		
+		#Button to add the new load
+		self.add_btn = tk.Button(self.tb_frm, text="Add")
+		self.add_btn.grid(row=0, column=4, padx=2, pady=2, ipadx=8, rowspan=2, sticky=tk.N+tk.S)
+		
+		
+	def setcomp(self):
+		self.Pc1_lbl.config(text=self.xctext)
+		self.Pc2_lbl.config(text=self.yctext)
+	def setpol(self):
+		self.Pc1_lbl.config(text=self.rtext)
+		self.Pc2_lbl.config(text=self.thtext)
+	
+	#Returns the components of the load
+	def get_P(self):
+		try:
+			Pc1 = float(self.Pc1_entry.get())
+			Pc2 = float(self.Pc2_entry.get())
+		except:
+			return ("NaN","NaN")
+		if self.c_p.get() == 0: #"Components"
+			return (Pc1, Pc2)
+		if self.c_p.get() == 1: #"Polar"
+			Px = Pc1*math.cos(math.radians(Pc2))
+			Py = Pc1*math.sin(math.radians(Pc2))
+			return (Px, Py)
+	def mag(self):
+		x,y = self.get_P()
+		if self.c_p.get() == 0:
+			return math.sqrt(x**2+y**2)
+		if self.c_p.get() == 1:
+			return x
+	#Return true if all fields have numbers. Also returns false if mag==0
+	def has_float_vals(self):
+		try:
+			if self.mag() == 0:
+				return False
+			float(self.Pc1_entry.get())
+			float(self.Pc2_entry.get())
+		except:
+			return False
+		return True
 
