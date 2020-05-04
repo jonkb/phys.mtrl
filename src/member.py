@@ -2,6 +2,15 @@ import numpy
 #from region import Region
 eps = 1e-15
 
+def N_to_kN_str(N):
+	k = N/1e3
+	return str(round(k, 3))+"kN"
+def Pa_to_MPa_str(P):
+	M = P/1e6
+	return str(round(M, 3))+"MPa"
+def coords_str(x,y):
+	return "("+str(round(x,3))+","+str(round(y,3))+")"
+
 #prismatic uniform members
 class Member:
 	def __init__(self, material, xsection, length):
@@ -100,6 +109,9 @@ class Member:
 			c[2] += 1
 		d = numpy.array((1,1,1)) - c
 		return d.tolist()
+	def gen_report(self, type):
+		if type == 0:
+			return self.axial_stress()
 	def axial_stress(self):
 		if max(self.d_of_f()) > 0:
 			return "Underconstrained"
@@ -122,26 +134,52 @@ class Member:
 			self.loads.sort(key=lambda p:p.ax_dist)
 			uv_2free = -self.uv_axis()
 		#seg: [[xmin,xmax],internal P]
-		segments = []
+		p_segments = []
 		p_internal = 0
 		prev_d = 0
 		for p in self.loads:
 			#The axial component of the load
-			p_ax = numpy.dot(p.get_comp(), uv_2free)
+			p_ax = numpy.dot(p.get_comp(), uv_2free)*1000#kN
 			#d_2free = dist to free end
 			if fixed_end == 0:
 				d_2free = self.length - p.ax_dist
 			if fixed_end == 1:
 				d_2free = p.ax_dist
-			#Don't define a segment smaller than eps near the ends
-			if p.ax_dist > eps and abs(p.ax_dist - self.length) > eps:
-				segments.append([[prev_d,d_2free],p_internal])
+			#Don't define a segment smaller than eps (Happens @ ends)
+			if abs(prev_d - d_2free) > eps:
+				p_segments.append([[prev_d,d_2free],p_internal])
 			p_internal += p_ax
 			prev_d = d_2free
 		if self.length - prev_d > eps:
-			segments.append([[prev_d,self.length],p_internal])
+			p_segments.append([[prev_d,self.length],p_internal])
 		#Now, take those internal forces and convert to stresses and report on it.
-		print(segments)
+		s_segments = []
+		xA = self.xarea
+		max_s = [(0,0),0]
+		min_s = [(0,0),0]
+		for ps in p_segments:
+			domain,p = ps
+			sig = p/xA
+			ss = [domain, sig]
+			if sig > max_s[1]:
+				max_s = ss
+			if sig < min_s[1]:
+				min_s = ss
+			s_segments.append(ss)
+		rep_text = "Measuring distance 'x' (in m) from the free end of the member,"
+		for ps,ss in zip(p_segments,s_segments):
+			domain, p = ps
+			domain, s = ss
+			rep_text += "\nfor x \u03F5 "+coords_str(domain[0],domain[1])+", "
+			rep_text += "tension = "+N_to_kN_str(p)+", "
+			rep_text += "\u03C3 = "+Pa_to_MPa_str(s)
+		if max_s[1] > 0:
+			rep_text += "\nMax Tensile \u03C3 = "+Pa_to_MPa_str(max_s[1])
+			rep_text += " @ x \u03F5 "+coords_str(max_s[0][0],max_s[0][1])+", "
+		if min_s[1] < 0:
+			rep_text += "\nMax Compressive \u03C3 = "+Pa_to_MPa_str(-min_s[1])
+			rep_text += " @ x \u03F5 "+coords_str(min_s[0][0],min_s[0][1])+", "
+		return rep_text
 
 #This class is really just for reference. I'm not sure if this is the best way to do this.
 class Materials:

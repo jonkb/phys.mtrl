@@ -21,6 +21,8 @@ class Lab:
 		#Remember that when c_wd = 800 pixels, this corrosponds to x=[0,799]
 		self.c_ht = 500
 		#mode: 0=None, 1=add_mem, 2=add_sup, 3=add_load
+		self.sel_mem_cb = None
+		self.sel_txt = None
 		self.add_mode = 0
 		self.floating = None
 		add_mem_bar.add_btn.config(command=self.toggle_mem_mode)
@@ -103,7 +105,7 @@ class Lab:
 					xp,yp = self.coords_to_px(m.x1, m.y1)
 					v_comp = m.length
 			else:
-				r = float(numpy.cross(uv_axis,v_s0_P))
+				r = abs(float(numpy.cross(uv_axis,v_s0_P)))
 				if r < closest_r:
 					closest_r = r
 					closest = m
@@ -122,7 +124,7 @@ class Lab:
 			newx, newy = self.coords_to_px(m.x0, m.y0)
 			self.canv.move(m.img_ref, newx-m.oldx, newy-m.oldy)
 			for s in m.sup:
-				if not s == None:
+				if s != None:
 					self.canv.move(s.tag, newx-m.oldx, newy-m.oldy)
 			for l in m.loads:
 				self.canv.move(l.tag, newx-m.oldx, newy-m.oldy)
@@ -182,6 +184,8 @@ class Lab:
 			self.add_support(event)
 		elif self.add_mode == 3:
 			self.add_load(event)
+		elif self.sel_mem_cb != None:
+			self.sel_mem(event)
 	def add_member(self, event):
 		if not self.add_mem_bar.has_float_vals():
 			return
@@ -215,7 +219,7 @@ class Lab:
 		x = event.x
 		y = event.y
 		(xp,yp), mem, side = self.snap_to_mem_ends(x,y)
-		if not mem == None:
+		if mem != None:
 			stype = self.add_sup_bar.get_sup_type()
 			stag = 'sup_'+str(mem.img_ref)+'_s'+str(side)
 			self.canv.delete(stag)#Delete the support img if it exists
@@ -228,7 +232,7 @@ class Lab:
 		y = event.y
 		(xp,yp), mem, ax_dist = self.snap_to_mem_axis(x,y)
 		#(xc,yc) = self.px_to_coords(xp,yp)
-		if not mem == None:
+		if mem != None:
 			ltag = 'load_'+str(mem.img_ref)+'_d'+str(ax_dist)
 			#self.canv.delete(ltag)
 			ltype = 0#self.add_load_bar.something
@@ -237,8 +241,18 @@ class Lab:
 			load.draw(self.canv, xp, yp, self.px_per_kN)
 			mem.loads.append(load)
 			self.set_add_mode(0)
-			#TEMP
-			mem.axial_stress()
+			#popup_report(mem, 0)
+			#mem.axial_stress()
+	def sel_mem(self, event):
+		x = event.x
+		y = event.y
+		(xp,yp), mem, _ = self.snap_to_mem_axis(x,y)
+		if mem != None:
+			#print("251: "+str(mem))
+			cb = self.sel_mem_cb
+			self.sel_mem_cb = None
+			self.canv.delete(self.sel_txt)
+			cb(mem)
 	def rect_mem_coords(self, x, y, L_px):
 		hh = self.add_mem_bar.half_h()
 		if hh=="NaN":
@@ -268,9 +282,49 @@ class Lab:
 		self.canv.delete(self.floating)
 		self.floating = None
 		self.add_mode = mode
+	#callback is a function that accepts a reference to a member
+	def select_mem(self, callback):
+		self.canv.delete(self.sel_txt)
+		self.sel_txt = self.canv.create_text(self.c_wd - 75, self.c_ht - 12, text="SELECT A MEMBER")
+		self.sel_mem_cb = callback
+	def del_mem(self, mem):
+		for l in mem.loads:
+			self.canv.delete(l.tag)
+		for s in mem.sup:
+			if s != None:
+				self.canv.delete(s.tag)
+		self.canv.delete(mem.img_ref)
+		self.members.remove(mem)
+	def clear_all(self):
+		mem_copy = self.members.copy()
+		for m in mem_copy:
+			self.del_mem(m)
 	def toggle_mem_mode(self):
 		self.set_add_mode(0) if self.add_mode==1 else self.set_add_mode(1)
 	def toggle_sup_mode(self):
 		self.set_add_mode(0) if self.add_mode==2 else self.set_add_mode(2)
 	def toggle_load_mode(self):
 		self.set_add_mode(0) if self.add_mode==3 else self.set_add_mode(3)
+	def eval_axial(self):
+		self.select_mem(lambda m: self.popup_report(m,0))
+	def del_mode(self):
+		self.select_mem(lambda m: self.del_mem(m))
+	def popup_report(self, mem, type):
+		name = {
+			0: "Axial Stress"
+		}
+		rep_text = mem.gen_report(type)
+		popup = tk.Tk()
+		popup.title(name[type]+" Report")
+		popup.iconbitmap("../img/phys.ico")
+		mem_lbl = tk.Label(popup, text=str(mem))
+		mem_lbl.pack()
+		rep_lbl = tk.Label(popup, text=rep_text)
+		rep_lbl.pack()
+		#Flash blue
+		self.canv.itemconfig(mem.img_ref, outline="blue")
+		def ol_black():
+			self.canv.itemconfig(mem.img_ref, outline="black")
+			popup.destroy()
+		popup.protocol("WM_DELETE_WINDOW", ol_black)
+		popup.mainloop()
