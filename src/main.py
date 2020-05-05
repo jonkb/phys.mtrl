@@ -31,11 +31,12 @@ menubar.add_cascade(label="File", menu=filemenu)
 optmenu = tk.Menu(menubar, tearoff=0)
 mem_wtls = tk.IntVar()
 optmenu.add_checkbutton(label="Weightless Members", variable=mem_wtls)
-optmenu.add_command(label="Set Scale")
+optmenu.add_command(label="Set Scale", command=mlab.edit_scale)
 menubar.add_cascade(label="Options", menu=optmenu)
 mlab.mem_wtls = mem_wtls
 evalmenu = tk.Menu(menubar, tearoff=0)
 evalmenu.add_command(label="Axial Stress", command=mlab.eval_axial)
+evalmenu.add_command(label="Euler Buckling", command=mlab.eval_buckling)
 menubar.add_cascade(label="Evaluate", menu=evalmenu)
 delmenu = tk.Menu(menubar, tearoff=0)
 delmenu.add_command(label="Clear All", command=mlab.clear_all)
@@ -44,6 +45,11 @@ delmenu.add_command(label="Member", command=mlab.del_mode)
 #evelmenu.add_command(label="Load", command=mlab.)
 menubar.add_cascade(label="Delete", menu=delmenu)
 root.config(menu=menubar)
+
+def cleanup():
+	mlab.cleanup()
+	root.destroy()
+root.protocol("WM_DELETE_WINDOW", cleanup)
 
 #Start
 root.mainloop()

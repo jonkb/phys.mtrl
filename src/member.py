@@ -1,24 +1,33 @@
+import math
 import numpy
 #from region import Region
 eps = 1e-15
+default_sigfig = 4
 
-def N_to_kN_str(N):
+#round x to n significant figures
+def sigfig(x, n=default_sigfig):
+	if abs(x) < eps:
+		return 0
+	return round(x, int(-math.log10(abs(x))+n))
+def N_to_kN_str(N, n=default_sigfig):
 	k = N/1e3
-	return str(round(k, 3))+"kN"
-def Pa_to_MPa_str(P):
+	return str(sigfig(k, n))+"kN"
+def Pa_to_MPa_str(P, n=default_sigfig):
 	M = P/1e6
-	return str(round(M, 3))+"MPa"
-def coords_str(x,y):
-	return "("+str(round(x,3))+","+str(round(y,3))+")"
+	return str(sigfig(M, n))+"MPa"
+def coords_str(x,y, n=default_sigfig):
+	return "("+str(sigfig(x,n))+","+str(sigfig(y,n))+")"
 
 #prismatic uniform members
 class Member:
+	rep_err = ["Underconstrained", "Overconstrained", "Not Placed"]
 	def __init__(self, material, xsection, length):
 		self.material = material
 		self.xsection = xsection
 		self.length = length
 		self.placed = False
 		self.img_ref = None
+		self.popups = 0
 		self.sup = [None, None]
 		self.loads = []
 	def __repr__(self):
@@ -49,6 +58,9 @@ class Member:
 	@property
 	def xIp(self):
 		return self.xsection.Ip
+	@property
+	def xImin(self):
+		return self.xsection.Imin
 	@property
 	def mass(self):
 		return self.xarea * self.length * self.material["rho"]
@@ -111,17 +123,19 @@ class Member:
 		return d.tolist()
 	def gen_report(self, type):
 		if type == 0:
-			return self.axial_stress()
-	def axial_stress(self):
+			return self.axial_stress_rep()
+		if type == 1:
+			return self.axial_buckling_rep()
+	def axial_loads(self):
 		if max(self.d_of_f()) > 0:
-			return "Underconstrained"
+			return self.rep_err[0]# "Underconstrained"
 		if min(self.d_of_f()) < 0:
 			#Overconstrained--not statically determinate
 			#I can add a case for this later, with delta=PL/EA
-			return "Overconstrained"
+			return self.rep_err[1]# "Overconstrained"
 		isv = self.is_vert()
 		if isv == None:
-			return "Not Placed"
+			return self.rep_err[2] #"Not Placed"
 		for i,s in enumerate(self.sup):
 			if not s==None:
 				if s.constraints()[isv]: #0-->x, 1-->y
@@ -147,38 +161,99 @@ class Member:
 				d_2free = p.ax_dist
 			#Don't define a segment smaller than eps (Happens @ ends)
 			if abs(prev_d - d_2free) > eps:
-				p_segments.append([[prev_d,d_2free],p_internal])
+				p_segments.append( ((prev_d, d_2free), p_internal) )
 			p_internal += p_ax
 			prev_d = d_2free
 		if self.length - prev_d > eps:
-			p_segments.append([[prev_d,self.length],p_internal])
-		#Now, take those internal forces and convert to stresses and report on it.
+			p_segments.append( ((prev_d, self.length), p_internal) )
+		return p_segments
+	def axial_stress(self):
+		p_segments = self.axial_loads()
+		if p_segments in self.rep_err:
+			return p_segments
 		s_segments = []
 		xA = self.xarea
-		max_s = [(0,0),0]
-		min_s = [(0,0),0]
+		#max_s = ((0,0),0,0)
+		#min_s = ((0,0),0,0)
 		for ps in p_segments:
 			domain,p = ps
 			sig = p/xA
-			ss = [domain, sig]
-			if sig > max_s[1]:
-				max_s = ss
-			if sig < min_s[1]:
-				min_s = ss
+			ss = (domain, p, sig)
+			#if sig > max_s[1]:
+			#	max_s = ss
+			#if sig < min_s[1]:
+			#	min_s = ss
 			s_segments.append(ss)
+		return s_segments# (p_segments, s_segments, min_s, max_s)
+	def axial_strain(self):
+		s_segments = self.axial_stress()
+		if s_segments in self.rep_err:
+			return s_segments
+		eps_segments = []
+		for s in s_segments:
+			domain, p, sig = s
+			eps = sig / self.E
+			eps_segments.append( (domain, p, sig, eps) )
+		return eps_segments
+	def axial_stress_rep(self):
+		axeps = self.axial_strain()
+		if axeps in self.rep_err:
+			return axeps
+		max_s = ((0,0), 0, 0, 0)
+		min_s = ((0,0), 0, 0, 0)
+		for seg in axeps:
+			#domain, p, sig, eps = seg
+			if seg[1] > max_s[1]:
+				max_s = seg
+			if seg[1] < min_s[1]:
+				min_s = seg
 		rep_text = "Measuring distance 'x' (in m) from the free end of the member,"
-		for ps,ss in zip(p_segments,s_segments):
-			domain, p = ps
-			domain, s = ss
+		for seg in axeps:
+			domain, p, sig, eps = seg
 			rep_text += "\nfor x \u03F5 "+coords_str(domain[0],domain[1])+", "
-			rep_text += "tension = "+N_to_kN_str(p)+", "
-			rep_text += "\u03C3 = "+Pa_to_MPa_str(s)
+			rep_text += "tension = "+N_to_kN_str(p)+ ", "
+			rep_text += "\u03C3 = "+Pa_to_MPa_str(sig)+ ", "
+			rep_text += "\u03B5 = "+str(sigfig(eps,4))
 		if max_s[1] > 0:
-			rep_text += "\nMax Tensile \u03C3 = "+Pa_to_MPa_str(max_s[1])
+			rep_text += "\nMax Tensile \u03C3 = "+Pa_to_MPa_str(max_s[2])
 			rep_text += " @ x \u03F5 "+coords_str(max_s[0][0],max_s[0][1])+", "
+			typer = round(max_s[2] / self.material["sig_y"] * 100, 2)
+			tuper = round(max_s[2] / self.material["sig_u"] * 100, 2)
+			rep_text += "\nWhich is "+str(typer)+"% of the yield stress and "
+			rep_text += str(tuper)+"% of the ultimate stress."
 		if min_s[1] < 0:
-			rep_text += "\nMax Compressive \u03C3 = "+Pa_to_MPa_str(-min_s[1])
+			rep_text += "\nMax Compressive \u03C3 = "+Pa_to_MPa_str(-min_s[2])
 			rep_text += " @ x \u03F5 "+coords_str(min_s[0][0],min_s[0][1])+", "
+			cyper = round(-min_s[2] / self.material["sig_y"] * 100, 2)
+			cuper = round(-min_s[2] / self.material["sig_u"] * 100, 2)
+			rep_text += "\nWhich is "+str(cyper)+"% of the yield stress and "
+			rep_text += str(cuper)+"% of the ultimate stress."
+			rep_text += "\nThis evaluation does not consider buckling."
+		return rep_text
+	def axial_buckling_rep(self):
+		p_seg = self.axial_loads()
+		if p_seg in self.rep_err:
+			return p_seg
+		if len(p_seg) > 1:
+			rep_text = "Sorry, I'm not exactly sure how to deal with "
+			rep_text += "\nbuckling in a column with multiple loads."
+			#I could give it a shot, though.
+			return rep_text
+		#I need to check the supports to find out the end conditions
+		rep_text = "Sorry, this is super basic right now."
+		rep_text += "\nI can only deal with fixed-free columns."
+		Pmax = -p_seg[0][1]
+		if Pmax < 0:
+			rep_text += "\nThere is no compressive load on this member, so it will not buckle."
+			return rep_text
+		Pcr = math.pi**2 * self.E * self.xImin / (4 * self.length**2)
+		Pper = round(Pmax / Pcr * 100, 2)
+		rep_text += "\nThe load applied to this member P = " + N_to_kN_str(Pmax)
+		rep_text += "\nThis is " + str(Pper) + "% of the critical load Pcr = " + N_to_kN_str(Pcr)
+		if Pmax < Pcr:
+			rep_text += "\nSo the member is stable"
+		if Pmax >= Pcr:
+			rep_text += "\nSo the member is unstable"
 		return rep_text
 
 #This class is really just for reference. I'm not sure if this is the best way to do this.

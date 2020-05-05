@@ -10,9 +10,9 @@ from load import Load
 
 class Lab:
 	#Constants
-	px_per_m = 160#scale
+	px_per_m = 200#scale
 	#how long is a 1kN force arrow
-	px_per_kN = 3.2#3.2 gives 160px=50kN
+	px_per_kN = 4.0#4.0 gives 200px=50kN
 	dash_len = int(px_per_m/6)
 	snap_dist = 15
 	
@@ -32,6 +32,7 @@ class Lab:
 		add_load_bar.add_btn.config(command=self.toggle_load_mode)
 		self.add_load_bar = add_load_bar
 		self.members = []
+		self.popups = []
 		
 		self.canv = tk.Canvas(main_frm, width=self.c_wd, height=self.c_ht, bg='white')
 		self.canv.config(borderwidth=0, highlightthickness=0)
@@ -114,11 +115,15 @@ class Lab:
 					pf = s0 + v_comp*uv_axis
 					xp,yp = self.coords_to_px(*pf)
 		return ((xp,yp), closest, v_comp)
-	def resize(self, event):
+	def redraw(self, w=None, h=None):
+		if w == None:
+			w = self.c_wd
+		if h == None:
+			h = self.c_ht
 		#This can actually be way simplified by calculating a delta y just once.
 		for m in self.members:
 			m.oldx, m.oldy = self.coords_to_px(m.x0, m.y0)
-		self.c_wd, self.c_ht = event.width, event.height
+		self.c_wd, self.c_ht = w, h
 		self.canv.coords(self.bgbox, 0, 0, self.c_wd-1,self.c_ht-1)
 		for m in self.members:
 			newx, newy = self.coords_to_px(m.x0, m.y0)
@@ -137,6 +142,8 @@ class Lab:
 		for liney in range(self.px_per_m, self.c_ht, self.px_per_m):
 			self.bggrid.append(self.canv.create_line(
 				0, self.c_ht-1-liney, self.c_wd-1, self.c_ht-1-liney, fill="gray", dash=(self.dash_len,)))
+	def resize(self, event):
+		self.redraw(event.width, event.height)
 	def mouse_moved(self, event):
 		x = event.x
 		y = event.y
@@ -307,11 +314,14 @@ class Lab:
 		self.set_add_mode(0) if self.add_mode==3 else self.set_add_mode(3)
 	def eval_axial(self):
 		self.select_mem(lambda m: self.popup_report(m,0))
+	def eval_buckling(self):
+		self.select_mem(lambda m: self.popup_report(m,1))
 	def del_mode(self):
 		self.select_mem(lambda m: self.del_mem(m))
 	def popup_report(self, mem, type):
 		name = {
-			0: "Axial Stress"
+			0: "Axial Stress",
+			1: "Euler Buckling"
 		}
 		rep_text = mem.gen_report(type)
 		popup = tk.Tk()
@@ -323,8 +333,58 @@ class Lab:
 		rep_lbl.pack()
 		#Flash blue
 		self.canv.itemconfig(mem.img_ref, outline="blue")
-		def ol_black():
-			self.canv.itemconfig(mem.img_ref, outline="black")
+		mem.popups += 1
+		def del_pop():
+			mem.popups -= 1
+			#This way, if you have multiple reports on the same member, it stays blue when closing one
+			if mem.popups <= 0:
+				self.canv.itemconfig(mem.img_ref, outline="black")
 			popup.destroy()
-		popup.protocol("WM_DELETE_WINDOW", ol_black)
+		popup.protocol("WM_DELETE_WINDOW", del_pop)
+		self.popups.append(popup)
 		popup.mainloop()
+	#Open window to edit px_per_m and px_per_kN
+	def edit_scale(self):
+		popup = tk.Tk()
+		popup.title("Edit Lab Scale")
+		popup.iconbitmap("../img/phys.ico")
+		popup.grid_columnconfigure(0, minsize=120)
+		popup.grid_columnconfigure(1, minsize=120)
+		popup.grid_rowconfigure(2, pad=16)
+		
+		ppm_lbl = tk.Label(popup, text="px per m: ")
+		ppm_lbl.grid(row=0, column=0, sticky=tk.E)
+		ppm_e = tk.Entry(popup, width=8)
+		ppm_e.grid(row=0, column=1, sticky=tk.W)
+		ppm_e.insert(0, self.px_per_m)
+		ppk_lbl = tk.Label(popup, text="px per kN: ")
+		ppk_lbl.grid(row=1, column=0, sticky=tk.E)
+		ppk_e = tk.Entry(popup, width=8)
+		ppk_e.grid(row=1, column=1, sticky=tk.W)
+		ppk_e.insert(0, self.px_per_kN)
+		note = "Note: For now, since resizing with members on the canvas does not work "
+		note += "properly, hitting save will also remove any members from the screen."
+		note_lbl = tk.Label(popup, text=note, wraplength=300)
+		note_lbl.grid(row=2, column=0, columnspan=2)
+		
+		def set_scale():
+			try:
+				ppm = int(ppm_e.get())
+				self.px_per_m = ppm
+			except:
+				ppm_e.delete(0,tk.END)
+				ppm_e.insert(0, self.px_per_m)
+			try:
+				ppk = float(ppk_e.get())
+				self.px_per_kN = ppk
+			except:
+				ppk_e.delete(0,tk.END)
+				ppk_e.insert(0, self.px_per_kN)
+			self.clear_all()
+			self.redraw()
+		save_btn = tk.Button(popup, text="Save", command=set_scale)
+		save_btn.grid(row=3, column=0, columnspan=2, ipadx= 12)
+		popup.mainloop()
+	def cleanup(self):
+		for w in self.popups:
+			w.destroy()

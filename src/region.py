@@ -15,6 +15,12 @@ class Region:
 	@property
 	def Ip(self):
 		return self.Ix+self.Iy
+	@property
+	def Imin(self):
+		#This isn't necessarily correct
+		#If x and y aren't principle axes, this needs to be calculated
+		#https://calcresource.com/moment-of-inertia-rotation.html
+		return min(self.Ix, self.Iy)
 
 class Circle(Region):
 	def __init__(self, radius):
