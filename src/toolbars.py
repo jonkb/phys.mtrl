@@ -115,10 +115,21 @@ class Add_mem:
 			tw_entry = tk.Entry(self.xparam_frm, width=num_e_wid)
 			tw_entry.grid(row=1, column=3)
 			self.xparam_entries.append(tw_entry)
+		if(region == "annulus"):
+			ro_lbl = tk.Label(self.xparam_frm, text="Outer Radius (mm):")
+			ro_lbl.grid(row=0, column=0)
+			ro_entry = tk.Entry(self.xparam_frm, width=num_e_wid)
+			ro_entry.grid(row=1, column=0)
+			self.xparam_entries.append(ro_entry)
+			ri_lbl = tk.Label(self.xparam_frm, text="Inner Radius (mm):")
+			ri_lbl.grid(row=0, column=1)
+			ri_entry = tk.Entry(self.xparam_frm, width=num_e_wid)
+			ri_entry.grid(row=1, column=1)
+			self.xparam_entries.append(ri_entry)
 	#Return half of the height of the beam being added (in m)
 	def half_h(self):
 		xsec = self.xsec.get()
-		if xsec == "circle":
+		if xsec == "circle" or xsec == "annulus":
 			try:
 				r = float(self.get_xparams()[0])/1000 #mm
 			except:

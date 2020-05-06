@@ -215,6 +215,10 @@ class Lab:
 			tf = float(self.add_mem_bar.get_xparams()[2])/1000 
 			tw = float(self.add_mem_bar.get_xparams()[3])/1000 
 			xsec = W_F_I(d, w, tf, tw)
+		elif xsec == "annulus":
+			ro = float(self.add_mem_bar.get_xparams()[0])/1000
+			ri = float(self.add_mem_bar.get_xparams()[1])/1000
+			xsec = Annulus(ro, ri)
 		m = Member(matl, xsec, L)
 		xc,yc = self.px_to_coords(x,y)
 		m.place(xc, yc, self.add_mem_bar.get_vh())
@@ -339,6 +343,7 @@ class Lab:
 			#This way, if you have multiple reports on the same member, it stays blue when closing one
 			if mem.popups <= 0:
 				self.canv.itemconfig(mem.img_ref, outline="black")
+			self.popups.remove(popup)
 			popup.destroy()
 		popup.protocol("WM_DELETE_WINDOW", del_pop)
 		self.popups.append(popup)

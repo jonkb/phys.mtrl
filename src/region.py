@@ -3,7 +3,7 @@ import math
 #A closed 2D Region.
 #Used for cross sections of members.
 class Region:
-	regions = ("circle", "rectangle", "I-beam")
+	regions = ("circle", "rectangle", "I-beam", "annulus")
 
 	#Ix,Iy - second moment of area about (horizontal,vertical) axes
 	def __init__(self, area, Ix, Iy):
@@ -76,3 +76,18 @@ class W_F_I(Region):
 	def Iy(self):
 		return (self.depth-2*self.tflg)*self.tweb**3/12 + self.tflg*self.width**3/6
 
+class Annulus(Region):
+	def __init__(self, ro, ri):
+		self.ro = ro
+		self.ri = ri
+	def __str__(self):
+		return "annulus with outer radius=" +str(self.ro)+", and inner radius=" +str(self.ri)
+	@property
+	def area(self):
+		return math.pi * (self.ro**2 - self.ri**2)
+	@property
+	def Ix(self):
+		return math.pi/4* (self.ro**4 - self.ri**4)
+	@property
+	def Iy(self):
+		return self.Ix
