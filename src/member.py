@@ -278,7 +278,7 @@ class Member:
 			rep_text += str(cuper)+"% of the ultimate stress."
 			rep_text += "\nThis evaluation does not consider buckling."
 		#TEMP
-		#rep_text += "\n"+str(self.reactions())
+		rep_text += "\n"+str(self.reactions())
 		return rep_text
 	def axial_buckling_rep(self):
 		p_seg = self.axial_loads()
