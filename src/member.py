@@ -1,5 +1,5 @@
 import math
-import numpy
+import numpy as np
 #from region import Region
 eps = 1e-15
 default_sigfig = 4
@@ -89,9 +89,9 @@ class Member:
 				return False
 		return None
 	def v_axis(self):
-		return numpy.array([self.x1-self.x0, self.y1-self.y0])
+		return np.array([self.x1-self.x0, self.y1-self.y0])
 	def uv_axis(self):
-		#numpy.array(v_axis) / numpy.linalg.norm(v_axis)
+		#np.array(v_axis) / np.linalg.norm(v_axis)
 		return self.v_axis() / self.length
 	#side: 0 or 1 (start or end)
 	#direction: 0,1,2,3 --> Up, Left, Down, Right (Pointing away from member)
@@ -106,7 +106,7 @@ class Member:
 		return dir_switch[(self.is_vert(), side)]
 	#Returns the degrees of freedom of the member #(x,y,th)
 	def constraints(self):
-		c = numpy.array((0,0,0))
+		c = np.array((0,0,0))
 		for s in self.sup:
 			if not s == None:
 				c += s.constraints()
@@ -119,8 +119,56 @@ class Member:
 		if c[1] > 1:#Two different y --> y+th
 			c[1] -= 1
 			c[2] += 1
-		d = numpy.array((1,1,1)) - c
+		d = np.array((1,1,1)) - c
 		return d.tolist()
+	#Do the statics to calculate the reaction forces with two supports
+	#Returns a np.array([s0x, s0y, s0m, s1x, s1y, s1m])
+	def reactions(self):
+		if max(self.d_of_f()) > 0:
+			return self.rep_err[0]# "Underconstrained"
+		if min(self.d_of_f()) < 0:
+			#Overconstrained--not statically determinate
+			#I can add a case for this later, with delta=PL/EA
+			return self.rep_err[1]# "Overconstrained"
+		isv = self.is_vert()
+		if isv == None:
+			return self.rep_err[2] # "Not Placed"
+		#3 Statics equations (left hand only) - sum_x, sum_y, sum_m_0
+		st_eq = np.array([[1,0,0,1,0,0], [0,1,0,0,1,0], [0,0,1,0,self.length,1]])
+		if isv:
+			st_eq[2][3] = -self.length
+			st_eq[2][4] = 0
+		#3 Support equations, saying which support constraints are zero
+		sp_eq = np.array([[0,0,0,0,0,0], [0,0,0,0,0,0], [0,0,0,0,0,0]])
+		
+		#They can't both be none, because that would have been underconstrained
+		assert self.sup[0] != None or self.sup[1] != None, "141. DoF was calculated wrong."
+		if self.sup[0] == None:
+			sp_eq = np.array([[1,0,0,0,0,0], [0,1,0,0,0,0], [0,0,1,0,0,0]])
+		elif self.sup[1] == None:
+			sp_eq = np.array([[0,0,0,1,0,0], [0,0,0,0,1,0], [0,0,0,0,0,1]])
+		else:
+			n = 0
+			sp_c = np.concatenate( (self.sup[0].constraints(), self.sup[1].constraints()) )
+			for i, c_i in enumerate(sp_c):
+				if c_i == 0:
+					assert n < 3, "151. DoF was calculated wrong."
+					sp_eq[n][i] = 1
+					n += 1
+		M_A = np.concatenate( (st_eq,sp_eq) )
+		s_px = 0
+		s_py = 0
+		s_m = 0
+		for p in self.loads:
+			px,py = p.get_comp()
+			s_px += px
+			s_py += py
+			if isv:
+				s_m += -px * p.ax_dist
+			else:
+				s_m += py * p.ax_dist
+		M_B = [-s_px, -s_py, -s_m, 0, 0, 0]
+		return np.linalg.solve(M_A, M_B)
 	def gen_report(self, type):
 		if type == 0:
 			return self.axial_stress_rep()
@@ -137,7 +185,7 @@ class Member:
 		if isv == None:
 			return self.rep_err[2] #"Not Placed"
 		for i,s in enumerate(self.sup):
-			if not s==None:
+			if s != None:
 				if s.constraints()[isv]: #0-->x, 1-->y
 					fixed_end = i
 		#Sort starting at the free end
@@ -153,7 +201,7 @@ class Member:
 		prev_d = 0
 		for p in self.loads:
 			#The axial component of the load
-			p_ax = numpy.dot(p.get_comp(), uv_2free)*1000#kN
+			p_ax = np.dot(p.get_comp(), uv_2free)*1000#kN
 			#d_2free = dist to free end
 			if fixed_end == 0:
 				d_2free = self.length - p.ax_dist
@@ -229,6 +277,8 @@ class Member:
 			rep_text += "\nWhich is "+str(cyper)+"% of the yield stress and "
 			rep_text += str(cuper)+"% of the ultimate stress."
 			rep_text += "\nThis evaluation does not consider buckling."
+		#TEMP
+		#rep_text += "\n"+str(self.reactions())
 		return rep_text
 	def axial_buckling_rep(self):
 		p_seg = self.axial_loads()
