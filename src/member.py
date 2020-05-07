@@ -20,7 +20,7 @@ def coords_str(x,y, n=default_sigfig):
 
 #prismatic uniform members
 class Member:
-	rep_err = ["Underconstrained", "Overconstrained", "Not Placed"]
+	rep_err = ["Underconstrained", "Overconstrained", "Not Placed", "No Solution Found"]
 	def __init__(self, material, xsection, length):
 		self.material = material
 		self.xsection = xsection
@@ -168,7 +168,10 @@ class Member:
 			else:
 				s_m += py * p.ax_dist
 		M_B = [-s_px, -s_py, -s_m, 0, 0, 0]
-		return np.linalg.solve(M_A, M_B)
+		try:
+			return np.linalg.solve(M_A, M_B)
+		except:
+			return self.rep_err[3]
 	def gen_report(self, type):
 		if type == 0:
 			return self.axial_stress_rep()

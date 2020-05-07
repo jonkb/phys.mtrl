@@ -4,7 +4,7 @@ import numpy #For dot and cross products
 #My files
 from member import *
 from region import *
-from support import Support
+from support import *
 from load import Load
 
 
@@ -234,8 +234,18 @@ class Lab:
 			stype = self.add_sup_bar.get_sup_type()
 			stag = 'sup_'+str(mem.img_ref)+'_s'+str(side)
 			self.canv.delete(stag)#Delete the support img if it exists
-			sup = Support(stype, stag)
-			sup.draw(self.canv, xp, yp, mem.sup_dir(side))
+			if stype == 0:
+				sup = Fixed(stag)
+				sup.draw(self.canv, xp, yp, mem.sup_dir(side))
+			elif stype == 1:
+				sup = Pin(stag)
+				sup.draw(self.canv, xp, yp, mem.sup_dir(side))
+			elif stype == 2:
+				sup = Slot(stag, False)
+				sup.draw(self.canv, xp, yp)
+			elif stype == 3:
+				sup = Slot(stag, True)
+				sup.draw(self.canv, xp, yp)
 			mem.sup[side] = sup
 			self.set_add_mode(0)
 	def add_load(self, event):
