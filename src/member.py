@@ -1,14 +1,26 @@
 import math
 import numpy as np
+from load import *
 #from region import Region
-eps = 1e-15
+eps = 1e-14
 default_sigfig = 4
+grav = 9.81 #m/s^2
 
 #round x to n significant figures
 def sigfig(x, n=default_sigfig):
 	if abs(x) < eps:
 		return 0
 	return round(x, int(-math.log10(abs(x))+n))
+#Takes an iterable and rounds those elements that are very close to int
+def eps_round(A):
+	for i,e in enumerate(A):
+		if (abs(e)+eps/2) % 1 < eps:
+			A[i] = round(e)
+	return A
+def sigfig_iter(A, n=default_sigfig):
+	for i,e in enumerate(A):
+		A[i] = sigfig(e,n)
+	return A
 def N_to_kN_str(N, n=default_sigfig):
 	k = N/1e3
 	return str(sigfig(k, n))+"kN"
@@ -30,6 +42,7 @@ class Member:
 		self.popups = 0
 		self.sup = [None, None]
 		self.loads = []
+		self.has_weight = False
 	def __repr__(self):
 		return "Member({},{},{})".format(self.material, self.xsection, self.length)
 	def __str__(self):
@@ -121,6 +134,17 @@ class Member:
 			c[2] += 1
 		d = np.array((1,1,1)) - c
 		return d.tolist()
+	#Return a distributed load representing the weight of the member
+	def weight_dl(self):
+		q = grav*self.material["rho"]*self.xarea
+		wdl = Distr_Load(None, 0, -q, 0, 0, -q, self.length, self.is_vert())
+		return wdl
+	#Return a copy of acting loads. Include weight if we're counting weight.
+	def my_loads(self):
+		loads_c = self.loads.copy()
+		if self.has_weight:
+			loads_c.append(self.weight_dl())
+		return loads_c
 	#Do the statics to calculate the reaction forces with two supports
 	#Returns a np.array([s0x, s0y, s0m, s1x, s1y, s1m])
 	def reactions(self):
@@ -159,7 +183,7 @@ class Member:
 		s_px = 0
 		s_py = 0
 		s_m = 0
-		for p in self.loads:
+		for p in self.my_loads():
 			px,py = p.get_comp()
 			s_px += px
 			s_py += py
@@ -169,9 +193,10 @@ class Member:
 				s_m += py * p.ax_dist
 		M_B = [-s_px, -s_py, -s_m, 0, 0, 0]
 		try:
-			return np.linalg.solve(M_A, M_B)
+			SOL = np.linalg.solve(M_A, M_B)
 		except:
 			return self.rep_err[3]
+		return sigfig_iter(SOL, 6) #eps_round(SOL)
 	def gen_report(self, type):
 		if type == 0:
 			return self.axial_stress_rep()
@@ -191,18 +216,19 @@ class Member:
 			if s != None:
 				if s.constraints()[isv]: #0-->x, 1-->y
 					fixed_end = i
+		loads = self.my_loads()
 		#Sort starting at the free end
 		if fixed_end == 0:
-			self.loads.sort(key=lambda p:-p.ax_dist)
+			loads.sort(key=lambda p:-p.ax_dist)
 			uv_2free = self.uv_axis()
 		elif fixed_end == 1:
-			self.loads.sort(key=lambda p:p.ax_dist)
+			loads.sort(key=lambda p:p.ax_dist)
 			uv_2free = -self.uv_axis()
 		#seg: [[xmin,xmax],internal P]
 		p_segments = []
 		p_internal = 0
 		prev_d = 0
-		for p in self.loads:
+		for p in loads:
 			#The axial component of the load
 			p_ax = np.dot(p.get_comp(), uv_2free)*1000#kN
 			#d_2free = dist to free end

@@ -207,6 +207,10 @@ class Add_load:
 	yctext = "y-comp. (kN):"
 	rtext = "load (kN):"
 	thtext = "angle (deg):"
+	qxtext = "x-comp. (kN/m)" # Append q0 or q1 to the start for these four
+	qytext = "y-comp. (kN/m)"
+	qrtext = "mag (kN/m)"
+	qthtext = "angle (deg)"
 	def __init__(self, main_frm):
 		self.tb_frm = tk.Frame(main_frm)
 		self.tb_frm.config(highlightcolor="grey", highlightbackground="grey", highlightthickness=1)
@@ -216,45 +220,100 @@ class Add_load:
 		tb_lbl = tk.Label(self.tb_frm, text="Add New\nLoad")
 		tb_lbl.grid(row=0, column=0, rowspan=2)
 		
+		#Choose point or distributed
+		self.pt_ds = tk.IntVar(self.tb_frm)
+		self.pt_ds.set(0)
+		pt_btn = tk.Radiobutton(self.tb_frm, variable=self.pt_ds, value=0, command=self.setpt)
+		pt_btn.config(indicatoron=0, text="Point")
+		pt_btn.grid(row=0, column=1, sticky=tk.W+tk.E)
+		ds_btn = tk.Radiobutton(self.tb_frm, variable=self.pt_ds, value=1, command=self.setds)
+		ds_btn.config(indicatoron=0, text="Distributed")
+		ds_btn.grid(row=1, column=1, sticky=tk.W+tk.E)
+		
 		#Choose components or r,theta
 		self.c_p = tk.IntVar(self.tb_frm)
 		self.c_p.set(0)
 		c_btn = tk.Radiobutton(self.tb_frm, variable=self.c_p, value=0, command=self.setcomp)
 		c_btn.config(indicatoron=0, text="Components")
-		c_btn.grid(row=0, column=1, sticky=tk.W+tk.E)
+		c_btn.grid(row=0, column=2, sticky=tk.W+tk.E)
 		p_btn = tk.Radiobutton(self.tb_frm, variable=self.c_p, value=1, command=self.setpol)
 		p_btn.config(indicatoron=0, text="Polar")
-		p_btn.grid(row=1, column=1, sticky=tk.W+tk.E)
+		p_btn.grid(row=1, column=2, sticky=tk.W+tk.E)
 		
-		#Load comp. 1 label
-		self.Pc1_lbl = tk.Label(self.tb_frm, text=self.xctext)
-		self.Pc1_lbl.grid(row=0, column=2)
-		#Load comp. 1  entry
-		self.Pc1_entry = tk.Entry(self.tb_frm)
-		self.Pc1_entry.config(width=num_e_wid)
-		self.Pc1_entry.grid(row=1, column=2)
-		
-		#Load comp. 2  label
-		self.Pc2_lbl = tk.Label(self.tb_frm, text=self.yctext)
-		self.Pc2_lbl.grid(row=0, column=3)
-		#Load comp. 2  entry
-		self.Pc2_entry = tk.Entry(self.tb_frm)
-		self.Pc2_entry.config(width=num_e_wid)
-		self.Pc2_entry.grid(row=1, column=3)
-		
-		#Add option for distributed loads
+		#Frame that adjusts itself to have the needed fields
+		self.comp_frm = tk.Frame(self.tb_frm)
+		self.comp_frm.config(borderwidth=2, relief=tk.SUNKEN)
+		self.comp_frm.grid(row=0, column=3, rowspan=2, sticky=tk.N+tk.S)
+		self.comp_frm.grid_rowconfigure(1,weight=1)
+		self.setpt()
 		
 		#Button to add the new load
 		self.add_btn = tk.Button(self.tb_frm, text="Add")
-		self.add_btn.grid(row=0, column=4, padx=2, pady=2, ipadx=8, rowspan=2, sticky=tk.N+tk.S)
+		self.add_btn.grid(row=0, column=5, padx=2, pady=2, ipadx=8, rowspan=2, sticky=tk.N+tk.S)
 		
-		
+	def is_ds(self):
+		return self.pt_ds.get()
 	def setcomp(self):
 		self.Pc1_lbl.config(text=self.xctext)
 		self.Pc2_lbl.config(text=self.yctext)
+		if self.pt_ds.get() == 1:
+			self.Pc3_lbl.config(text="q0 "+self.qxtext)
+			self.Pc4_lbl.config(text="q0 "+self.qytext)
 	def setpol(self):
 		self.Pc1_lbl.config(text=self.rtext)
 		self.Pc2_lbl.config(text=self.thtext)
+		if self.pt_ds.get() == 1:
+			self.Pc3_lbl.config(text="q1 "+self.qrtext)
+			self.Pc4_lbl.config(text="q1 "+self.qthtext)
+	def setpt(self):
+		for widget in self.comp_frm.winfo_children():
+			widget.destroy()
+		#Load comp. 1 label
+		self.Pc1_lbl = tk.Label(self.comp_frm, text=self.xctext)
+		self.Pc1_lbl.grid(row=0, column=0)
+		#Load comp. 1  entry
+		self.Pc1_entry = tk.Entry(self.comp_frm)
+		self.Pc1_entry.config(width=num_e_wid)
+		self.Pc1_entry.grid(row=1, column=0)
+		#Load comp. 2  label
+		self.Pc2_lbl = tk.Label(self.comp_frm, text=self.yctext)
+		self.Pc2_lbl.grid(row=0, column=1)
+		#Load comp. 2  entry
+		self.Pc2_entry = tk.Entry(self.comp_frm)
+		self.Pc2_entry.config(width=num_e_wid)
+		self.Pc2_entry.grid(row=1, column=1)
+	def setds(self):
+		for widget in self.comp_frm.winfo_children():
+			widget.destroy()
+		#Q 0 comp. 1 label
+		self.Pc1_lbl = tk.Label(self.comp_frm, text="q0 "+self.qxtext)
+		self.Pc1_lbl.grid(row=0, column=0)
+		#Q 0 comp. 1  entry
+		self.Pc1_entry = tk.Entry(self.comp_frm)
+		self.Pc1_entry.config(width=num_e_wid)
+		self.Pc1_entry.grid(row=1, column=0)
+		#Q 0 comp. 2  label
+		self.Pc2_lbl = tk.Label(self.comp_frm, text="q0 "+self.qytext)
+		self.Pc2_lbl.grid(row=0, column=1)
+		#Q 0 comp. 2  entry
+		self.Pc2_entry = tk.Entry(self.comp_frm)
+		self.Pc2_entry.config(width=num_e_wid)
+		self.Pc2_entry.grid(row=1, column=1)
+		
+		#Q 1 comp. 1 label
+		self.Pc3_lbl = tk.Label(self.comp_frm, text="q1 "+self.qxtext)
+		self.Pc3_lbl.grid(row=0, column=2)
+		#Q 1 comp. 1  entry
+		self.Pc3_entry = tk.Entry(self.comp_frm)
+		self.Pc3_entry.config(width=num_e_wid)
+		self.Pc3_entry.grid(row=1, column=2)
+		#Q 1 comp. 2  label
+		self.Pc4_lbl = tk.Label(self.comp_frm, text="q1 "+self.qytext)
+		self.Pc4_lbl.grid(row=0, column=3)
+		#Q 1 comp. 2  entry
+		self.Pc4_entry = tk.Entry(self.comp_frm)
+		self.Pc4_entry.config(width=num_e_wid)
+		self.Pc4_entry.grid(row=1, column=3)
 	
 	#Returns the components of the load
 	def get_P(self):
@@ -263,26 +322,53 @@ class Add_load:
 			Pc2 = float(self.Pc2_entry.get())
 		except:
 			return ("NaN","NaN")
-		if self.c_p.get() == 0: #"Components"
-			return (Pc1, Pc2)
-		if self.c_p.get() == 1: #"Polar"
-			Px = Pc1*math.cos(math.radians(Pc2))
-			Py = Pc1*math.sin(math.radians(Pc2))
-			return (Px, Py)
+		if self.pt_ds.get() == 0:
+			if self.c_p.get() == 0: #"Components"
+				return (Pc1, Pc2)
+			if self.c_p.get() == 1: #"Polar"
+				return self.p_to_c(Pc1, Pc2)
+		elif self.pt_ds.get() == 1:
+			try:
+				Pc3 = float(self.Pc3_entry.get())
+				Pc4 = float(self.Pc4_entry.get())
+			except:
+				return ("NaN","NaN")
+			if self.c_p.get() == 0:
+				return ( (Pc1, Pc2), (Pc3, Pc4) )
+			if self.c_p.get() == 1:
+				return ( self.p_to_c(Pc1, Pc2), self.p_to_c(Pc3, Pc4))
 	def mag(self):
-		x,y = self.get_P()
-		if self.c_p.get() == 0:
-			return math.sqrt(x**2+y**2)
-		if self.c_p.get() == 1:
-			return x
+		if self.pt_ds.get() == 0:
+			x,y = self.get_P()
+			if self.c_p.get() == 0:
+				return math.sqrt(x**2+y**2)
+			if self.c_p.get() == 1:
+				return x
+		if self.pt_ds.get() == 1:
+			(x0,y0), (x1,y1) = self.get_P()
+			if self.c_p.get() == 0:
+				return ( math.sqrt(x0**2+y0**2), math.sqrt(x1**2+y1**2) )
+			if self.c_p.get() == 1:
+				return ( x0, x1 )
+	#Polar to Coords. th in deg
+	@staticmethod
+	def p_to_c(r, th):
+		x = r*math.cos(math.radians(th))
+		y = r*math.sin(math.radians(th))
+		return (x,y)
 	#Return true if all fields have numbers. Also returns false if mag==0
 	def has_float_vals(self):
+		#print(361)
 		try:
 			if self.mag() == 0:
 				return False
 			float(self.Pc1_entry.get())
 			float(self.Pc2_entry.get())
+			if self.pt_ds.get() == 1:
+				float(self.Pc3_entry.get())
+				float(self.Pc4_entry.get())
 		except:
 			return False
+		#print(371)
 		return True
 

@@ -5,12 +5,12 @@ import numpy #For dot and cross products
 from member import *
 from region import *
 from support import *
-from load import Load
+from load import *
 
 
 class Lab:
 	#Constants
-	px_per_m = 200#scale
+	px_per_m = 360#scale
 	#how long is a 1kN force arrow
 	px_per_kN = 4.0#4.0 gives 200px=50kN
 	dash_len = int(px_per_m/6)
@@ -20,11 +20,16 @@ class Lab:
 		self.c_wd = 800
 		#Remember that when c_wd = 800 pixels, this corrosponds to x=[0,799]
 		self.c_ht = 500
-		#mode: 0=None, 1=add_mem, 2=add_sup, 3=add_load
+		self.subdivision = 5 #For grid lines smaller than 1m
+		#self.mem_wtls = True
+		
+		self.ltag_n = 0
 		self.sel_mem_cb = None
 		self.sel_txt = None
+		#mode: 0=None, 1=add_mem, 2=add_sup, 3=add_load
 		self.add_mode = 0
 		self.floating = None
+		self.dlq0_temp = None #Temp 1/2 distributed load
 		add_mem_bar.add_btn.config(command=self.toggle_mem_mode)
 		self.add_mem_bar = add_mem_bar
 		add_sup_bar.add_btn.config(command=self.toggle_sup_mode)
@@ -41,14 +46,8 @@ class Lab:
 		self.canv.bind("<Motion>", self.mouse_moved)
 		self.canv.bind("<Button-1>", self.mouse_click)
 		self.bgbox = self.canv.create_rectangle(0,0,self.c_wd-1,self.c_ht-1)
-		self.bggrid = []
-		#Make 1.0m^2 grid
-		for linex in range(self.px_per_m, self.c_wd, self.px_per_m):
-			self.bggrid.append(self.canv.create_line(
-				linex, self.c_ht-1, linex, 0, fill="gray", dash=(self.dash_len,)))
-		for liney in range(self.px_per_m, self.c_ht, self.px_per_m):
-			self.bggrid.append(self.canv.create_line(
-				0, self.c_ht-1-liney, self.c_wd-1, self.c_ht-1-liney, fill="gray", dash=(self.dash_len,)))
+		self.bggrid = [] #Switch this to a tag
+		self.redraw_grid()
 	
 	#convert x,y coordinates in meters to their place on the canvas in pixels
 	def coords_to_px(self, xc, yc):
@@ -60,6 +59,16 @@ class Lab:
 		xc = xp / self.px_per_m
 		yc = (self.c_ht - yp) / self.px_per_m
 		return (xc,yc)
+	#convert a vector in kN to px
+	def kN_to_px(self, xc, yc):
+		Pxp = xc*self.px_per_kN
+		Pyp = -yc*self.px_per_kN
+		return (Pxp, Pyp)
+	def wtls(self):
+		try:
+			return self.mem_wtls.get()
+		except:# Was not set
+			return True
 	#Snap x,y (in px) to the ends of existing members
 	def snap_to_mem_ends(self, xp, yp):
 		xc, yc = self.px_to_coords(xp,yp)
@@ -121,6 +130,7 @@ class Lab:
 		if h == None:
 			h = self.c_ht
 		#This can actually be way simplified by calculating a delta y just once.
+		#Also I should make it change all the images if the scale changes.
 		for m in self.members:
 			m.oldx, m.oldy = self.coords_to_px(m.x0, m.y0)
 		self.c_wd, self.c_ht = w, h
@@ -133,15 +143,32 @@ class Lab:
 					self.canv.move(s.tag, newx-m.oldx, newy-m.oldy)
 			for l in m.loads:
 				self.canv.move(l.tag, newx-m.oldx, newy-m.oldy)
-		
+		self.redraw_grid()
+	def redraw_grid(self):
 		self.canv.delete(*self.bggrid)
-		#Make 1.0m^2 grid
-		for linex in range(self.px_per_m, self.c_wd, self.px_per_m):
-			self.bggrid.append(self.canv.create_line(
-				linex, self.c_ht-1, linex, 0, fill="gray", dash=(self.dash_len,)))
-		for liney in range(self.px_per_m, self.c_ht, self.px_per_m):
-			self.bggrid.append(self.canv.create_line(
-				0, self.c_ht-1-liney, self.c_wd-1, self.c_ht-1-liney, fill="gray", dash=(self.dash_len,)))
+		subdist = self.px_per_m / self.subdivision
+		xn = int(self.c_wd / subdist)
+		yn = int(self.c_ht / subdist)
+		subdash = 4 #int(self.dash_len/2)
+		#Make 1.0m^2 grid with subdivisions
+		for i in range(1, xn+1):
+			lnx = int(round(subdist*i))
+			if i % self.subdivision == 0:
+				self.bggrid.append(self.canv.create_line(
+					lnx, self.c_ht-1, lnx, 0, fill="gray", dash=self.dash_len))
+			else:
+				self.bggrid.append(self.canv.create_line(
+					lnx, self.c_ht-1, lnx, 0, fill="light gray", dash=subdash))
+		for i in range(1, yn+1):
+			lny = int(round(subdist*i))
+			if i % self.subdivision == 0:
+				self.bggrid.append(self.canv.create_line(0, self.c_ht-1-lny, 
+					self.c_wd-1, self.c_ht-1-lny, fill="gray", dash=self.dash_len))
+			else:
+				self.bggrid.append(self.canv.create_line(0, self.c_ht-1-lny, 
+					self.c_wd-1, self.c_ht-1-lny, fill="light gray", dash=subdash))
+		for l in self.bggrid:
+			self.canv.tag_lower(l)
 	def resize(self, event):
 		self.redraw(event.width, event.height)
 	def mouse_moved(self, event):
@@ -172,8 +199,15 @@ class Lab:
 				self.floating_x = x
 				self.floating_y = y
 				fl_tag = "fl_load"
-				load = Load(0, fl_tag, *self.add_load_bar.get_P())
-				load.draw(self.canv, x, y, self.px_per_kN)
+				if self.add_load_bar.is_ds():
+					if self.dlq0_temp == None:
+						(xc, yc), *_ = self.add_load_bar.get_P()
+					else:
+						*_, (xc, yc) = self.add_load_bar.get_P()
+				else:
+					xc, yc = self.add_load_bar.get_P()
+				load = Load(fl_tag, xc, yc)
+				load.draw(self, x, y)
 				self.floating = fl_tag
 				return
 			else:
@@ -190,7 +224,10 @@ class Lab:
 		elif self.add_mode == 2:
 			self.add_support(event)
 		elif self.add_mode == 3:
-			self.add_load(event)
+			if self.add_load_bar.is_ds():
+				self.add_distr_load(event)
+			else:
+				self.add_load(event)
 		elif self.sel_mem_cb != None:
 			self.sel_mem(event)
 	def add_member(self, event):
@@ -220,6 +257,8 @@ class Lab:
 			ri = float(self.add_mem_bar.get_xparams()[1])/1000
 			xsec = Annulus(ro, ri)
 		m = Member(matl, xsec, L)
+		if not self.wtls():
+			m.has_weight = True
 		xc,yc = self.px_to_coords(x,y)
 		m.place(xc, yc, self.add_mem_bar.get_vh())
 		m.img_ref = self.canv.create_rectangle(*self.rect_mem_coords(x, y, L*self.px_per_m), fill=rgb)
@@ -254,16 +293,44 @@ class Lab:
 		(xp,yp), mem, ax_dist = self.snap_to_mem_axis(x,y)
 		#(xc,yc) = self.px_to_coords(xp,yp)
 		if mem != None:
-			ltag = 'load_'+str(mem.img_ref)+'_d'+str(ax_dist)
+			ltag = "load_"+str(self.ltag_n)
+			self.ltag_n += 1
+			#ltag = 'load_'+str(mem.img_ref)+'_d'+str(ax_dist)
 			#self.canv.delete(ltag)
-			ltype = 0#self.add_load_bar.something
-			load = Load(ltype, ltag, *self.add_load_bar.get_P())
-			load.ax_dist = ax_dist
-			load.draw(self.canv, xp, yp, self.px_per_kN)
+			load = Load(ltag, *self.add_load_bar.get_P(), ax_dist)
+			load.draw(self, xp, yp)
 			mem.loads.append(load)
 			self.set_add_mode(0)
 			#popup_report(mem, 0)
 			#mem.axial_stress()
+	def add_distr_load(self, event):
+		x = event.x
+		y = event.y
+		(xp,yp), mem, ax_dist = self.snap_to_mem_axis(x,y)
+		if mem != None:
+			if self.dlq0_temp == None:
+				(q0x, q0y), _ = self.add_load_bar.get_P()
+				self.dlq0_temp = Load("dlq0_temp", q0x, q0y, ax_dist)
+				self.dlq0_temp.draw(self, xp, yp)
+				self.canv.delete(self.floating)
+				self.floating = None
+			else:
+				(q0x, q0y), (q1x, q1y) = self.add_load_bar.get_P()
+				axd0 = self.dlq0_temp.ax_dist
+				isv = mem.is_vert()
+				dltag = "dl_"+str(self.ltag_n)
+				self.ltag_n += 1
+				#+str(mem.img_ref)+"_d"+str(self.dlq0_temp.ax_dist)+"-"+str(ax_dist)
+				dl = Distr_Load(dltag, q0x, q0y, axd0, q1x, q1y, ax_dist, isv)
+				mem.loads.append(dl)
+				if mem.is_vert():
+					yp += (ax_dist - axd0)*self.px_per_m
+				else:
+					xp -= (ax_dist - axd0)*self.px_per_m
+				dl.draw(self, xp, yp)
+				self.canv.delete(self.dlq0_temp.tag)
+				self.dlq0_temp = None
+				self.set_add_mode(0)
 	def sel_mem(self, event):
 		x = event.x
 		y = event.y
@@ -325,7 +392,11 @@ class Lab:
 	def toggle_sup_mode(self):
 		self.set_add_mode(0) if self.add_mode==2 else self.set_add_mode(2)
 	def toggle_load_mode(self):
+		#print(354, self.add_mode)
 		self.set_add_mode(0) if self.add_mode==3 else self.set_add_mode(3)
+	def toggle_wtls(self):
+		for m in self.members:
+			m.has_weight = not self.wtls()
 	def eval_axial(self):
 		self.select_mem(lambda m: self.popup_report(m,0))
 	def eval_buckling(self):
@@ -365,7 +436,7 @@ class Lab:
 		popup.iconbitmap("../img/phys.ico")
 		popup.grid_columnconfigure(0, minsize=120)
 		popup.grid_columnconfigure(1, minsize=120)
-		popup.grid_rowconfigure(2, pad=16)
+		popup.grid_rowconfigure(4, pad=16)
 		
 		ppm_lbl = tk.Label(popup, text="px per m: ")
 		ppm_lbl.grid(row=0, column=0, sticky=tk.E)
@@ -377,28 +448,45 @@ class Lab:
 		ppk_e = tk.Entry(popup, width=8)
 		ppk_e.grid(row=1, column=1, sticky=tk.W)
 		ppk_e.insert(0, self.px_per_kN)
+		sd_lbl = tk.Label(popup, text="grid lines per m: ")
+		sd_lbl.grid(row=2, column=0, sticky=tk.E)
+		sd_e = tk.Entry(popup, width=8)
+		sd_e.grid(row=2, column=1, sticky=tk.W)
+		sd_e.insert(0, self.subdivision)
+		
 		note = "Note: For now, since resizing with members on the canvas does not work "
 		note += "properly, hitting save will also remove any members from the screen."
 		note_lbl = tk.Label(popup, text=note, wraplength=300)
-		note_lbl.grid(row=2, column=0, columnspan=2)
+		note_lbl.grid(row=3, column=0, columnspan=2)
 		
 		def set_scale():
 			try:
 				ppm = int(ppm_e.get())
 				self.px_per_m = ppm
 			except:
-				ppm_e.delete(0,tk.END)
+				ppm_e.delete(0, tk.END)
 				ppm_e.insert(0, self.px_per_m)
 			try:
 				ppk = float(ppk_e.get())
 				self.px_per_kN = ppk
 			except:
-				ppk_e.delete(0,tk.END)
+				ppk_e.delete(0, tk.END)
 				ppk_e.insert(0, self.px_per_kN)
+			try:
+				sd = int(sd_e.get())
+				self.subdivision = sd
+			except:
+				sd_e.delete(0, tk.END)
+				sd_e.insert(0, self.subdivision)
 			self.clear_all()
 			self.redraw()
 		save_btn = tk.Button(popup, text="Save", command=set_scale)
-		save_btn.grid(row=3, column=0, columnspan=2, ipadx= 12)
+		save_btn.grid(row=4, column=0, columnspan=2, ipadx= 16, ipady=2)
+		def del_pop():
+			self.popups.remove(popup)
+			popup.destroy()
+		popup.protocol("WM_DELETE_WINDOW", del_pop)
+		self.popups.append(popup)
 		popup.mainloop()
 	def cleanup(self):
 		for w in self.popups:

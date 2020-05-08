@@ -31,7 +31,7 @@ menubar.add_cascade(label="File", menu=filemenu)
 optmenu = tk.Menu(menubar, tearoff=0)
 mem_wtls = tk.IntVar()
 mem_wtls.set(True)
-optmenu.add_checkbutton(label="Weightless Members", variable=mem_wtls)
+optmenu.add_checkbutton(label="Weightless Members", variable=mem_wtls, command=mlab.toggle_wtls)
 optmenu.add_command(label="Set Scale", command=mlab.edit_scale)
 menubar.add_cascade(label="Options", menu=optmenu)
 mlab.mem_wtls = mem_wtls
