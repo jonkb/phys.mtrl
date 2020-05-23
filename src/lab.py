@@ -145,6 +145,7 @@ class Lab:
 				self.canv.move(l.tag, newx-m.oldx, newy-m.oldy)
 		self.redraw_grid()
 	def redraw_grid(self):
+		#Make it okay with no grid lines
 		self.canv.delete(*self.bggrid)
 		subdist = self.px_per_m / self.subdivision
 		xn = int(self.c_wd / subdist)
@@ -473,6 +474,7 @@ class Lab:
 				ppk_e.delete(0, tk.END)
 				ppk_e.insert(0, self.px_per_kN)
 			try:
+				#Limit to Z or N
 				sd = int(sd_e.get())
 				self.subdivision = sd
 			except:
