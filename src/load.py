@@ -1,5 +1,6 @@
 import math
 import numpy as np
+import sympy as sym
 
 class Load:
 	ah_width = 6
@@ -16,7 +17,7 @@ class Load:
 		return (self.xc,self.yc)
 	#Draw a point load. All args in pixels. The tip is at the point specified by (px,py)
 	def draw(self, lab, px, py):
-		pxc, pyc = lab.kN_to_px(self.xc, self.yc)
+		pxc, pyc = lab.kN_to_px(self.xc/1000, self.yc/1000)
 		lab.canv.create_line(px-pxc,py-pyc,px,py, width=2, fill="red", tags=self.tag)
 		L = math.sqrt(pxc**2+pyc**2)
 		ux = pxc/L
@@ -84,7 +85,7 @@ class Distr_Load(Load):
 		for axd in self.ax_rng(self.axd0, self.axd1):
 			lx = self.xc0 + (self.xc1 - self.xc0) * (axd-self.axd0)/Ld
 			ly = self.yc0 + (self.yc1 - self.yc0) * (axd-self.axd0)/Ld
-			pxc, pyc = lab.kN_to_px(lx, ly)
+			pxc, pyc = lab.kN_to_px(lx/1000, ly/1000)
 			if self.isv:
 				ax = px
 				ay = py - lab.px_per_m*(axd-self.axd0)
@@ -102,8 +103,8 @@ class Distr_Load(Load):
 			Tly = ay - ah_l*uy + self.ah_width/2*ux
 			T_points = [ax,ay, Trx,Try, Tlx,Tly]
 			lab.canv.create_polygon(T_points, fill="red", outline="red", tags=self.tag)
-		q0xc, q0yc = lab.kN_to_px(self.xc0, self.yc0)
-		q1xc, q1yc = lab.kN_to_px(self.xc1, self.yc1)
+		q0xc, q0yc = lab.kN_to_px(self.xc0/1000, self.yc0/1000)
+		q1xc, q1yc = lab.kN_to_px(self.xc1/1000, self.yc1/1000)
 		q0ax = px - q0xc
 		q0ay = py - q0yc
 		if self.isv:
@@ -113,4 +114,14 @@ class Distr_Load(Load):
 			q1ax = px + Ld*lab.px_per_m - q1xc
 			q1ay = py - q1yc
 		lab.canv.create_line(q0ax, q0ay, q1ax, q1ay, width=2, fill="red", tags=self.tag)
-
+	#Return two sympy functions for the load at a given axial d (Qx(d), Qy(d))
+	def to_symf(self):
+		d = sym.symbols("d")
+		Ld = self.axd1 - self.axd0
+		chr_pls = (sym.Heaviside(d-self.axd0, .5)-sym.Heaviside(d-self.axd1, .5))
+		px = self.xc0 + (d-self.axd0)/Ld*(self.xc1-self.xc0)
+		py = self.yc0 + (d-self.axd0)/Ld*(self.yc1-self.yc0)
+		return (px*chr_pls, py*chr_pls)
+	
+	
+	

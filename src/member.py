@@ -1,5 +1,6 @@
 import math
 import numpy as np
+import sympy as sym
 from load import *
 #from region import Region
 eps = 1e-14
@@ -24,6 +25,9 @@ def sigfig_iter(A, n=default_sigfig):
 def N_to_kN_str(N, n=default_sigfig):
 	k = N/1e3
 	return str(sigfig(k, n))+"kN"
+def Nm_to_kNm_str(Nm, n=default_sigfig):
+	km = Nm/1e3
+	return str(sigfig(km, n))+"kN-m"
 def Pa_to_MPa_str(P, n=default_sigfig):
 	M = P/1e6
 	return str(sigfig(M, n))+"MPa"
@@ -103,6 +107,7 @@ class Member:
 		return None
 	def v_axis(self):
 		return np.array([self.x1-self.x0, self.y1-self.y0])
+	#Unit vector along the axis
 	def uv_axis(self):
 		#np.array(v_axis) / np.linalg.norm(v_axis)
 		return self.v_axis() / self.length
@@ -145,6 +150,45 @@ class Member:
 		if self.has_weight:
 			loads_c.append(self.weight_dl())
 		return loads_c
+	#Returns two functions (of 'd') representing the sum of all distributed loads.
+	def sum_my_dl(self):
+		fx = sym.Integer(0)
+		fy = sym.Integer(0)
+		for p in self.my_loads():
+			if isinstance(p, Distr_Load):
+				(Qx, Qy) = p.to_symf()
+				fx += Qx
+				fy += Qy
+		return (fx, fy)
+	#Return shear as a function of 'd'.
+	#Convention: shear that would cause clockwise rotation is positive.
+	def shear_symf(self):
+		(qx, qy) = self.sum_my_dl()
+		(s0x, s0y, *_) = self.reactions()
+		V = sym.Integer(0)
+		d = sym.symbols('d')
+		#I should be able to do this with dot products if I ever allow angled members
+		if(self.is_vert()):
+			V += -s0x
+			V += sym.integrate(-qx, d)
+			for p in self.my_loads():
+				if not isinstance(p, Distr_Load):
+					V += -p.xc * sym.Heaviside(d-p.ax_dist, .5)
+		else:
+			V += s0y
+			V += sym.integrate(qy, d)
+			for p in self.my_loads():
+				if not isinstance(p, Distr_Load):
+					V += p.yc * sym.Heaviside(d-p.ax_dist, .5)
+		return V
+	def moment_symf(self):
+		d = sym.symbols('d')
+		#M = integrate(V, 0, d)
+		M = sym.integrate(self.shear_symf(), d)
+		M -= M.subs(d, 0)
+		(_, _, s0m, *_) = self.reactions()
+		M -= s0m
+		return M
 	#Do the statics to calculate the reaction forces with two supports
 	#Returns a np.array([s0x, s0y, s0m, s1x, s1y, s1m])
 	def reactions(self):
@@ -202,6 +246,8 @@ class Member:
 			return self.axial_stress_rep()
 		if type == 1:
 			return self.axial_buckling_rep()
+		if type == 2:
+			return self.internal_rep()
 	def axial_loads(self):
 		if max(self.d_of_f()) > 0:
 			return self.rep_err[0]# "Underconstrained"
@@ -230,7 +276,7 @@ class Member:
 		prev_d = 0
 		for p in loads:
 			#The axial component of the load
-			p_ax = np.dot(p.get_comp(), uv_2free)*1000#kN
+			p_ax = np.dot(p.get_comp(), uv_2free)
 			#d_2free = dist to free end
 			if fixed_end == 0:
 				d_2free = self.length - p.ax_dist
@@ -306,8 +352,6 @@ class Member:
 			rep_text += "\nWhich is "+str(cyper)+"% of the yield stress and "
 			rep_text += str(cuper)+"% of the ultimate stress."
 			rep_text += "\nThis evaluation does not consider buckling."
-		#TEMP
-		rep_text += "\n"+str(self.reactions())
 		return rep_text
 	def axial_buckling_rep(self):
 		p_seg = self.axial_loads()
@@ -333,6 +377,19 @@ class Member:
 			rep_text += "\nSo the member is stable"
 		if Pmax >= Pcr:
 			rep_text += "\nSo the member is unstable"
+		return rep_text
+	#Report on internal forces, sheer, and moment
+	def internal_rep(self):
+		(s0x, s0y, s0m, s1x, s1y, s1m) = self.reactions()
+		rep_text = "Support reactions (Rx, Ry, M)"
+		rep_text += "\nSupport 0: " + "("+N_to_kN_str(s0x)+","
+		rep_text += N_to_kN_str(s0y)+","+Nm_to_kNm_str(s0m)+")"
+		rep_text += "\nSupport 1: " + "("+N_to_kN_str(s1x)+","
+		rep_text += N_to_kN_str(s1y)+","+Nm_to_kNm_str(s1m)+")"
+		rep_text += "\nMeasuring 'd' (in m) from end zero (left or bottom) of the member,"
+		rep_text += "\nFor internal tension, see \"axial stress report\""
+		rep_text += "\nV(d) = "+str(self.shear_symf())
+		rep_text += "\nM(d) = "+str(self.moment_symf())
 		return rep_text
 
 #This class is really just for reference. I'm not sure if this is the best way to do this.

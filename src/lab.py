@@ -402,12 +402,15 @@ class Lab:
 		self.select_mem(lambda m: self.popup_report(m,0))
 	def eval_buckling(self):
 		self.select_mem(lambda m: self.popup_report(m,1))
+	def eval_VandM(self):
+		self.select_mem(lambda m: self.popup_report(m,2))
 	def del_mode(self):
 		self.select_mem(lambda m: self.del_mem(m))
 	def popup_report(self, mem, type):
 		name = {
 			0: "Axial Stress",
-			1: "Euler Buckling"
+			1: "Euler Buckling",
+			2: "Sheer and Moment"
 		}
 		rep_text = mem.gen_report(type)
 		popup = tk.Tk()

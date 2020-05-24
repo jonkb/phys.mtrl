@@ -315,7 +315,7 @@ class Add_load:
 		self.Pc4_entry.config(width=num_e_wid)
 		self.Pc4_entry.grid(row=1, column=3)
 	
-	#Returns the components of the load
+	#Returns the components of the load in N
 	def get_P(self):
 		try:
 			Pc1 = float(self.Pc1_entry.get())
@@ -324,9 +324,9 @@ class Add_load:
 			return ("NaN","NaN")
 		if self.pt_ds.get() == 0:
 			if self.c_p.get() == 0: #"Components"
-				return (Pc1, Pc2)
+				return (Pc1*1000, Pc2*1000)
 			if self.c_p.get() == 1: #"Polar"
-				return self.p_to_c(Pc1, Pc2)
+				return self.p_to_c(Pc1*1000, Pc2)
 		elif self.pt_ds.get() == 1:
 			try:
 				Pc3 = float(self.Pc3_entry.get())
@@ -334,9 +334,9 @@ class Add_load:
 			except:
 				return ("NaN","NaN")
 			if self.c_p.get() == 0:
-				return ( (Pc1, Pc2), (Pc3, Pc4) )
+				return ( (Pc1*1000, Pc2*1000), (Pc3*1000, Pc4*1000) )
 			if self.c_p.get() == 1:
-				return ( self.p_to_c(Pc1, Pc2), self.p_to_c(Pc3, Pc4))
+				return ( self.p_to_c(Pc1*1000, Pc2), self.p_to_c(Pc3*1000, Pc4))
 	def mag(self):
 		if self.pt_ds.get() == 0:
 			x,y = self.get_P()
