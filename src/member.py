@@ -180,7 +180,8 @@ class Member:
 			for p in self.my_loads():
 				if not isinstance(p, Distr_Load):
 					V += p.yc * sym.Heaviside(d-p.ax_dist, .5)
-		return V
+		#Rewriting as piecewise helps it to integrate the Heaviside
+		return V.rewrite(sym.Piecewise).doit()
 	def moment_symf(self):
 		d = sym.symbols('d')
 		#M = integrate(V, 0, d)
@@ -188,7 +189,7 @@ class Member:
 		M -= M.subs(d, 0)
 		(_, _, s0m, *_) = self.reactions()
 		M -= s0m
-		return M
+		return M.rewrite(sym.Piecewise).doit()
 	#Do the statics to calculate the reaction forces with two supports
 	#Returns a np.array([s0x, s0y, s0m, s1x, s1y, s1m])
 	def reactions(self):
@@ -388,9 +389,9 @@ class Member:
 		rep_text += N_to_kN_str(s1y)+","+Nm_to_kNm_str(s1m)+")"
 		rep_text += "\nMeasuring 'd' (in m) from end zero (left or bottom) of the member,"
 		rep_text += "\nFor internal tension, see \"axial stress report\""
-		rep_text += "\nV(d) = "+str(self.shear_symf())
-		rep_text += "\nM(d) = "+str(self.moment_symf())
-		return rep_text
+		#rep_text += "\nV(d) = "+str(self.shear_symf())
+		#rep_text += "\nM(d) = "+str(self.moment_symf())
+		return rep_text, self.shear_symf()/1000, self.moment_symf()/1000
 
 #This class is really just for reference. I'm not sure if this is the best way to do this.
 class Materials:

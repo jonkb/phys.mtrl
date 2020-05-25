@@ -1,6 +1,9 @@
 import tkinter as tk
 import math
-import numpy #For dot and cross products
+import numpy as np
+import sympy as sym
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 #My files
 from member import *
 from region import *
@@ -101,13 +104,13 @@ class Lab:
 			uv_axis = m.uv_axis()
 			v_s0_P = (xc-m.x0, yc-m.y0)
 			v_s1_P = (xc-m.x1, yc-m.y1)
-			if numpy.dot(v_axis, v_s0_P) < 0: #P is before s0
+			if np.dot(v_axis, v_s0_P) < 0: #P is before s0
 				r = math.sqrt((m.x0-xc)**2 + (m.y0-yc)**2)
 				if r < closest_r:
 					closest_r = r
 					closest = m
 					xp,yp = self.coords_to_px(m.x0, m.y0)
-			elif numpy.dot(v_axis, v_s1_P) > 0: #P is after s1
+			elif np.dot(v_axis, v_s1_P) > 0: #P is after s1
 				r = math.sqrt((m.x1-xc)**2 + (m.y1-yc)**2)
 				if r < closest_r:
 					closest_r = r
@@ -115,12 +118,12 @@ class Lab:
 					xp,yp = self.coords_to_px(m.x1, m.y1)
 					v_comp = m.length
 			else:
-				r = abs(float(numpy.cross(uv_axis,v_s0_P)))
+				r = abs(float(np.cross(uv_axis,v_s0_P)))
 				if r < closest_r:
 					closest_r = r
 					closest = m
-					s0 = numpy.array((m.x0,m.y0))
-					v_comp = float(numpy.dot(v_s0_P,uv_axis))
+					s0 = np.array((m.x0,m.y0))
+					v_comp = float(np.dot(v_s0_P,uv_axis))
 					pf = s0 + v_comp*uv_axis
 					xp,yp = self.coords_to_px(*pf)
 		return ((xp,yp), closest, v_comp)
@@ -412,14 +415,39 @@ class Lab:
 			1: "Euler Buckling",
 			2: "Sheer and Moment"
 		}
-		rep_text = mem.gen_report(type)
 		popup = tk.Tk()
 		popup.title(name[type]+" Report")
 		popup.iconbitmap("../img/phys.ico")
 		mem_lbl = tk.Label(popup, text=str(mem))
 		mem_lbl.pack()
-		rep_lbl = tk.Label(popup, text=rep_text)
-		rep_lbl.pack()
+		rep_text = mem.gen_report(type)
+		if isinstance(rep_text, str):
+			rep_lbl = tk.Label(popup, text=rep_text)
+			rep_lbl.pack()
+		else:
+			rep_text, V, M = rep_text
+			rep_lbl = tk.Label(popup, text=rep_text)
+			rep_lbl.pack()
+			#Make plots for V and M
+			d = sym.symbols("d")
+			Vf = sym.lambdify(d, V)
+			Mf = sym.lambdify(d, M)
+			dax = np.linspace(0,mem.length, 100);
+			Vax = Vf(dax)
+			Max = Mf(dax)
+			#print(dax)
+			#print(Vax)
+			fig, (sp1, sp2) = plt.subplots(2, sharex=True)
+			sp1.plot(dax, Vax, color="blue")
+			sp1.grid(True)
+			sp1.set_title("Shear V (kN)")
+			sp2.plot(dax, Max, color="green")
+			sp2.grid(True)
+			sp2.set_title("Moment M (kN-m)")
+			sp2.set(xlabel="Axial Distance d (m)")
+			figcanv = FigureCanvasTkAgg(fig, popup)
+			figcanv.get_tk_widget().pack()
+		
 		#Flash blue
 		self.canv.itemconfig(mem.img_ref, outline="blue")
 		mem.popups += 1
@@ -496,3 +524,4 @@ class Lab:
 	def cleanup(self):
 		for w in self.popups:
 			w.destroy()
+		plt.close("all")
