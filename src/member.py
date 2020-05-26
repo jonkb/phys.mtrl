@@ -164,7 +164,11 @@ class Member:
 	#Convention: shear that would cause clockwise rotation is positive.
 	def shear_symf(self):
 		(qx, qy) = self.sum_my_dl()
-		(s0x, s0y, *_) = self.reactions()
+		reactions = self.reactions()
+		if isinstance(reactions, str):
+		#if reactions in self.rep_err:
+			return reactions
+		(s0x, s0y, *_) = reactions
 		V = sym.Integer(0)
 		d = sym.symbols('d')
 		#I should be able to do this with dot products if I ever allow angled members
@@ -187,7 +191,11 @@ class Member:
 		#M = integrate(V, 0, d)
 		M = sym.integrate(self.shear_symf(), d)
 		M -= M.subs(d, 0)
-		(_, _, s0m, *_) = self.reactions()
+		reactions = self.reactions()
+		if isinstance(reactions, str):
+		#if reactions in self.rep_err:
+			return reactions
+		(_, _, s0m, *_) = reactions
 		M -= s0m
 		return M.rewrite(sym.Piecewise).doit()
 	#Do the statics to calculate the reaction forces with two supports
@@ -293,7 +301,8 @@ class Member:
 		return p_segments
 	def axial_stress(self):
 		p_segments = self.axial_loads()
-		if p_segments in self.rep_err:
+		if isinstance(p_segments, str):
+		#if p_segments in self.rep_err:
 			return p_segments
 		s_segments = []
 		xA = self.xarea
@@ -311,7 +320,8 @@ class Member:
 		return s_segments# (p_segments, s_segments, min_s, max_s)
 	def axial_strain(self):
 		s_segments = self.axial_stress()
-		if s_segments in self.rep_err:
+		if isinstance(s_segments, str):
+		#if s_segments in self.rep_err:
 			return s_segments
 		eps_segments = []
 		for s in s_segments:
@@ -321,7 +331,8 @@ class Member:
 		return eps_segments
 	def axial_stress_rep(self):
 		axeps = self.axial_strain()
-		if axeps in self.rep_err:
+		if isinstance(axeps, str):
+		#if axeps in self.rep_err:
 			return axeps
 		max_s = ((0,0), 0, 0, 0)
 		min_s = ((0,0), 0, 0, 0)
@@ -356,7 +367,8 @@ class Member:
 		return rep_text
 	def axial_buckling_rep(self):
 		p_seg = self.axial_loads()
-		if p_seg in self.rep_err:
+		if isinstance(p_seg, str):
+		#if p_seg in self.rep_err:
 			return p_seg
 		if len(p_seg) > 1:
 			rep_text = "Sorry, I'm not exactly sure how to deal with "
@@ -379,9 +391,13 @@ class Member:
 		if Pmax >= Pcr:
 			rep_text += "\nSo the member is unstable"
 		return rep_text
-	#Report on internal forces, sheer, and moment
+	#Report on internal forces, shear, and moment
 	def internal_rep(self):
-		(s0x, s0y, s0m, s1x, s1y, s1m) = self.reactions()
+		reactions = self.reactions()
+		if isinstance(reactions, str):
+		#if reactions in self.rep_err:
+			return reactions
+		(s0x, s0y, s0m, s1x, s1y, s1m) = reactions
 		rep_text = "Support reactions (Rx, Ry, M)"
 		rep_text += "\nSupport 0: " + "("+N_to_kN_str(s0x)+","
 		rep_text += N_to_kN_str(s0y)+","+Nm_to_kNm_str(s0m)+")"
@@ -389,9 +405,13 @@ class Member:
 		rep_text += N_to_kN_str(s1y)+","+Nm_to_kNm_str(s1m)+")"
 		rep_text += "\nMeasuring 'd' (in m) from end zero (left or bottom) of the member,"
 		rep_text += "\nFor internal tension, see \"axial stress report\""
-		#rep_text += "\nV(d) = "+str(self.shear_symf())
-		#rep_text += "\nM(d) = "+str(self.moment_symf())
-		return rep_text, self.shear_symf()/1000, self.moment_symf()/1000
+		V = self.shear_symf()
+		if V in self.rep_err:
+			return V
+		M = self.moment_symf()
+		if M in self.rep_err:
+			return M
+		return rep_text, V/1000, M/1000
 
 #This class is really just for reference. I'm not sure if this is the best way to do this.
 class Materials:

@@ -38,7 +38,7 @@ mlab.mem_wtls = mem_wtls
 evalmenu = tk.Menu(menubar, tearoff=0)
 evalmenu.add_command(label="Axial Stress", command=mlab.eval_axial)
 evalmenu.add_command(label="Euler Buckling", command=mlab.eval_buckling)
-evalmenu.add_command(label="Sheer and Moment", command=mlab.eval_VandM)
+evalmenu.add_command(label="Shear and Moment", command=mlab.eval_VandM)
 menubar.add_cascade(label="Evaluate", menu=evalmenu)
 delmenu = tk.Menu(menubar, tearoff=0)
 delmenu.add_command(label="Clear All", command=mlab.clear_all)

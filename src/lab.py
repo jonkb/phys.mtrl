@@ -413,8 +413,9 @@ class Lab:
 		name = {
 			0: "Axial Stress",
 			1: "Euler Buckling",
-			2: "Sheer and Moment"
+			2: "Shear and Moment"
 		}
+		axis_resolution = 200
 		popup = tk.Tk()
 		popup.title(name[type]+" Report")
 		popup.iconbitmap("../img/phys.ico")
@@ -432,9 +433,28 @@ class Lab:
 			d = sym.symbols("d")
 			Vf = sym.lambdify(d, V)
 			Mf = sym.lambdify(d, M)
-			dax = np.linspace(0,mem.length, 100);
+			dax = np.linspace(0,mem.length, axis_resolution);
 			Vax = Vf(dax)
 			Max = Mf(dax)
+			try:
+				assert len(dax) == len(Vax)
+				assert len(dax) == len(Max)
+			except:
+				#Check to see if they're constant functions
+				Vc = Vf(0)
+				for xi in dax:
+					if Vf(xi) != Vc:
+						Vc = "error"
+						break
+				if Vc != "error":
+					Vax = Vc*np.ones(axis_resolution)
+				Mc = Mf(0)
+				for xi in dax:
+					if Mf(xi) != Mc:
+						Mc = "error"
+						break
+				if Mc != "error":
+					Max = Mc*np.ones(axis_resolution)
 			#print(dax)
 			#print(Vax)
 			fig, (sp1, sp2) = plt.subplots(2, sharex=True)
