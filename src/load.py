@@ -3,7 +3,8 @@ import numpy as np
 import sympy as sym
 
 class Load:
-	ah_width = 6
+	ah_width = 6#px
+	ball_rad = ah_width*.65
 	load_types = {
 		0: "Point",
 		1: "Distributed"
@@ -17,6 +18,10 @@ class Load:
 		return (self.xc,self.yc)
 	#Draw a point load. All args in pixels. The tip is at the point specified by (px,py)
 	def draw(self, lab, px, py):
+		if self.xc == 0 and self.yc == 0:
+			lab.canv.create_oval(px - self.ball_rad, py - self.ball_rad, px + self.ball_rad, 
+				py + self.ball_rad, fill="red", outline="red", tags=self.tag)
+			return
 		pxc, pyc = lab.kN_to_px(self.xc/1000, self.yc/1000)
 		lab.canv.create_line(px-pxc,py-pyc,px,py, width=2, fill="red", tags=self.tag)
 		L = math.sqrt(pxc**2+pyc**2)
@@ -86,6 +91,11 @@ class Distr_Load(Load):
 			lx = self.xc0 + (self.xc1 - self.xc0) * (axd-self.axd0)/Ld
 			ly = self.yc0 + (self.yc1 - self.yc0) * (axd-self.axd0)/Ld
 			pxc, pyc = lab.kN_to_px(lx/1000, ly/1000)
+			Ll = math.sqrt(pxc**2+pyc**2)
+			if Ll == 0:
+				lab.canv.create_oval(px - self.ball_rad, py - self.ball_rad, px + self.ball_rad, 
+					py + self.ball_rad, fill="red", outline="red", tags=self.tag)
+				continue
 			if self.isv:
 				ax = px
 				ay = py - lab.px_per_m*(axd-self.axd0)
@@ -93,7 +103,6 @@ class Distr_Load(Load):
 				ax = px + lab.px_per_m*(axd-self.axd0)
 				ay = py
 			lab.canv.create_line(ax-pxc,ay-pyc,ax,ay, width=2, fill="red", tags=self.tag)
-			Ll = math.sqrt(pxc**2+pyc**2)
 			ux = pxc/Ll #Unit vector
 			uy = pyc/Ll
 			ah_l = self.ah_width*3
