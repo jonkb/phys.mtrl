@@ -47,7 +47,7 @@ class Circle(Region):
 	#returns Q/Ib for the cross section
 	def Q_div_Ib(self, y1):
 		if y1 == 0:
-			return self.Q(0) / (Ix*2*self.radius)
+			return self.Q(0) / (self.Ix*2*self.radius)
 		else:
 			return "VQ/Ib is invalid anywhere but the centroid"
 

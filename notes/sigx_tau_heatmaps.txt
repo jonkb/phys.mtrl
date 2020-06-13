@@ -1,0 +1,305 @@
+       ...,
+       [ 56.37650979,  54.07542776,  51.77434572, ..., -51.77434572,
+        -54.07542776, -56.37650979],
+       [ 28.788005  ,  27.61298439,  26.43796377, ..., -26.43796377,
+        -27.61298439, -28.788005  ],
+       [  0.        ,   0.        ,   0.        , ...,  -0.        ,
+         -0.        ,  -0.        ]])
+>>> Z = f(X2,Y2)
+>>> ax
+<matplotlib.axes._subplots.Axes3DSubplot object at 0x00000184A61289D0>
+>>> ax.plot_surface(X,Y,Z)
+<mpl_toolkits.mplot3d.art3d.Poly3DCollection object at 0x00000184A5B909A0>
+>>> plt.show()
+>>> ax.plot_surface(X,Y,Z, cmap=matplotlib.cm.coolwarm)
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'matplotlib' is not defined
+>>> from matplotlib import cm
+>>> ax.plot_surface(X,Y,Z, cmap=cm.coolwarm)
+<mpl_toolkits.mplot3d.art3d.Poly3DCollection object at 0x00000184A6128190>
+>>> plot.show()
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'plot' is not defined
+>>> plt.show()
+>>> ax.plot_surface(X,Y,Z, cmap=cm.coolwarm, linewidth=0)
+<mpl_toolkits.mplot3d.art3d.Poly3DCollection object at 0x00000184A61287C0>
+>>> plt.show()
+>>> plt.clear()
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+AttributeError: module 'matplotlib.pyplot' has no attribute 'clear'
+>>> plt.close()
+>>> ax
+<matplotlib.axes._subplots.Axes3DSubplot object at 0x00000184A61289D0>
+>>> ax.plot_surface(X,Y,Z, cmap=cm.coolwarm, linewidth=0)
+<mpl_toolkits.mplot3d.art3d.Poly3DCollection object at 0x00000184A5B908E0>
+>>> plt.show()
+>>> fig = plt.figure()
+>>> ax = fig.add_subplot(111, projection="3d")
+>>> ax.plot_surface(X,Y,Z, cmap=cm.coolwarm, linewidth=0)
+<mpl_toolkits.mplot3d.art3d.Poly3DCollection object at 0x00000184A633D250>
+>>> plt.show()
+>>> plt.show()
+>>> ax.plot_surface(X,Y,Z, cmap=cm.coolwarm, linewidth=0)
+<mpl_toolkits.mplot3d.art3d.Poly3DCollection object at 0x00000184A611BFD0>
+>>> plt.show()
+>>> fig = plt.figure()
+>>> ax = fig.add_subplot(111, projection="3d")
+>>> ax.plot_surface(X,Y,Z, cmap=cm.coolwarm, linewidth=0)
+<mpl_toolkits.mplot3d.art3d.Poly3DCollection object at 0x00000184A69F49A0>
+>>> plt.show()
+>>> fig = plt.figure()
+>>> ax = fig.add_subplot(111, projection="3d")
+>>> X2
+array([[ 0.        ,  0.20408163,  0.40816327, ...,  9.59183673,
+         9.79591837, 10.        ],
+       [ 0.        ,  0.20408163,  0.40816327, ...,  9.59183673,
+         9.79591837, 10.        ],
+       [ 0.        ,  0.20408163,  0.40816327, ...,  9.59183673,
+         9.79591837, 10.        ],
+       ...,
+       [ 0.        ,  0.20408163,  0.40816327, ...,  9.59183673,
+         9.79591837, 10.        ],
+       [ 0.        ,  0.20408163,  0.40816327, ...,  9.59183673,
+         9.79591837, 10.        ],
+       [ 0.        ,  0.20408163,  0.40816327, ...,  9.59183673,
+         9.79591837, 10.        ]])
+>>> Y
+array([-0.5       , -0.47959184, -0.45918367, -0.43877551, -0.41836735,
+       -0.39795918, -0.37755102, -0.35714286, -0.33673469, -0.31632653,
+       -0.29591837, -0.2755102 , -0.25510204, -0.23469388, -0.21428571,
+       -0.19387755, -0.17346939, -0.15306122, -0.13265306, -0.1122449 ,
+       -0.09183673, -0.07142857, -0.05102041, -0.03061224, -0.01020408,
+        0.01020408,  0.03061224,  0.05102041,  0.07142857,  0.09183673,
+        0.1122449 ,  0.13265306,  0.15306122,  0.17346939,  0.19387755,
+        0.21428571,  0.23469388,  0.25510204,  0.2755102 ,  0.29591837,
+        0.31632653,  0.33673469,  0.35714286,  0.37755102,  0.39795918,
+        0.41836735,  0.43877551,  0.45918367,  0.47959184,  0.5       ])
+>>> Y2
+array([[-0.5       , -0.5       , -0.5       , ..., -0.5       ,
+        -0.5       , -0.5       ],
+       [-0.47959184, -0.47959184, -0.47959184, ..., -0.47959184,
+        -0.47959184, -0.47959184],
+       [-0.45918367, -0.45918367, -0.45918367, ..., -0.45918367,
+        -0.45918367, -0.45918367],
+       ...,
+       [ 0.45918367,  0.45918367,  0.45918367, ...,  0.45918367,
+         0.45918367,  0.45918367],
+       [ 0.47959184,  0.47959184,  0.47959184, ...,  0.47959184,
+         0.47959184,  0.47959184],
+       [ 0.5       ,  0.5       ,  0.5       , ...,  0.5       ,
+         0.5       ,  0.5       ]])
+>>> Z
+array([[  0.        ,   0.        ,   0.        , ...,  -0.        ,
+         -0.        ,  -0.        ],
+       [ 28.788005  ,  27.61298439,  26.43796377, ..., -26.43796377,
+        -27.61298439, -28.788005  ],
+       [ 56.37650979,  54.07542776,  51.77434572, ..., -51.77434572,
+        -54.07542776, -56.37650979],
+       ...,
+       [ 56.37650979,  54.07542776,  51.77434572, ..., -51.77434572,
+        -54.07542776, -56.37650979],
+       [ 28.788005  ,  27.61298439,  26.43796377, ..., -26.43796377,
+        -27.61298439, -28.788005  ],
+       [  0.        ,   0.        ,   0.        , ...,  -0.        ,
+         -0.        ,  -0.        ]])
+>>> ax.plot_surface(X2,Y2,Z, cmap=cm.coolwarm, linewidth=0)
+<mpl_toolkits.mplot3d.art3d.Poly3DCollection object at 0x00000184A6015CA0>
+>>> plt.show()
+>>> im = plt.imshow(Z, cmap=plt.RdBu)
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+AttributeError: module 'matplotlib.pyplot' has no attribute 'RdBu'
+>>> im = plt.imshow(Z, cmap=plt.cm.RdBu)
+>>> plt.colorbar(im)
+<matplotlib.colorbar.Colorbar object at 0x00000184A7A434C0>
+>>> plt.show()
+>>> im = plt.imshow(Z, cmap=plt.cm.RdBu, interpolation='bilinear')
+>>> plt.colorbar(im)
+<matplotlib.colorbar.Colorbar object at 0x00000184A7B87610>
+>>> plt.show()
+>>> Tau = Z
+>>> #Sigx = -My/I
+>>> tau
+960.0*(0.5 - y)*(3 - 3*x/5)*(y/2 + 0.25)
+>>> V
+3 - 3*x/5
+>>> M = sym.integrate(V)
+>>> M
+-3*x**2/10 + 3*x
+>>> plt.plot(x,M)
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "C:\Python38\lib\site-packages\matplotlib\pyplot.py", line 2761, in plot
+    return gca().plot(
+  File "C:\Python38\lib\site-packages\matplotlib\axes\_axes.py", line 1648, in plot
+    self.add_line(line)
+  File "C:\Python38\lib\site-packages\matplotlib\axes\_base.py", line 1850, in add_line
+    self._update_line_limits(line)
+  File "C:\Python38\lib\site-packages\matplotlib\axes\_base.py", line 1872, in _update_line_limits
+    path = line.get_path()
+  File "C:\Python38\lib\site-packages\matplotlib\lines.py", line 1027, in get_path
+    self.recache()
+  File "C:\Python38\lib\site-packages\matplotlib\lines.py", line 670, in recache
+    x = _to_unmasked_float_array(xconv).ravel()
+  File "C:\Python38\lib\site-packages\matplotlib\cbook\__init__.py", line 1317, in _to_unmasked_float_array
+    return np.asarray(x, float)
+  File "C:\Python38\lib\site-packages\numpy\core\_asarray.py", line 85, in asarray
+    return array(a, dtype, copy=False, order=order)
+  File "C:\Python38\lib\site-packages\sympy\core\expr.py", line 325, in __float__
+    raise TypeError("can't convert expression to float")
+TypeError: can't convert expression to float
+>>> V
+3 - 3*x/5
+>>> M
+-3*x**2/10 + 3*x
+>>> #Sigx = -M*y/I
+>>> I
+0.666666666666667*b*h**3
+>>> I1
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'I1' is not defined
+>>> I2
+0.0020833333333333333
+>>> Sigx = -M*y/I2
+>>> Sigx
+480.0*y*(3*x**2/10 - 3*x)
+>>> fs = sym.lambdify((x,y), Sigx, "numpy")
+>>> fs
+<function _lambdifygenerated at 0x00000184A7A4AF70>
+>>> fs(0,0)
+0.0
+>>> fs(0,.5)
+0.0
+>>> fs(5,.5)
+-1800.0
+>>> fs(5,0)
+-0.0
+>>> X1
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'X1' is not defined
+>>> X2
+array([[ 0.        ,  0.20408163,  0.40816327, ...,  9.59183673,
+         9.79591837, 10.        ],
+       [ 0.        ,  0.20408163,  0.40816327, ...,  9.59183673,
+         9.79591837, 10.        ],
+       [ 0.        ,  0.20408163,  0.40816327, ...,  9.59183673,
+         9.79591837, 10.        ],
+       ...,
+       [ 0.        ,  0.20408163,  0.40816327, ...,  9.59183673,
+         9.79591837, 10.        ],
+       [ 0.        ,  0.20408163,  0.40816327, ...,  9.59183673,
+         9.79591837, 10.        ],
+       [ 0.        ,  0.20408163,  0.40816327, ...,  9.59183673,
+         9.79591837, 10.        ]])
+>>> SX = fs(X2,Y2)
+>>> Tau
+array([[  0.        ,   0.        ,   0.        , ...,  -0.        ,
+         -0.        ,  -0.        ],
+       [ 28.788005  ,  27.61298439,  26.43796377, ..., -26.43796377,
+        -27.61298439, -28.788005  ],
+       [ 56.37650979,  54.07542776,  51.77434572, ..., -51.77434572,
+        -54.07542776, -56.37650979],
+       ...,
+       [ 56.37650979,  54.07542776,  51.77434572, ..., -51.77434572,
+        -54.07542776, -56.37650979],
+       [ 28.788005  ,  27.61298439,  26.43796377, ..., -26.43796377,
+        -27.61298439, -28.788005  ],
+       [  0.        ,   0.        ,   0.        , ...,  -0.        ,
+         -0.        ,  -0.        ]])
+>>> im2 = plt.imshow(SX, cmap=plt.cm.RdBu, interpolation="bilinear")
+>>> plt.colorbar(im2)
+<matplotlib.colorbar.Colorbar object at 0x00000184A64B4BB0>
+>>> plt.show()
+>>> fig = plt.figure()
+>>> plt.show()
+>>> fig, (sp1, sp2) = plt.subplots(2, sharex=True)
+>>> sp1.colorbar(im)
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+AttributeError: 'AxesSubplot' object has no attribute 'colorbar'
+>>> im = sp1.imshow(Tau, cmap=plt.cm.RdBu, interpolation="bilinear")
+>>> im2 = sp2.imshow(SX, cmap=plt.cm.RdBu, interpolation="bilinear")
+>>> plt.colorbar(im)
+<matplotlib.colorbar.Colorbar object at 0x00000184A5F6C040>
+>>> plt.colorbar(im2)
+<matplotlib.colorbar.Colorbar object at 0x00000184A5C02D90>
+>>> plt.show()
+>>> fig, (sp1, sp2) = plt.subplots(2, sharex=True)
+>>> sp1.imshow(Tau, cmap=plt.cm.RdBu, interpolation="bilinear")
+<matplotlib.image.AxesImage object at 0x00000184A5F33E20>
+>>> im = sp1.imshow(Tau, cmap=plt.cm.RdBu, interpolation="bilinear")
+>>> fig.colorbar(im, ax=sp1)
+<matplotlib.colorbar.Colorbar object at 0x00000184A7A86250>
+>>> im2 = sp2.imshow(SX, cmap=plt.cm.BrBG, interpolation="bilinear")
+>>> fig.colorbar(im2, ax=sp2)
+<matplotlib.colorbar.Colorbar object at 0x00000184A7A7B400>
+>>> plt.show()
+>>> fig, (sp1, sp2) = plt.subplots(2, sharex=True)
+>>> im = sp1.imshow(Tau, cmap=plt.cm.RdBu, interpolation="bilinear", aspect="auto")
+>>> fig.colorbar(im, ax=sp1)
+<matplotlib.colorbar.Colorbar object at 0x00000184A5EF4100>
+>>> im2 = sp2.imshow(SX, cmap=plt.cm.BrBG, interpolation="bilinear", aspect="auto")
+>>> plt.show()
+>>> plt.show()
+>>> fig, (sp1, sp2) = plt.subplots(2, sharex=True)
+>>> im = sp1.imshow(Tau, cmap=plt.cm.RdBu, interpolation="bilinear", aspect="auto")
+>>> fig.colorbar(im, ax=sp1)
+<matplotlib.colorbar.Colorbar object at 0x00000184A8DF1850>
+>>> im2 = sp2.imshow(SX, cmap=plt.cm.BrBG, interpolation="bilinear", aspect="auto")
+>>> fig.colorbar(im2, ax=sp2)
+<matplotlib.colorbar.Colorbar object at 0x00000184A8E1BA00>
+>>> fig.show()
+>>> V
+3 - 3*x/5
+>>> fig, (sp1, sp2) = plt.subplots(2, sharex=True)
+>>> im = sp1.imshow(Tau, cmap=plt.cm.RdBu, interpolation="bilinear", aspect="auto", extents=[0,10,-.5,.5])
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "C:\Python38\lib\site-packages\matplotlib\__init__.py", line 1565, in inner
+    return func(ax, *map(sanitize_sequence, args), **kwargs)
+  File "C:\Python38\lib\site-packages\matplotlib\cbook\deprecation.py", line 358, in wrapper
+    return func(*args, **kwargs)
+  File "C:\Python38\lib\site-packages\matplotlib\cbook\deprecation.py", line 358, in wrapper
+    return func(*args, **kwargs)
+  File "C:\Python38\lib\site-packages\matplotlib\axes\_axes.py", line 5611, in imshow
+    im = mimage.AxesImage(self, cmap, norm, interpolation, origin, extent,
+  File "C:\Python38\lib\site-packages\matplotlib\image.py", line 890, in __init__
+    super().__init__(
+  File "C:\Python38\lib\site-packages\matplotlib\image.py", line 261, in __init__
+    self.update(kwargs)
+  File "C:\Python38\lib\site-packages\matplotlib\artist.py", line 1006, in update
+    ret = [_update_property(self, k, v) for k, v in props.items()]
+  File "C:\Python38\lib\site-packages\matplotlib\artist.py", line 1006, in <listcomp>
+    ret = [_update_property(self, k, v) for k, v in props.items()]
+  File "C:\Python38\lib\site-packages\matplotlib\artist.py", line 1001, in _update_property
+    raise AttributeError('{!r} object has no property {!r}'
+AttributeError: 'AxesImage' object has no property 'extents'
+>>> im = sp1.imshow(Tau, cmap=plt.cm.RdBu, interpolation="bilinear", aspect="auto", extent=[0,10,-.5,.5])
+>>> fig.colorbar(im, ax=sp1)
+<matplotlib.colorbar.Colorbar object at 0x00000184A7A413D0>
+>>> im2 = sp2.imshow(SX, cmap=plt.cm.BrBG, interpolation="bilinear", aspect="auto", extent=[0,10,-.5,.5])
+>>> fig.colorbar(im2, ax=sp2)
+<matplotlib.colorbar.Colorbar object at 0x00000184A61067C0>
+>>> fig.show()
+>>>
+
+[Given symfuns tau(x,y) and Sx(x,y)]
+xl = np.linspace(0,10)
+yl = np.linspace(-.5,.5)
+X, Y = np.meshgrid(xl,yl)
+Tauf = sym.lambdify((x,y), tau, "numpy")
+Sxf = sym.lambdify((x,y), Sx, "numpy")
+TAU = Tauf(X, Y)
+SX = Sxf(X, Y)
+
+fig, (sp1, sp2) = plt.subplots(2, sharex=True)
+im = sp1.imshow(TAU, cmap=plt.cm.RdBu, interpolation="bilinear", aspect="auto", extent=[0,10,-.5,.5])
+fig.colorbar(im, ax=sp1)
+im2 = sp2.imshow(SX, cmap=plt.cm.BrBG, interpolation="bilinear", aspect="auto", extent=[0,10,-.5,.5])
+fig.colorbar(im2, ax=sp2)
+fig.show()
