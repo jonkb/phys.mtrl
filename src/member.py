@@ -1,6 +1,7 @@
 import math
 import numpy as np
 import sympy as sym
+import matplotlib.pyplot as plt
 from load import *
 #from region import Region
 eps = 1e-14
@@ -253,10 +254,10 @@ class Member:
 	def gen_report(self, type):
 		if type == 0:
 			return self.axial_stress_rep()
-		if type == 1:
+		elif type == 1:
 			return self.axial_buckling_rep()
-		if type == 2:
-			return self.internal_rep()
+		elif type == 2:
+			return self.VM_rep()
 	def axial_loads(self):
 		if max(self.d_of_f()) > 0:
 			return self.rep_err[0]# "Underconstrained"
@@ -391,8 +392,9 @@ class Member:
 		if Pmax >= Pcr:
 			rep_text += "\nSo the member is unstable"
 		return rep_text
-	#Report on internal forces, shear, and moment
-	def internal_rep(self):
+	#Report on shear and moment
+	#Returns text and a pyplot figure
+	def VM_rep(self):
 		reactions = self.reactions()
 		if isinstance(reactions, str):
 		#if reactions in self.rep_err:
@@ -411,7 +413,42 @@ class Member:
 		M = self.moment_symf()
 		if M in self.rep_err:
 			return M
-		return rep_text, V/1000, M/1000
+		#Make plots for V and M
+		axis_resolution = 200
+		d = sym.symbols("d")
+		Vf = sym.lambdify(d, V/1000)
+		Mf = sym.lambdify(d, M/1000)
+		dax = np.linspace(0, self.length, axis_resolution);
+		Vax = Vf(dax)
+		Max = Mf(dax)
+		try:
+			assert len(dax) == len(Vax)
+			assert len(dax) == len(Max)
+		except:
+			#Check to see if they're constant functions
+			Vc = Vf(0)
+			for xi in dax:
+				if Vf(xi) != Vc:
+					Vc = "error"
+					break
+			if Vc != "error":
+				Vax = Vc*np.ones(axis_resolution)
+			Mc = Mf(0)
+			for xi in dax:
+				if Mf(xi) != Mc:
+					Mc = "error"
+					break
+			if Mc != "error":
+				Max = Mc*np.ones(axis_resolution)
+		fig, (sp1, sp2) = plt.subplots(2, sharex=True)
+		sp1.plot(dax, Vax, color="blue")
+		sp1.grid(True)
+		sp1.set_title("Shear V (kN)")
+		sp2.plot(dax, Max, color="green")
+		sp2.grid(True)
+		sp2.set_title("Moment M (kN-m)")
+		sp2.set(xlabel="Axial Distance d (m)")
+		return (rep_text, fig)
 
 #This class is really just for reference. I'm not sure if this is the best way to do this.
 class Materials:

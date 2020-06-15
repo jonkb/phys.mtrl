@@ -415,58 +415,26 @@ class Lab:
 			1: "Euler Buckling",
 			2: "Shear and Moment"
 		}
-		axis_resolution = 200
 		popup = tk.Tk()
 		popup.title(name[type]+" Report")
 		popup.iconbitmap("../img/phys.ico")
-		mem_lbl = tk.Label(popup, text=str(mem))
-		mem_lbl.pack()
-		rep_text = mem.gen_report(type)
-		if isinstance(rep_text, str):
-			rep_lbl = tk.Label(popup, text=rep_text)
-			rep_lbl.pack()
-		else:
-			rep_text, V, M = rep_text
-			rep_lbl = tk.Label(popup, text=rep_text)
-			rep_lbl.pack()
-			#Make plots for V and M
-			d = sym.symbols("d")
-			Vf = sym.lambdify(d, V)
-			Mf = sym.lambdify(d, M)
-			dax = np.linspace(0,mem.length, axis_resolution);
-			Vax = Vf(dax)
-			Max = Mf(dax)
-			try:
-				assert len(dax) == len(Vax)
-				assert len(dax) == len(Max)
-			except:
-				#Check to see if they're constant functions
-				Vc = Vf(0)
-				for xi in dax:
-					if Vf(xi) != Vc:
-						Vc = "error"
-						break
-				if Vc != "error":
-					Vax = Vc*np.ones(axis_resolution)
-				Mc = Mf(0)
-				for xi in dax:
-					if Mf(xi) != Mc:
-						Mc = "error"
-						break
-				if Mc != "error":
-					Max = Mc*np.ones(axis_resolution)
-			#print(dax)
-			#print(Vax)
-			fig, (sp1, sp2) = plt.subplots(2, sharex=True)
-			sp1.plot(dax, Vax, color="blue")
-			sp1.grid(True)
-			sp1.set_title("Shear V (kN)")
-			sp2.plot(dax, Max, color="green")
-			sp2.grid(True)
-			sp2.set_title("Moment M (kN-m)")
-			sp2.set(xlabel="Axial Distance d (m)")
-			figcanv = FigureCanvasTkAgg(fig, popup)
-			figcanv.get_tk_widget().pack()
+		loading_lbl = tk.Label(popup, text="LOADING", padx=48, pady=24)
+		loading_lbl.pack()
+		def add_report():
+			report = mem.gen_report(type)
+			loading_lbl.destroy()
+			mem_lbl = tk.Label(popup, text=str(mem))
+			mem_lbl.pack()
+			if isinstance(report, str):
+				#This can be either a text-only report or an error message
+				rep_lbl = tk.Label(popup, text=report)
+				rep_lbl.pack()
+			else:
+				rep_text, fig = report
+				rep_lbl = tk.Label(popup, text=rep_text)
+				rep_lbl.pack()
+				figcanv = FigureCanvasTkAgg(fig, popup)
+				figcanv.get_tk_widget().pack(fill=tk.X)
 		
 		#Flash blue
 		self.canv.itemconfig(mem.img_ref, outline="blue")
@@ -480,6 +448,7 @@ class Lab:
 			popup.destroy()
 		popup.protocol("WM_DELETE_WINDOW", del_pop)
 		self.popups.append(popup)
+		popup.after(200, add_report)
 		popup.mainloop()
 	#Open window to edit px_per_m and px_per_kN
 	def edit_scale(self):
