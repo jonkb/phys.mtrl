@@ -18,6 +18,13 @@ class Lab:
 	px_per_kN = 4.0#4.0 gives 200px=50kN
 	dash_len = int(px_per_m/6)
 	snap_dist = 15
+	#Names of each Evaluation Report
+	eval_names = {
+		0: "Axial Stress",
+		1: "Euler Buckling",
+		2: "Shear and Moment",
+		3: "Axial and Shear Stress"
+	}
 	
 	def __init__(self, main_frm, add_mem_bar, add_sup_bar, add_load_bar):
 		self.c_wd = 800
@@ -401,22 +408,13 @@ class Lab:
 	def toggle_wtls(self):
 		for m in self.members:
 			m.has_weight = not self.wtls()
-	def eval_axial(self):
-		self.select_mem(lambda m: self.popup_report(m,0))
-	def eval_buckling(self):
-		self.select_mem(lambda m: self.popup_report(m,1))
-	def eval_VandM(self):
-		self.select_mem(lambda m: self.popup_report(m,2))
+	def eval_report(self, type):
+		self.select_mem(lambda m: self.popup_report(m,type))
 	def del_mode(self):
 		self.select_mem(lambda m: self.del_mem(m))
 	def popup_report(self, mem, type):
-		name = {
-			0: "Axial Stress",
-			1: "Euler Buckling",
-			2: "Shear and Moment"
-		}
 		popup = tk.Tk()
-		popup.title(name[type]+" Report")
+		popup.title(self.eval_names[type]+" Report")
 		popup.iconbitmap("../img/phys.ico")
 		loading_lbl = tk.Label(popup, text="LOADING", padx=48, pady=24)
 		loading_lbl.pack()

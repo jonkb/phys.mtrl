@@ -37,19 +37,19 @@ class Circle(Region):
 	@property
 	def Iy(self):
 		return self.Ix
+	#Return the interval of y1 in the area (from centroid)
+	def y1_domain(self):
+		return (-self.radius, self.radius)
+	#Return the interval for which Q(y1) makes sense
+	def Q_domain(self):
+		return (0,0)
 	#First moment of area above point of interest. y1 is measured from centroid.
 	#For a circle, this really only matters at y1=0.
 	def Q(self, y1):
-		if y1 == 0:
-			return 2/3*self.radius**3
-		else:
-			return "VQ/Ib is invalid anywhere but the centroid"
+		return 2/3*self.radius**3
 	#returns Q/Ib for the cross section
 	def Q_div_Ib(self, y1):
-		if y1 == 0:
-			return self.Q(0) / (self.Ix*2*self.radius)
-		else:
-			return "VQ/Ib is invalid anywhere but the centroid"
+		return self.Q(0) / (self.Ix*2*self.radius)
 
 class Rectangle(Region):
 	def __init__(self, base, height):
@@ -66,18 +66,19 @@ class Rectangle(Region):
 	@property
 	def Iy(self):
 		return self.height * self.base**3 / 12
+	#Return the interval of y1 in the area (from centroid)
+	def y1_domain(self):
+		return (-self.height/2, self.height/2)
+	#Return the interval for which Q(y1) makes sense
+	def Q_domain(self):
+		return (-self.height/2, self.height/2)
 	#First moment of area above point of interest. y1 is measured from centroid.
 	def Q(self, y1):
-		if abs(y1) > self.height/2:
-			return "Out of domain"
 		h1 = self.height/2-y1
 		return self.base*h1 * (y1+h1/2)
 	#returns Q/Ib for the cross section
 	def Q_div_Ib(self, y1):
-		Q = self.Q(y1)
-		if isinstance(Q, str):
-			return Q
-		return Q / (self.Ix * self.base)
+		return self.Q(y1) / (self.Ix * self.base)
 
 #Wide Flanged I-beam
 class W_F_I(Region):
@@ -100,21 +101,20 @@ class W_F_I(Region):
 	@property
 	def Iy(self):
 		return (self.depth-2*self.tflg)*self.tweb**3/12 + self.tflg*self.width**3/6
+	#Return the interval of y1 in the area (from centroid)
+	def y1_domain(self):
+		return (-self.depth/2, self.depth/2)
+	#Return the interval for which Q(y1) makes sense
+	def Q_domain(self):
+		return (-self.depth/2 + self.tflg, self.depth/2 - self.tflg)
 	#First moment of area above point of interest. y1 is measured from centroid.
 	def Q(self, y1):
-		if abs(y1) > self.depth/2:
-			return "Out of domain"
-		if abs(y1) > self.depth/2 - self.tflg:
-			return "VQ/Ib is invalid in the flanges"
 		dw1 = self.depth/2-self.tflg-y1
 		Aflg = self.width*self.tflg
 		return Aflg*(self.depth-self.tflg)/2 + dw1*self.tweb * (y1+dw1/2)
 	#returns Q/Ib for the cross section
 	def Q_div_Ib(self, y1):
-		Q = self.Q(y1)
-		if isinstance(Q, str):
-			return Q
-		return Q / (self.Ix * self.tweb)
+		return self.Q(y1) / (self.Ix * self.tweb)
 
 class Annulus(Region):
 	def __init__(self, ro, ri):
@@ -131,6 +131,12 @@ class Annulus(Region):
 	@property
 	def Iy(self):
 		return self.Ix
+	#Return the interval of y1 in the area (from centroid)
+	def y1_domain(self):
+		return (-self.ro, self.ro)
+	#Return the interval for which Q(y1) makes sense
+	def Q_domain(self):
+		return (0,0)
 	#First moment of area above point of interest. y1 is measured from centroid.
 	#For a circle, this really only matters at y1=0.
 	def Q(self, y1):

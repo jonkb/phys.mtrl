@@ -37,6 +37,8 @@ def coords_str(x,y, n=default_sigfig):
 
 #prismatic uniform members
 class Member:
+	axis_resolution = 200
+	y1_resolution = 50
 	rep_err = ["Underconstrained", "Overconstrained", "Not Placed", "No Solution Found"]
 	def __init__(self, material, xsection, length):
 		self.material = material
@@ -258,6 +260,8 @@ class Member:
 			return self.axial_buckling_rep()
 		elif type == 2:
 			return self.VM_rep()
+		elif type == 3:
+			return self.sig_tau_rep()
 	def axial_loads(self):
 		if max(self.d_of_f()) > 0:
 			return self.rep_err[0]# "Underconstrained"
@@ -300,6 +304,38 @@ class Member:
 		if self.length - prev_d > eps:
 			p_segments.append( ((prev_d, self.length), p_internal) )
 		return p_segments
+	#Return internal axial loads as a function of 'd'.
+	#Convention: tension is positive.
+	def axial_loads_sym(self):
+		uv_ax = self.uv_axis()
+		(qx, qy) = self.sum_my_dl()
+		reactions = self.reactions()
+		if isinstance(reactions, str):
+			return reactions
+		(s0x, s0y, *_) = reactions
+		P = sym.Float(np.dot([s0x, s0y], -uv_ax))
+		d = sym.symbols('d')
+		P -= sym.integrate(qx*uv_ax[0], d) + sym.integrate(qy*uv_ax[1], d)
+		for p in self.my_loads():
+			#The distributed loads were all counted already
+			if not isinstance(p, Distr_Load):
+				p_ax = np.dot(uv_ax, p.get_comp())
+				P -= p_ax*sym.Heaviside(d-p.ax_dist, .5)
+		return P.rewrite(sym.Piecewise).doit()
+	#Return internal axial stress as a function of 'd' and 'h'.
+	#Counts axial loads as well as bending stress
+	def axial_stress_sym(self):
+		#sig_x = Px/A - My/I
+		h = sym.symbols('h')
+		Sig_P = self.axial_loads_sym() / self.xarea
+		Sig_M = - self.moment_symf() * h / self.xIx
+		return Sig_P + Sig_M
+	#Return internal shear stress due to bending as a function of 'd' and 'h'.
+	#Returns (tau, h domain)
+	def tau_sym(self):
+		h = sym.symbols('h')
+		tau = -self.shear_symf() * self.xsection.Q_div_Ib(h)
+		return (tau, self.xsection.Q_domain())
 	def axial_stress(self):
 		p_segments = self.axial_loads()
 		if isinstance(p_segments, str):
@@ -414,11 +450,10 @@ class Member:
 		if M in self.rep_err:
 			return M
 		#Make plots for V and M
-		axis_resolution = 200
 		d = sym.symbols("d")
 		Vf = sym.lambdify(d, V/1000)
 		Mf = sym.lambdify(d, M/1000)
-		dax = np.linspace(0, self.length, axis_resolution);
+		dax = np.linspace(0, self.length, self.axis_resolution);
 		Vax = Vf(dax)
 		Max = Mf(dax)
 		try:
@@ -432,22 +467,83 @@ class Member:
 					Vc = "error"
 					break
 			if Vc != "error":
-				Vax = Vc*np.ones(axis_resolution)
+				Vax = Vc*np.ones(self.axis_resolution)
 			Mc = Mf(0)
 			for xi in dax:
 				if Mf(xi) != Mc:
 					Mc = "error"
 					break
 			if Mc != "error":
-				Max = Mc*np.ones(axis_resolution)
+				Max = Mc*np.ones(self.axis_resolution)
 		fig, (sp1, sp2) = plt.subplots(2, sharex=True)
 		sp1.plot(dax, Vax, color="blue")
 		sp1.grid(True)
 		sp1.set_title("Shear V (kN)")
 		sp2.plot(dax, Max, color="green")
+		#Pf = sym.lambdify(d, self.axial_loads_sym()/1000)
+		#Pax = Pf(dax)
+		#sp2.plot(dax, Pax, color="green")
 		sp2.grid(True)
 		sp2.set_title("Moment M (kN-m)")
 		sp2.set(xlabel="Axial Distance d (m)")
+		return (rep_text, fig)
+	def sig_tau_rep(self):
+		rep_text = "Measuring 'd' (in m) from end zero (left or bottom) of the member"
+		rep_text += "\nand 'h' (in m) from the neutral axis of bending,"
+		d, h = sym.symbols("d h")
+		sig = self.axial_stress_sym()
+		y1min, y1max = self.xsection.y1_domain()
+		tau, h_dom = self.tau_sym()
+		sigf = sym.lambdify((d,h), sig/1e6, "numpy")
+		tauf = sym.lambdify((d,h), tau/1e6, "numpy")
+		d_ls = np.linspace(0, self.length, self.axis_resolution)
+		h_sig_ls = np.linspace(y1min, y1max, self.y1_resolution)
+		h_tau_ls = np.linspace(*h_dom, self.y1_resolution)
+		D, H_s = np.meshgrid(d_ls, h_sig_ls)
+		_, H_t = np.meshgrid(d_ls, h_tau_ls)
+		SIG = sigf(D, H_s)
+		sig_max = np.max(SIG)
+		sig_min = np.min(SIG)
+		sig_rng = max(abs(sig_min), abs(sig_max))
+		if sig_max > 0:
+			rep_text += "\nMax Tensile Axial Stress = " + str(sigfig(sig_max)) + " MPa"
+			smax_coords = np.where(SIG == sig_max)
+			smax_d = smax_coords[1][0] * self.length/(self.axis_resolution-1)
+			smax_h = y1min + smax_coords[0][0] * (y1max-y1min) / (self.y1_resolution-1)
+			rep_text += " at d="+str(sigfig(smax_d))+"m, h="+str(sigfig(smax_h*1e3))+"mm"
+		if sig_min < 0:
+			rep_text += "\nMax Compressive Axial Stress = " + str(sigfig(abs(sig_min))) + " MPa"
+			smin_coords = np.where(SIG == sig_min)
+			smin_d = smin_coords[1][0] * self.length/(self.axis_resolution-1)
+			smin_h = y1min + smin_coords[0][0] * (y1max-y1min) / (self.y1_resolution-1)
+			rep_text += " at d="+str(sigfig(smin_d))+"m, h="+str(sigfig(smin_h*1e3))+"mm"
+		TAU = tauf(D, H_t)
+		tau_max = np.max(TAU)
+		tau_min = np.min(TAU)
+		tau_rng = max(abs(tau_min), abs(tau_max))
+		if tau_max > 0:
+			rep_text += "\nMax Positive Sheer Stress = " + str(sigfig(tau_max)) + " MPa"
+			tmax_coords = np.where(TAU == tau_max)
+			tmax_d = tmax_coords[1][0] * self.length/(self.axis_resolution-1)
+			tmax_h = h_dom[0] + tmax_coords[0][0] * (h_dom[1]-h_dom[0]) / (self.y1_resolution-1)
+			rep_text += " at d="+str(sigfig(tmax_d))+"m, h="+str(sigfig(tmax_h*1e3))+"mm"
+		if tau_min < 0:
+			rep_text += "\nMax Negative Sheer Stress = " + str(sigfig(abs(tau_min))) + " MPa"
+			tmin_coords = np.where(TAU == tau_min)
+			tmin_d = tmin_coords[1][0] * self.length/(self.axis_resolution-1)
+			tmin_h = h_dom[0] + tmin_coords[0][0] * (h_dom[1]-h_dom[0]) / (self.y1_resolution-1)
+			rep_text += " at d="+str(sigfig(tmin_d))+"m, h="+str(sigfig(tmin_h*1e3))+"mm"
+		fig, (sp1, sp2) = plt.subplots(2, sharex=True)
+		sp1.set_title("Axial Stress sigma (MPa)")
+		im1 = sp1.imshow(SIG, cmap=plt.cm.RdBu, interpolation="bilinear", aspect="auto", 
+			extent=[0, self.length, y1min, y1max], vmin=-sig_rng, vmax=sig_rng, origin="lower")
+			#Using vmin&max normalizes zero on the colormap
+		fig.colorbar(im1, ax=sp1)
+		sp2.set_title("Shear Stress tau (MPa)")
+		sp2.set(xlabel="Axial Distance d (m)")
+		im2 = sp2.imshow(TAU, cmap=plt.cm.BrBG, interpolation="bilinear", aspect="auto", 
+			extent=[0, self.length, h_dom[0], h_dom[1]], vmin=-tau_rng, vmax=tau_rng, origin="lower")
+		fig.colorbar(im2, ax=sp2)
 		return (rep_text, fig)
 
 #This class is really just for reference. I'm not sure if this is the best way to do this.

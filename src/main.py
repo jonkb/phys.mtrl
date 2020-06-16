@@ -36,9 +36,8 @@ optmenu.add_command(label="Set Scale", command=mlab.edit_scale)
 menubar.add_cascade(label="Options", menu=optmenu)
 mlab.mem_wtls = mem_wtls
 evalmenu = tk.Menu(menubar, tearoff=0)
-evalmenu.add_command(label="Axial Stress", command=mlab.eval_axial)
-evalmenu.add_command(label="Euler Buckling", command=mlab.eval_buckling)
-evalmenu.add_command(label="Shear and Moment", command=mlab.eval_VandM)
+for i, evnm in mlab.eval_names.items():
+	evalmenu.add_command(label=evnm, command=lambda ri=i: mlab.eval_report(ri))
 menubar.add_cascade(label="Evaluate", menu=evalmenu)
 delmenu = tk.Menu(menubar, tearoff=0)
 delmenu.add_command(label="Clear All", command=mlab.clear_all)
