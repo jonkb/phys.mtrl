@@ -1,3 +1,5 @@
+DONE!
+
        ...,
        [ 56.37650979,  54.07542776,  51.77434572, ..., -51.77434572,
         -54.07542776, -56.37650979],
@@ -303,3 +305,6 @@ fig.colorbar(im, ax=sp1)
 im2 = sp2.imshow(SX, cmap=plt.cm.BrBG, interpolation="bilinear", aspect="auto", extent=[0,10,-.5,.5])
 fig.colorbar(im2, ax=sp2)
 fig.show()
+
+
+DONE!

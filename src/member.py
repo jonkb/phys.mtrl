@@ -253,6 +253,32 @@ class Member:
 		except:
 			return self.rep_err[3]
 		return sigfig_iter(SOL, 6) #eps_round(SOL)
+	#Do mohr's circle transformations on an element with sigma_x and tau_xy (assumes no sig_y)
+	#Return two vectors: sig_max, tau_max
+	@staticmethod
+	def mohr_trsfm(sigx, tau):
+		th_a = np.arctan(2*tau/sigx)/2
+		#th_a = np.arctan2(2*tau,sigx)/2   --   This would be just to avoid /0 Repercussions?
+		th_b = th_a + math.pi/2
+		sig_a = sigx/2*(1+np.cos(2*th_a)) + tau*np.sin(2*th_a)
+		sig_b = sigx/2*(1+np.cos(2*th_b)) + tau*np.sin(2*th_b)
+		#I converted the ternaries to array-compatible logic
+		b_gt_a = sig_b > sig_a
+		b_agt_a = abs(sig_b) > abs(sig_a)
+		#th_smax = th_b if abs(sig_b) > abs(sig_a) else th_a
+		th_smax = th_b*b_agt_a + th_a*(1 - b_agt_a)
+		#sig_max = sig_b if abs(sig_b) > abs(sig_a) else sig_a
+		sig_max = sig_b*b_agt_a + sig_a*(1 - b_agt_a)
+		#th_s1 = th_b if sig_b > sig_a else th_a #alg. max.
+		th_s1 = th_b*b_gt_a + th_a*(1 - b_gt_a)
+		th_tmax = th_s1 - math.pi/4
+		tau_max = np.sqrt((sigx/2)**2 + tau**2)
+		#return (sig_max, th_smax), (tau_max, th_tmax)
+		sig_max_v = (sig_max*np.cos(th_smax), sig_max*np.sin(th_smax))
+		tau_max_v = (tau_max*np.cos(th_tmax), tau_max*np.sin(th_tmax))
+		return sig_max_v, tau_max_v
+	#Return report text (& any figures) for each type of evaluation
+	#Be sure to make this line up with the dictionary in Lab
 	def gen_report(self, type):
 		if type == 0:
 			return self.axial_stress_rep()
@@ -533,17 +559,31 @@ class Member:
 			tmin_d = tmin_coords[1][0] * self.length/(self.axis_resolution-1)
 			tmin_h = h_dom[0] + tmin_coords[0][0] * (h_dom[1]-h_dom[0]) / (self.y1_resolution-1)
 			rep_text += " at d="+str(sigfig(tmin_d))+"m, h="+str(sigfig(tmin_h*1e3))+"mm"
-		fig, (sp1, sp2) = plt.subplots(2, sharex=True)
-		sp1.set_title("Axial Stress sigma (MPa)")
+		
+		fig, ((sp1, sp2), (sp3, sp4)) = plt.subplots(2, 2, sharex=True)
+		sp1.set_title("Axial Stress \u03C3 (MPa)")
 		im1 = sp1.imshow(SIG, cmap=plt.cm.RdBu, interpolation="bilinear", aspect="auto", 
 			extent=[0, self.length, y1min, y1max], vmin=-sig_rng, vmax=sig_rng, origin="lower")
 			#Using vmin&max normalizes zero on the colormap
 		fig.colorbar(im1, ax=sp1)
-		sp2.set_title("Shear Stress tau (MPa)")
-		sp2.set(xlabel="Axial Distance d (m)")
-		im2 = sp2.imshow(TAU, cmap=plt.cm.BrBG, interpolation="bilinear", aspect="auto", 
+		sp3.set_title("Shear Stress \u03C4 (MPa)")
+		sp3.set(xlabel="Axial Distance d (m)")
+		im2 = sp3.imshow(TAU, cmap=plt.cm.BrBG, interpolation="bilinear", aspect="auto", 
 			extent=[0, self.length, h_dom[0], h_dom[1]], vmin=-tau_rng, vmax=tau_rng, origin="lower")
-		fig.colorbar(im2, ax=sp2)
+		fig.colorbar(im2, ax=sp3)
+		
+		#Quiver plots for max shear & tension
+		
+		d_qls = np.linspace(0, self.length, 18)
+		h_qls = np.linspace(*h_dom, 9)
+		Dq, Hq = np.meshgrid(d_qls, h_qls)
+		Sq = sigf(Dq, Hq)
+		Tq = tauf(Dq, Hq)
+		(S1x, S1y), (T1x, T1y) = self.mohr_trsfm(Sq, Tq)
+		sp2.quiver(Dq, Hq, S1x, S1y)
+		sp4.set(xlabel="Axial Distance d (m)")
+		sp4.quiver(Dq, Hq, T1x, T1y)
+		
 		return (rep_text, fig)
 
 #This class is really just for reference. I'm not sure if this is the best way to do this.

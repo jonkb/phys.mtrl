@@ -432,7 +432,7 @@ class Lab:
 				rep_lbl = tk.Label(popup, text=rep_text)
 				rep_lbl.pack()
 				figcanv = FigureCanvasTkAgg(fig, popup)
-				figcanv.get_tk_widget().pack(fill=tk.X)
+				figcanv.get_tk_widget().pack(fill=tk.BOTH, expand=1)
 		
 		#Flash blue
 		self.canv.itemconfig(mem.img_ref, outline="blue")
