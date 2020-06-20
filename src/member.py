@@ -254,7 +254,7 @@ class Member:
 			return self.rep_err[3]
 		return sigfig_iter(SOL, 6) #eps_round(SOL)
 	#Do mohr's circle transformations on an element with sigma_x and tau_xy (assumes no sig_y)
-	#Return two vectors: sig_max, tau_max
+	#Return two vectors, along with their magnitude: sig_max, smv, tau_max, tmv
 	@staticmethod
 	def mohr_trsfm(sigx, tau):
 		th_a = np.arctan(2*tau/sigx)/2
@@ -276,7 +276,7 @@ class Member:
 		#return (sig_max, th_smax), (tau_max, th_tmax)
 		sig_max_v = (sig_max*np.cos(th_smax), sig_max*np.sin(th_smax))
 		tau_max_v = (tau_max*np.cos(th_tmax), tau_max*np.sin(th_tmax))
-		return sig_max_v, tau_max_v
+		return sig_max, sig_max_v, tau_max, tau_max_v
 	#Return report text (& any figures) for each type of evaluation
 	#Be sure to make this line up with the dictionary in Lab
 	def gen_report(self, type):
@@ -560,29 +560,43 @@ class Member:
 			tmin_h = h_dom[0] + tmin_coords[0][0] * (h_dom[1]-h_dom[0]) / (self.y1_resolution-1)
 			rep_text += " at d="+str(sigfig(tmin_d))+"m, h="+str(sigfig(tmin_h*1e3))+"mm"
 		
-		fig, ((sp1, sp2), (sp3, sp4)) = plt.subplots(2, 2, sharex=True)
+		fig, ((sp1, sp2), (sp3, sp4)) = plt.subplots(2, 2, sharex=True, figsize=(11,5))
 		sp1.set_title("Axial Stress \u03C3 (MPa)")
+		sp1.set(ylabel="Height h (mm)")
 		im1 = sp1.imshow(SIG, cmap=plt.cm.RdBu, interpolation="bilinear", aspect="auto", 
-			extent=[0, self.length, y1min, y1max], vmin=-sig_rng, vmax=sig_rng, origin="lower")
+			extent=[0, self.length, y1min*1e3, y1max*1e3], vmin=-sig_rng, vmax=sig_rng, origin="lower")
 			#Using vmin&max normalizes zero on the colormap
 		fig.colorbar(im1, ax=sp1)
 		sp3.set_title("Shear Stress \u03C4 (MPa)")
-		sp3.set(xlabel="Axial Distance d (m)")
+		sp3.set(xlabel="Axial Distance d (m)", ylabel="Height h (mm)")
 		im2 = sp3.imshow(TAU, cmap=plt.cm.BrBG, interpolation="bilinear", aspect="auto", 
-			extent=[0, self.length, h_dom[0], h_dom[1]], vmin=-tau_rng, vmax=tau_rng, origin="lower")
+			extent=[0, self.length, h_dom[0]*1e3, h_dom[1]*1e3], vmin=-tau_rng, vmax=tau_rng, origin="lower")
 		fig.colorbar(im2, ax=sp3)
 		
 		#Quiver plots for max shear & tension
-		
-		d_qls = np.linspace(0, self.length, 18)
-		h_qls = np.linspace(*h_dom, 9)
+		d_qls = np.linspace(0, self.length, 48)
+		h_qls = np.linspace(*h_dom, 24)
 		Dq, Hq = np.meshgrid(d_qls, h_qls)
 		Sq = sigf(Dq, Hq)
 		Tq = tauf(Dq, Hq)
-		(S1x, S1y), (T1x, T1y) = self.mohr_trsfm(Sq, Tq)
-		sp2.quiver(Dq, Hq, S1x, S1y)
+		S1m, (S1x, S1y), T1m, (T1x, T1y) = self.mohr_trsfm(Sq, Tq)
+		sig_max = np.max(S1m)
+		sig_min = np.min(S1m)
+		sig_rng = max(abs(sig_min), abs(sig_max))
+		tau_max = np.max(T1m)
+		tau_min = np.min(T1m)
+		tau_rng = max(abs(tau_min), abs(tau_max))
+		sp2.set_title("Principal Stress \u03C3_p (MPa)")
+		q1 = sp2.quiver(Dq, Hq*1e3, S1x, S1y, S1m, cmap=plt.cm.RdBu, clim=(-sig_rng, sig_rng),
+			pivot="mid", headaxislength=0, headlength = 0, headwidth=1, width=.009)
+		fig.colorbar(q1, ax=sp2)
 		sp4.set(xlabel="Axial Distance d (m)")
-		sp4.quiver(Dq, Hq, T1x, T1y)
+		sp4.set_title("Principal Shear Stress \u03C4_p (MPa)")
+		q2 = sp4.quiver(Dq, Hq*1e3, T1x, T1y, T1m, cmap=plt.cm.BrBG, clim=(-tau_rng, tau_rng),
+			pivot="mid", headaxislength=0, headlength = 0, headwidth=1, width=.009)
+		fig.colorbar(q2, ax=sp4)
+		
+		plt.subplots_adjust(.07, .1, .99, .93, wspace=.09)
 		
 		return (rep_text, fig)
 
