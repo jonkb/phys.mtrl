@@ -37,8 +37,10 @@ def coords_str(x,y, n=default_sigfig):
 
 #prismatic uniform members
 class Member:
-	axis_resolution = 200
-	y1_resolution = 50
+	d_resolution = 100
+	h_resolution = 50
+	dq_resolution = 50
+	hq_resolution = 25
 	rep_err = ["Underconstrained", "Overconstrained", "Not Placed", "No Solution Found"]
 	def __init__(self, material, xsection, length):
 		self.material = material
@@ -257,6 +259,7 @@ class Member:
 	#Return two vectors, along with their magnitude: sig_max, smv, tau_max, tmv
 	@staticmethod
 	def mohr_trsfm(sigx, tau):
+		convert_to_neg = False
 		th_a = np.arctan(2*tau/sigx)/2
 		#th_a = np.arctan2(2*tau,sigx)/2   --   This would be just to avoid /0 Repercussions?
 		th_b = th_a + math.pi/2
@@ -271,8 +274,19 @@ class Member:
 		sig_max = sig_b*b_agt_a + sig_a*(1 - b_agt_a)
 		#th_s1 = th_b if sig_b > sig_a else th_a #alg. max.
 		th_s1 = th_b*b_gt_a + th_a*(1 - b_gt_a)
-		th_tmax = th_s1 - math.pi/4
-		tau_max = np.sqrt((sigx/2)**2 + tau**2)
+		th_t1 = th_s1 - math.pi/4 #Alg. max tau
+		th_t2 = th_t1 + math.pi/2
+		#Force the angle to be more horizontal so you get negative instead of perpindicular
+		if convert_to_neg:
+			t1_horiz = math.pi/2 - abs(th_t1%math.pi - math.pi/2)
+			t2_horiz = math.pi/2 - abs(th_t2%math.pi - math.pi/2)
+			#is t1 the more horizontal one?
+			t1_is_h = t2_horiz >= t1_horiz
+			th_tmax = th_t1*t1_is_h + th_t2*(1-t1_is_h)
+			tau_max = -.5*sigx*np.sin(2*th_tmax) + tau*np.cos(2*th_tmax)
+		else: #Just accept the alg. max. tau
+			th_tmax = th_t1
+			tau_max = np.sqrt((sigx/2)**2 + tau**2) #alg. max
 		#return (sig_max, th_smax), (tau_max, th_tmax)
 		sig_max_v = (sig_max*np.cos(th_smax), sig_max*np.sin(th_smax))
 		tau_max_v = (tau_max*np.cos(th_tmax), tau_max*np.sin(th_tmax))
@@ -479,7 +493,7 @@ class Member:
 		d = sym.symbols("d")
 		Vf = sym.lambdify(d, V/1000)
 		Mf = sym.lambdify(d, M/1000)
-		dax = np.linspace(0, self.length, self.axis_resolution);
+		dax = np.linspace(0, self.length, self.d_resolution);
 		Vax = Vf(dax)
 		Max = Mf(dax)
 		try:
@@ -493,14 +507,14 @@ class Member:
 					Vc = "error"
 					break
 			if Vc != "error":
-				Vax = Vc*np.ones(self.axis_resolution)
+				Vax = Vc*np.ones(self.d_resolution)
 			Mc = Mf(0)
 			for xi in dax:
 				if Mf(xi) != Mc:
 					Mc = "error"
 					break
 			if Mc != "error":
-				Max = Mc*np.ones(self.axis_resolution)
+				Max = Mc*np.ones(self.d_resolution)
 		fig, (sp1, sp2) = plt.subplots(2, sharex=True)
 		sp1.plot(dax, Vax, color="blue")
 		sp1.grid(True)
@@ -515,50 +529,52 @@ class Member:
 		return (rep_text, fig)
 	def sig_tau_rep(self):
 		rep_text = "Measuring 'd' (in m) from end zero (left or bottom) of the member"
-		rep_text += "\nand 'h' (in m) from the neutral axis of bending,"
+		rep_text += " and 'h' (in mm) from the neutral axis of bending,"
 		d, h = sym.symbols("d h")
 		sig = self.axial_stress_sym()
 		y1min, y1max = self.xsection.y1_domain()
 		tau, h_dom = self.tau_sym()
 		sigf = sym.lambdify((d,h), sig/1e6, "numpy")
 		tauf = sym.lambdify((d,h), tau/1e6, "numpy")
-		d_ls = np.linspace(0, self.length, self.axis_resolution)
-		h_sig_ls = np.linspace(y1min, y1max, self.y1_resolution)
-		h_tau_ls = np.linspace(*h_dom, self.y1_resolution)
+		d_ls = np.linspace(0, self.length, self.d_resolution)
+		h_sig_ls = np.linspace(y1min, y1max, self.h_resolution)
+		h_tau_ls = np.linspace(*h_dom, self.h_resolution)
 		D, H_s = np.meshgrid(d_ls, h_sig_ls)
 		_, H_t = np.meshgrid(d_ls, h_tau_ls)
 		SIG = sigf(D, H_s)
 		sig_max = np.max(SIG)
 		sig_min = np.min(SIG)
 		sig_rng = max(abs(sig_min), abs(sig_max))
-		if sig_max > 0:
-			rep_text += "\nMax Tensile Axial Stress = " + str(sigfig(sig_max)) + " MPa"
-			smax_coords = np.where(SIG == sig_max)
-			smax_d = smax_coords[1][0] * self.length/(self.axis_resolution-1)
-			smax_h = y1min + smax_coords[0][0] * (y1max-y1min) / (self.y1_resolution-1)
-			rep_text += " at d="+str(sigfig(smax_d))+"m, h="+str(sigfig(smax_h*1e3))+"mm"
-		if sig_min < 0:
-			rep_text += "\nMax Compressive Axial Stress = " + str(sigfig(abs(sig_min))) + " MPa"
-			smin_coords = np.where(SIG == sig_min)
-			smin_d = smin_coords[1][0] * self.length/(self.axis_resolution-1)
-			smin_h = y1min + smin_coords[0][0] * (y1max-y1min) / (self.y1_resolution-1)
-			rep_text += " at d="+str(sigfig(smin_d))+"m, h="+str(sigfig(smin_h*1e3))+"mm"
+		if False: #OLD
+			if sig_max > 0:
+				rep_text += "\nMax Tensile Axial Stress = " + str(sigfig(sig_max)) + " MPa"
+				smax_coords = np.where(SIG == sig_max)
+				smax_d = smax_coords[1][0] * self.length/(self.d_resolution-1)
+				smax_h = y1min + smax_coords[0][0] * (y1max-y1min) / (self.h_resolution-1)
+				rep_text += " at d="+str(sigfig(smax_d))+"m, h="+str(sigfig(smax_h*1e3))+"mm"
+			if sig_min < 0:
+				rep_text += "\nMax Compressive Axial Stress = " + str(sigfig(abs(sig_min))) + " MPa"
+				smin_coords = np.where(SIG == sig_min)
+				smin_d = smin_coords[1][0] * self.length/(self.d_resolution-1)
+				smin_h = y1min + smin_coords[0][0] * (y1max-y1min) / (self.h_resolution-1)
+				rep_text += " at d="+str(sigfig(smin_d))+"m, h="+str(sigfig(smin_h*1e3))+"mm"
 		TAU = tauf(D, H_t)
 		tau_max = np.max(TAU)
 		tau_min = np.min(TAU)
 		tau_rng = max(abs(tau_min), abs(tau_max))
-		if tau_max > 0:
-			rep_text += "\nMax Positive Sheer Stress = " + str(sigfig(tau_max)) + " MPa"
-			tmax_coords = np.where(TAU == tau_max)
-			tmax_d = tmax_coords[1][0] * self.length/(self.axis_resolution-1)
-			tmax_h = h_dom[0] + tmax_coords[0][0] * (h_dom[1]-h_dom[0]) / (self.y1_resolution-1)
-			rep_text += " at d="+str(sigfig(tmax_d))+"m, h="+str(sigfig(tmax_h*1e3))+"mm"
-		if tau_min < 0:
-			rep_text += "\nMax Negative Sheer Stress = " + str(sigfig(abs(tau_min))) + " MPa"
-			tmin_coords = np.where(TAU == tau_min)
-			tmin_d = tmin_coords[1][0] * self.length/(self.axis_resolution-1)
-			tmin_h = h_dom[0] + tmin_coords[0][0] * (h_dom[1]-h_dom[0]) / (self.y1_resolution-1)
-			rep_text += " at d="+str(sigfig(tmin_d))+"m, h="+str(sigfig(tmin_h*1e3))+"mm"
+		if False:
+			if tau_max > 0:
+				rep_text += "\nMax Positive Sheer Stress = " + str(sigfig(tau_max)) + " MPa"
+				tmax_coords = np.where(TAU == tau_max)
+				tmax_d = tmax_coords[1][0] * self.length/(self.d_resolution-1)
+				tmax_h = h_dom[0] + tmax_coords[0][0] * (h_dom[1]-h_dom[0]) / (self.h_resolution-1)
+				rep_text += " at d="+str(sigfig(tmax_d))+"m, h="+str(sigfig(tmax_h*1e3))+"mm"
+			if tau_min < 0:
+				rep_text += "\nMax Negative Sheer Stress = " + str(sigfig(abs(tau_min))) + " MPa"
+				tmin_coords = np.where(TAU == tau_min)
+				tmin_d = tmin_coords[1][0] * self.length/(self.d_resolution-1)
+				tmin_h = h_dom[0] + tmin_coords[0][0] * (h_dom[1]-h_dom[0]) / (self.h_resolution-1)
+				rep_text += " at d="+str(sigfig(tmin_d))+"m, h="+str(sigfig(tmin_h*1e3))+"mm"
 		
 		fig, ((sp1, sp2), (sp3, sp4)) = plt.subplots(2, 2, sharex=True, figsize=(11,5))
 		sp1.set_title("Axial Stress \u03C3 (MPa)")
@@ -574,8 +590,8 @@ class Member:
 		fig.colorbar(im2, ax=sp3)
 		
 		#Quiver plots for max shear & tension
-		d_qls = np.linspace(0, self.length, 48)
-		h_qls = np.linspace(*h_dom, 24)
+		d_qls = np.linspace(0, self.length, self.dq_resolution)
+		h_qls = np.linspace(*h_dom, self.hq_resolution)
 		Dq, Hq = np.meshgrid(d_qls, h_qls)
 		Sq = sigf(Dq, Hq)
 		Tq = tauf(Dq, Hq)
@@ -586,6 +602,25 @@ class Member:
 		tau_max = np.max(T1m)
 		tau_min = np.min(T1m)
 		tau_rng = max(abs(tau_min), abs(tau_max))
+		if sig_max > 0:
+			rep_text += "\nMax Tensile Stress = " + str(sigfig(sig_max)) + " MPa"
+			smax_coords = np.where(S1m == sig_max)
+			smax_d = smax_coords[1][0] * self.length/(self.dq_resolution-1)
+			smax_h = y1min + smax_coords[0][0] * (y1max-y1min) / (self.hq_resolution-1)
+			rep_text += " at d="+str(sigfig(smax_d))+"m, h="+str(sigfig(smax_h*1e3))+"mm"
+		if sig_min < 0:
+			rep_text += "\nMax Compressive Stress = " + str(sigfig(abs(sig_min))) + " MPa"
+			smin_coords = np.where(S1m == sig_min)
+			smin_d = smin_coords[1][0] * self.length/(self.dq_resolution-1)
+			smin_h = y1min + smin_coords[0][0] * (y1max-y1min) / (self.hq_resolution-1)
+			rep_text += " at d="+str(sigfig(smin_d))+"m, h="+str(sigfig(smin_h*1e3))+"mm"
+		if tau_rng > 0:
+			rep_text += "\nMax Sheer Stress = " + str(sigfig(tau_rng)) + " MPa"
+			tmax_coords = np.where(abs(T1m) == tau_rng)
+			tmax_d = tmax_coords[1][0] * self.length/(self.dq_resolution-1)
+			tmax_h = h_dom[0] + tmax_coords[0][0] * (h_dom[1]-h_dom[0]) / (self.hq_resolution-1)
+			rep_text += " at d="+str(sigfig(tmax_d))+"m, h="+str(sigfig(tmax_h*1e3))+"mm"
+			
 		sp2.set_title("Principal Stress \u03C3_p (MPa)")
 		q1 = sp2.quiver(Dq, Hq*1e3, S1x, S1y, S1m, cmap=plt.cm.RdBu, clim=(-sig_rng, sig_rng),
 			pivot="mid", headaxislength=0, headlength = 0, headwidth=1, width=.009)
