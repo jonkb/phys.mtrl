@@ -18,18 +18,11 @@ class Lab:
 	px_per_kN = 4.0#4.0 gives 200px=50kN
 	dash_len = int(px_per_m/6)
 	snap_dist = 15
-	#Names of each Evaluation Report
-	eval_names = {
-		0: "Axial Stress",
-		1: "Euler Buckling",
-		2: "Shear and Moment",
-		3: "Axial and Shear Stress"
-	}
 	
 	def __init__(self, main_frm, add_mem_bar, add_sup_bar, add_load_bar):
-		self.c_wd = 800
+		self.c_wd = 756
 		#Remember that when c_wd = 800 pixels, this corrosponds to x=[0,799]
-		self.c_ht = 500
+		self.c_ht = 468
 		self.subdivision = 5 #For grid lines smaller than 1m
 		#self.mem_wtls = True
 		
@@ -58,6 +51,9 @@ class Lab:
 		self.bgbox = self.canv.create_rectangle(0,0,self.c_wd-1,self.c_ht-1)
 		self.bggrid = [] #Switch this to a tag
 		self.redraw_grid()
+		
+		#TEMP
+		self.temptoggle = False
 	
 	#convert x,y coordinates in meters to their place on the canvas in pixels
 	def coords_to_px(self, xc, yc):
@@ -77,6 +73,21 @@ class Lab:
 	def wtls(self):
 		try:
 			return self.mem_wtls.get()
+		except:# Was not set
+			return True
+	def smem(self):
+		try:
+			return self.show_mem.get()
+		except:# Was not set
+			return True
+	def ssup(self):
+		try:
+			return self.show_sup.get()
+		except:# Was not set
+			return True
+	def sld(self):
+		try:
+			return self.show_ld.get()
 		except:# Was not set
 			return True
 	#Snap x,y (in px) to the ends of existing members
@@ -408,13 +419,48 @@ class Lab:
 	def toggle_wtls(self):
 		for m in self.members:
 			m.has_weight = not self.wtls()
+	def toggle_smem(self):
+		if self.smem():
+			self.add_mem_bar.tb_frm.pack(side=tk.TOP, fill=tk.X)
+		else:
+			self.add_mem_bar.tb_frm.pack_forget()
+	def toggle_ssup(self):
+		if self.ssup():
+			self.add_sup_bar.tb_frm.pack(side=tk.TOP, fill=tk.X)
+		else:
+			self.add_sup_bar.tb_frm.pack_forget()
+	def toggle_sld(self):
+		if self.sld():
+			self.add_load_bar.tb_frm.pack(side=tk.TOP, fill=tk.X)
+		else:
+			self.add_load_bar.tb_frm.pack_forget()
+	def show_allt(self):
+		if not self.smem():
+			self.add_mem_bar.tb_frm.pack(side=tk.TOP, fill=tk.X)
+			self.show_mem.set(True)
+		if not self.ssup():
+			self.add_sup_bar.tb_frm.pack(side=tk.TOP, fill=tk.X)
+			self.show_sup.set(True)
+		if not self.sld():
+			self.add_load_bar.tb_frm.pack(side=tk.TOP, fill=tk.X)
+			self.show_ld.set(True)
+	def hide_allt(self):
+		if self.smem():
+			self.add_mem_bar.tb_frm.pack_forget()
+			self.show_mem.set(False)
+		if self.ssup():
+			self.add_sup_bar.tb_frm.pack_forget()
+			self.show_sup.set(False)
+		if self.sld():
+			self.add_load_bar.tb_frm.pack_forget()
+			self.show_ld.set(False)
 	def eval_report(self, type):
 		self.select_mem(lambda m: self.popup_report(m,type))
 	def del_mode(self):
 		self.select_mem(lambda m: self.del_mem(m))
 	def popup_report(self, mem, type):
 		popup = tk.Tk()
-		popup.title(self.eval_names[type]+" Report")
+		popup.title(mem.eval_names[type]+" Report")
 		popup.iconbitmap("../img/phys.ico")
 		loading_lbl = tk.Label(popup, text="LOADING", padx=48, pady=24)
 		loading_lbl.pack()
@@ -425,11 +471,11 @@ class Lab:
 			mem_lbl.pack()
 			if isinstance(report, str):
 				#This can be either a text-only report or an error message
-				rep_lbl = tk.Label(popup, text=report)
+				rep_lbl = tk.Label(popup, text=report, justify=tk.LEFT)
 				rep_lbl.pack()
 			else:
 				rep_text, fig = report
-				rep_lbl = tk.Label(popup, text=rep_text)
+				rep_lbl = tk.Label(popup, text=rep_text, justify=tk.LEFT)
 				rep_lbl.pack()
 				figcanv = FigureCanvasTkAgg(fig, popup)
 				figcanv.get_tk_widget().pack(fill=tk.BOTH, expand=1)

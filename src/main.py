@@ -1,6 +1,7 @@
 import tkinter as tk
 
 from lab import Lab
+from member import Member
 from toolbars import Add_mem, Add_sup, Add_load
 
 
@@ -28,15 +29,31 @@ menubar = tk.Menu(root)
 filemenu = tk.Menu(menubar, tearoff=0)
 filemenu.add_command(label="Nothing Here Yet")
 menubar.add_cascade(label="File", menu=filemenu)
+viewmenu = tk.Menu(menubar, tearoff=0)
+viewmenu.add_command(label="Show All Toolbars", command=mlab.show_allt)
+viewmenu.add_command(label="Hide All Toolbars", command=mlab.hide_allt)
+show_mem = tk.IntVar()
+show_mem.set(True)
+mlab.show_mem = show_mem
+viewmenu.add_checkbutton(label="Add Member Toolbar", variable=show_mem, command=mlab.toggle_smem)
+show_sup = tk.IntVar()
+show_sup.set(True)
+mlab.show_sup = show_sup
+viewmenu.add_checkbutton(label="Add Support Toolbar", variable=show_sup, command=mlab.toggle_ssup)
+show_ld = tk.IntVar()
+show_ld.set(True)
+mlab.show_ld = show_ld
+viewmenu.add_checkbutton(label="Add Load Toolbar", variable=show_ld, command=mlab.toggle_sld)
+menubar.add_cascade(label="View", menu=viewmenu)
 optmenu = tk.Menu(menubar, tearoff=0)
 mem_wtls = tk.IntVar()
 mem_wtls.set(True)
+mlab.mem_wtls = mem_wtls
 optmenu.add_checkbutton(label="Weightless Members", variable=mem_wtls, command=mlab.toggle_wtls)
 optmenu.add_command(label="Set Scale", command=mlab.edit_scale)
 menubar.add_cascade(label="Options", menu=optmenu)
-mlab.mem_wtls = mem_wtls
 evalmenu = tk.Menu(menubar, tearoff=0)
-for i, evnm in mlab.eval_names.items():
+for i, evnm in Member.eval_names.items():
 	evalmenu.add_command(label=evnm, command=lambda ri=i: mlab.eval_report(ri))
 menubar.add_cascade(label="Evaluate", menu=evalmenu)
 delmenu = tk.Menu(menubar, tearoff=0)

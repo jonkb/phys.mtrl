@@ -42,6 +42,14 @@ class Member:
 	dq_resolution = 50
 	hq_resolution = 25
 	rep_err = ["Underconstrained", "Overconstrained", "Not Placed", "No Solution Found"]
+	#Names of each Evaluation Report
+	eval_names = {
+		0: "Mass Properties",
+		1: "Axial and Shear Stress",
+		2: "Shear and Moment",
+		3: "Euler Buckling"
+	}
+	
 	def __init__(self, material, xsection, length):
 		self.material = material
 		self.xsection = xsection
@@ -52,6 +60,13 @@ class Member:
 		self.sup = [None, None]
 		self.loads = []
 		self.has_weight = False
+		
+		self.eval_reports = {
+			0: self.mass_prop_rep,
+			1: self.sig_tau_rep,
+			2: self.VM_rep,
+			3: self.axial_buckling_rep
+		}
 	def __repr__(self):
 		return "Member({},{},{})".format(self.material, self.xsection, self.length)
 	def __str__(self):
@@ -84,9 +99,14 @@ class Member:
 	def xImin(self):
 		return self.xsection.Imin
 	@property
+	def volume(self):
+		return self.xarea * self.length
+	@property
 	def mass(self):
-		return self.xarea * self.length * self.material["rho"]
-	
+		return self.volume * self.material["rho"]
+	@property
+	def weight(self):
+		return self.mass * grav
 	#Define the position in the xy plane. Units are meters.
 	#vh True = vertical. vh False = horizontal.
 	def place(self, x, y, vh):
@@ -256,15 +276,22 @@ class Member:
 			return self.rep_err[3]
 		return sigfig_iter(SOL, 6) #eps_round(SOL)
 	#Do mohr's circle transformations on an element with sigma_x and tau_xy (assumes no sig_y)
-	#Return two vectors, along with their magnitude: sig_max, smv, tau_max, tmv
+	#Return two vectors, each in polar and cartesian: smvp, smvc, tmvp, tmvc
+	#fm = module with appropriate functions. Default numpy.
 	@staticmethod
-	def mohr_trsfm(sigx, tau):
+	def mohr_trsfm(sigx, tau, fm=np):
 		convert_to_neg = False
-		th_a = np.arctan(2*tau/sigx)/2
+		try:
+			#numpy uses "arctan"
+			atan = fm.arctan
+		except:
+			#sympy uses "atan"
+			atan = fm.atan
+		th_a = atan(2*tau/sigx)/2
 		#th_a = np.arctan2(2*tau,sigx)/2   --   This would be just to avoid /0 Repercussions?
 		th_b = th_a + math.pi/2
-		sig_a = sigx/2*(1+np.cos(2*th_a)) + tau*np.sin(2*th_a)
-		sig_b = sigx/2*(1+np.cos(2*th_b)) + tau*np.sin(2*th_b)
+		sig_a = sigx/2*(1+fm.cos(2*th_a)) + tau*fm.sin(2*th_a)
+		sig_b = sigx/2*(1+fm.cos(2*th_b)) + tau*fm.sin(2*th_b)
 		#I converted the ternaries to array-compatible logic
 		b_gt_a = sig_b > sig_a
 		b_agt_a = abs(sig_b) > abs(sig_a)
@@ -283,25 +310,33 @@ class Member:
 			#is t1 the more horizontal one?
 			t1_is_h = t2_horiz >= t1_horiz
 			th_tmax = th_t1*t1_is_h + th_t2*(1-t1_is_h)
-			tau_max = -.5*sigx*np.sin(2*th_tmax) + tau*np.cos(2*th_tmax)
+			tau_max = -.5*sigx*fm.sin(2*th_tmax) + tau*fm.cos(2*th_tmax)
 		else: #Just accept the alg. max. tau
 			th_tmax = th_t1
-			tau_max = np.sqrt((sigx/2)**2 + tau**2) #alg. max
+			tau_max = fm.sqrt((sigx/2)**2 + tau**2) #alg. max
 		#return (sig_max, th_smax), (tau_max, th_tmax)
-		sig_max_v = (sig_max*np.cos(th_smax), sig_max*np.sin(th_smax))
-		tau_max_v = (tau_max*np.cos(th_tmax), tau_max*np.sin(th_tmax))
-		return sig_max, sig_max_v, tau_max, tau_max_v
+		sig_max_vp = (sig_max, th_smax)
+		sig_max_vc = (sig_max*fm.cos(th_smax), sig_max*fm.sin(th_smax))
+		tau_max_vp = (tau_max, th_tmax)
+		tau_max_vc = (tau_max*fm.cos(th_tmax), tau_max*fm.sin(th_tmax))
+		return sig_max_vp, sig_max_vc, tau_max_vp, tau_max_vc
 	#Return report text (& any figures) for each type of evaluation
 	#Be sure to make this line up with the dictionary in Lab
 	def gen_report(self, type):
-		if type == 0:
-			return self.axial_stress_rep()
-		elif type == 1:
-			return self.axial_buckling_rep()
-		elif type == 2:
-			return self.VM_rep()
-		elif type == 3:
-			return self.sig_tau_rep()
+		return self.eval_reports[type]()
+	def mass_prop_rep(self):
+		rep_text = "cross sectional area A = "+str(sigfig(self.xarea))+" m^2"
+		rep_text += "\n\tsecond moment of area about horizontal axis I_x = "+str(sigfig(self.xIx))+" m^4"
+		rep_text += "\n\tsecond moment of area about vertical axis I_y = "+str(sigfig(self.xIy))+" m^4"
+		rep_text += "\nvolume V = "+str(sigfig(self.volume))+" m^3"
+		rep_text += "\nmass m = "+str(sigfig(self.mass))+" kg"
+		rep_text += "\nweight W = "+str(sigfig(self.weight))+" N"
+		rep_text += "\n\nProperties of "+self.material["name"]+":"
+		rep_text += "\n\tmass density \u03C1 = "+str(self.material["rho"])+" kg/m^3"
+		rep_text += "\n\tYoung's modulus E = "+str(self.material["E"]/1e9)+" GPa"
+		rep_text += "\n\tyield stress \u03C3_y = "+str(self.material["sig_y"]/1e6)+" MPa"
+		rep_text += "\n\tultimate stress \u03C3_y = "+str(self.material["sig_u"]/1e6)+" MPa"
+		return rep_text
 	def axial_loads(self):
 		if max(self.d_of_f()) > 0:
 			return self.rep_err[0]# "Underconstrained"
@@ -406,6 +441,7 @@ class Member:
 			eps = sig / self.E
 			eps_segments.append( (domain, p, sig, eps) )
 		return eps_segments
+	#Old, non-sym function
 	def axial_stress_rep(self):
 		axeps = self.axial_strain()
 		if isinstance(axeps, str):
@@ -481,8 +517,8 @@ class Member:
 		rep_text += N_to_kN_str(s0y)+","+Nm_to_kNm_str(s0m)+")"
 		rep_text += "\nSupport 1: " + "("+N_to_kN_str(s1x)+","
 		rep_text += N_to_kN_str(s1y)+","+Nm_to_kNm_str(s1m)+")"
-		rep_text += "\nMeasuring 'd' (in m) from end zero (left or bottom) of the member,"
-		rep_text += "\nFor internal tension, see \"axial stress report\""
+		rep_text += "\n'd' is measured (in m) from end \"zero\" (W or S) of the member."
+		rep_text += "\nFor internal tension and stresses, see \"Axial and Shear Stress\""
 		V = self.shear_symf()
 		if V in self.rep_err:
 			return V
@@ -536,6 +572,11 @@ class Member:
 		tau, h_dom = self.tau_sym()
 		sigf = sym.lambdify((d,h), sig/1e6, "numpy")
 		tauf = sym.lambdify((d,h), tau/1e6, "numpy")
+		#TEMP
+		(smvp, smvc, tmvp, tmvc) = self.mohr_trsfm(sig, tau, fm=sym)
+		smx, smy = smvc
+		print(575)
+		#\TEMP
 		d_ls = np.linspace(0, self.length, self.d_resolution)
 		h_sig_ls = np.linspace(y1min, y1max, self.h_resolution)
 		h_tau_ls = np.linspace(*h_dom, self.h_resolution)
@@ -595,7 +636,8 @@ class Member:
 		Dq, Hq = np.meshgrid(d_qls, h_qls)
 		Sq = sigf(Dq, Hq)
 		Tq = tauf(Dq, Hq)
-		S1m, (S1x, S1y), T1m, (T1x, T1y) = self.mohr_trsfm(Sq, Tq)
+		(S1m, S1th), (S1x, S1y), (T1m, T1th), (T1x, T1y) = self.mohr_trsfm(Sq, Tq)
+		#Swap these for gradients
 		sig_max = np.max(S1m)
 		sig_min = np.min(S1m)
 		sig_rng = max(abs(sig_min), abs(sig_max))
@@ -607,20 +649,26 @@ class Member:
 			smax_coords = np.where(S1m == sig_max)
 			smax_d = smax_coords[1][0] * self.length/(self.dq_resolution-1)
 			smax_h = y1min + smax_coords[0][0] * (y1max-y1min) / (self.hq_resolution-1)
+			smax_th = S1th[smax_coords[0][0], smax_coords[1][0]]
 			rep_text += " at d="+str(sigfig(smax_d))+"m, h="+str(sigfig(smax_h*1e3))+"mm"
+			rep_text += ", \u03B8="+str(sigfig(math.degrees(smax_th)))+"\u00B0"
 		if sig_min < 0:
-			rep_text += "\nMax Compressive Stress = " + str(sigfig(abs(sig_min))) + " MPa"
+			rep_text += "\nMax Compressive Stress = " + str(sigfig(-sig_min)) + " MPa"
 			smin_coords = np.where(S1m == sig_min)
 			smin_d = smin_coords[1][0] * self.length/(self.dq_resolution-1)
 			smin_h = y1min + smin_coords[0][0] * (y1max-y1min) / (self.hq_resolution-1)
+			smin_th = S1th[smin_coords[0][0], smin_coords[1][0]]
 			rep_text += " at d="+str(sigfig(smin_d))+"m, h="+str(sigfig(smin_h*1e3))+"mm"
+			rep_text += ", \u03B8="+str(sigfig(math.degrees(smin_th)))+"\u00B0"
 		if tau_rng > 0:
 			rep_text += "\nMax Sheer Stress = " + str(sigfig(tau_rng)) + " MPa"
 			tmax_coords = np.where(abs(T1m) == tau_rng)
 			tmax_d = tmax_coords[1][0] * self.length/(self.dq_resolution-1)
 			tmax_h = h_dom[0] + tmax_coords[0][0] * (h_dom[1]-h_dom[0]) / (self.hq_resolution-1)
+			tmax_th = T1th[tmax_coords[0][0], tmax_coords[1][0]]
 			rep_text += " at d="+str(sigfig(tmax_d))+"m, h="+str(sigfig(tmax_h*1e3))+"mm"
-			
+			rep_text += ", \u03B8="+str(sigfig(math.degrees(tmax_th)))+"\u00B0"
+		
 		sp2.set_title("Principal Stress \u03C3_p (MPa)")
 		q1 = sp2.quiver(Dq, Hq*1e3, S1x, S1y, S1m, cmap=plt.cm.RdBu, clim=(-sig_rng, sig_rng),
 			pivot="mid", headaxislength=0, headlength = 0, headwidth=1, width=.009)
