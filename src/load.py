@@ -9,11 +9,20 @@ class Load:
 		0: "Point",
 		1: "Distributed"
 	}
+	ltype = 0
 	def __init__(self, tag, xc, yc, ax_dist=0):
 		self.tag = tag
 		self.xc = xc
 		self.yc = yc
 		self.ax_dist = ax_dist
+	def to_xml(self):
+		data = """
+			<ld type="{}">
+				<xc>{}</xc>
+				<yc>{}</yc>
+				<axd>{}</axd>
+			</ld>""".format(self.ltype, self.xc, self.yc, self.ax_dist)
+		return data
 	def get_comp(self):
 		return (self.xc,self.yc)
 	#Draw a point load. All args in pixels. The tip is at the point specified by (px,py)
@@ -38,6 +47,7 @@ class Load:
 class Distr_Load(Load):
 	#Dist btw arrows in px
 	ad_px = 25
+	ltype = 1
 	def __init__(self, tag, xc0, yc0, axd0, xc1, yc1, axd1, isv):
 		super().__init__(tag, xc0, yc0)
 		self.xc0 = xc0
@@ -48,6 +58,18 @@ class Distr_Load(Load):
 		self.axd1 = axd1
 		self.isv = isv
 		self.a_dist = self.ad_px / 360
+	def to_xml(self):
+		data = """
+			<ld type="{}">
+				<xc0>{}</xc0>
+				<yc0>{}</yc0>
+				<axd0>{}</axd0>
+				<xc1>{}</xc1>
+				<yc1>{}</yc1>
+				<axd1>{}</axd1>
+			</ld>""".format(self.ltype, self.xc0, self.yc0, 
+			self.axd0, self.xc1, self.yc1, self.axd1)
+		return data
 	def pt_equiv(self):
 		L = self.axd1 - self.axd0
 		Px = self.xc0*L + (self.xc1-self.xc0)*L/2
@@ -83,7 +105,7 @@ class Distr_Load(Load):
 			n = 1
 		step = L / n
 		return np.arange(ax0, ax1+step/2, step)
-	#(px,py) is for the position in px of q0
+	#(px,py) is for the position in pixels of q0
 	def draw(self, lab, px, py):
 		self.a_dist = self.ad_px / lab.px_per_m
 		Ld = self.axd1 - self.axd0 #(Neg. if backwards)

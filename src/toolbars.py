@@ -129,24 +129,7 @@ class Add_mem:
 	#Return half of the height of the beam being added (in m)
 	def half_h(self):
 		xsec = self.xsec.get()
-		if xsec == "circle" or xsec == "annulus":
-			try:
-				r = float(self.get_xparams()[0])/1000 #mm
-			except:
-				return "NaN"
-			return r
-		if xsec == "rectangle":
-			try:
-				h = float(self.get_xparams()[1])/1000
-			except:
-				return "NaN"
-			return h/2
-		if xsec == "I-beam":
-			try:
-				d = float(self.get_xparams()[0])/1000
-			except:
-				return "NaN"
-			return d/2
+		return Region.half_h(xsec, self.get_xparams())
 	def get_xparams(self):
 		params = []
 		for param in self.xparam_entries:

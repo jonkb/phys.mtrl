@@ -21,6 +21,7 @@ class Support:
 		canv.create_oval(x-10,y-10,x+10,y+10)
 
 class Fixed(Support):
+	stype = 0
 	def __init__(self, tag):
 		super().__init__(tag)
 	
@@ -55,6 +56,7 @@ class Fixed(Support):
 			canv.create_line(x+self.img_w, y-self.img_w, x, y-2*self.img_w, tags=self.tag)
 			
 class Pin(Support):
+	stype = 1
 	def __init__(self, tag):
 		super().__init__(tag)
 	def constraints(self):
@@ -82,6 +84,12 @@ class Slot(Support):
 	def __init__(self, tag, isv):
 		super().__init__(tag)
 		self.isv = isv
+	@property
+	def stype(self):
+		if(self.isv):
+			return 3
+		else:
+			return 2
 	def constraints(self):
 		if self.isv:
 			return (1,0,0)

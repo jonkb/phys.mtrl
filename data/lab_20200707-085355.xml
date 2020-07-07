@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- This is a lab file created with phys.mtrl -->
+<!-- https://github.com/jonkb/phys.mtrl -->
+
+<lab version="0.1.0">
+	<options>
+		<c_wd>786</c_wd>
+		<c_ht>468</c_ht>
+		<px_per_m>360</px_per_m>
+		<subdivision>5</subdivision>
+		<px_per_kN>4.0</px_per_kN>
+	</options>
+	<members>
+		<mem>
+			<def>
+				<material>steel</material>
+				<xsec region="circle">
+					<radius>0.05</radius>
+				</xsec>
+				<length>0.5</length>
+			</def>
+			<place>
+				<x0>0.28888888888888886</x0>
+				<y0>0.2361111111111111</y0>
+				<vh>V</vh>
+			</place>
+			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->
+			<sup type="0" end="0"/>
+			<!-- Ld Type= 0:Point, 1:Distributed -->
+			<ld type="0">
+				<xc>10000.0</xc>
+				<yc>10000.0</yc>
+				<axd>0.5</axd>
+			</ld>
+			<ld type="0">
+				<xc>10000.0</xc>
+				<yc>10000.0</yc>
+				<axd>0.34722222222222227</axd>
+			</ld>
+			<ld type="0">
+				<xc>10000.0</xc>
+				<yc>10000.0</yc>
+				<axd>0.18333333333333335</axd>
+			</ld>
+		</mem>
+		<mem>
+			<def>
+				<material>aluminum</material>
+				<xsec region="I-beam">
+					<depth>0.035</depth>
+					<width>0.02</width>
+					<tflg>0.005</tflg>
+					<tweb>0.004</tweb>
+				</xsec>
+				<length>1.25</length>
+			</def>
+			<place>
+				<x0>0.8361111111111111</x0>
+				<y0>0.48333333333333334</y0>
+				<vh>H</vh>
+			</place>
+			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->
+			<sup type="2" end="0"/>
+			<sup type="1" end="1"/>
+			<!-- Ld Type= 0:Point, 1:Distributed -->
+			<ld type="1">
+				<xc0>5000.0</xc0>
+				<yc0>-5000.0</yc0>
+				<axd0>0.29166666666666663</axd0>
+				<xc1>0.0</xc1>
+				<yc1>-10000.0</yc1>
+				<axd1>1.0027777777777778</axd1>
+			</ld>
+			<ld type="0">
+				<xc>3000.0</xc>
+				<yc>20000.0</yc>
+				<axd>0.6027777777777777</axd>
+			</ld>
+		</mem>
+	</members>
+</lab>

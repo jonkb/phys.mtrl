@@ -21,14 +21,56 @@ class Region:
 		#If x and y aren't principle axes, this needs to be calculated
 		#https://calcresource.com/moment-of-inertia-rotation.html
 		return min(self.Ix, self.Iy)
+	@staticmethod
+	def reg_dict():
+		return {"circle": Circle, 
+		"rectangle": Rectangle, 
+		"I-beam": W_F_I, 
+		"annulus": Annulus}
+	@staticmethod
+	def half_h(xsec, params):
+		if xsec == "circle" or xsec == "annulus":
+			try:
+				if isinstance(params, dict):
+					r = float(params["radius"])
+				else:
+					r = float(params[0])/1000 #mm
+			except:
+				return "NaN"
+			return r
+		if xsec == "rectangle":
+			try:
+				if isinstance(params, dict):
+					h = float(params["height"])
+				else:
+					h = float(params[1])/1000
+			except:
+				return "NaN"
+			return h/2
+		if xsec == "I-beam":
+			try:
+				if isinstance(params, dict):
+					d = float(params["depth"])
+				else:
+					d = float(params[0])/1000
+			except:
+				return "NaN"
+			return d/2
 
 class Circle(Region):
+	rtype = "circle"
 	def __init__(self, radius):
 		self.radius = radius
 		#Do I need the super() thing?
 	def __str__(self):
 		return "circle with radius=" + str(self.radius)
-	@property #getter
+	def to_xml(self):
+		data = """
+				<xsec region="{}">
+					<radius>{}</radius>
+				</xsec>""".format(self.rtype, self.radius)
+		return data
+	@property
 	def area(self):
 		return math.pi*self.radius**2
 	@property
@@ -52,11 +94,19 @@ class Circle(Region):
 		return self.Q(0) / (self.Ix*2*self.radius)
 
 class Rectangle(Region):
+	rtype = "rectangle"
 	def __init__(self, base, height):
 		self.base = base
 		self.height = height
 	def __str__(self):
 		return "rectangle with base=" +str(self.base)+ ", and height=" +str(self.height)
+	def to_xml(self):
+		data = """
+				<xsec region="{}">
+					<base>{}</base>
+					<height>{}</height>
+				</xsec>""".format(self.rtype, self.base, self.height)
+		return data
 	@property
 	def area(self):
 		return self.base * self.height
@@ -82,6 +132,7 @@ class Rectangle(Region):
 
 #Wide Flanged I-beam
 class W_F_I(Region):
+	rtype = "I-beam"
 	#Major depth(height), flange width, flange thickness, web thickness
 	def __init__(self, depth, width, tflg, tweb):
 		self.depth = depth
@@ -90,6 +141,15 @@ class W_F_I(Region):
 		self.tweb = tweb
 	def __str__(self):
 		return "wide flanged I-beam with height=" +str(self.depth)
+	def to_xml(self):
+		data = """
+				<xsec region="{}">
+					<depth>{}</depth>
+					<width>{}</width>
+					<tflg>{}</tflg>
+					<tweb>{}</tweb>
+				</xsec>""".format(self.rtype, self.depth, self.width, self.tflg, self.tweb)
+		return data
 	@property
 	def area(self):
 		return 2*self.tflg*self.width + self.tweb*(self.depth-2*self.tflg)
@@ -117,11 +177,19 @@ class W_F_I(Region):
 		return self.Q(y1) / (self.Ix * self.tweb)
 
 class Annulus(Region):
+	rtype = "annulus"
 	def __init__(self, ro, ri):
 		self.ro = ro
 		self.ri = ri
 	def __str__(self):
 		return "annulus with outer radius=" +str(self.ro)+", and inner radius=" +str(self.ri)
+	def to_xml(self):
+		data = """
+				<xsec region="{}">
+					<ro>{}</ro>
+					<ri>{}</ri>
+				</xsec>""".format(self.rtype, self.ro, self.ri)
+		return data
 	@property
 	def area(self):
 		return math.pi * (self.ro**2 - self.ri**2)

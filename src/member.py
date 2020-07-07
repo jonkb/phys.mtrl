@@ -73,6 +73,33 @@ class Member:
 		s = self.material["name"] + " member with cross section=("
 		s += str(self.xsection) + "), and length=" + str(self.length)
 		return s
+	def to_xml(self):
+		data = """
+		<mem>
+			<def>
+				<material>"""+str(self.material["vname"])+"</material>"
+		data += self.xsection.to_xml()
+		data += """
+				<length>"""+str(self.length)+"""</length>
+			</def>
+			<place>
+				<x0>"""+str(self.x0)+"""</x0>
+				<y0>"""+str(self.y0)+"""</y0>
+				<vh>"""+self.VH_char()+"""</vh>
+			</place>
+			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->"""
+		for i, sup in enumerate(self.sup):
+			if sup == None:
+				continue
+			data += """
+			<sup type="{}" end="{}"/>""".format(sup.stype, i)
+		data += """
+			<!-- Ld Type= 0:Point, 1:Distributed -->"""
+		for p in self.loads:
+			data += p.to_xml()
+		data += """
+		</mem>"""
+		return data
 	
 	@property
 	def E(self):
@@ -130,6 +157,11 @@ class Member:
 			else:
 				return False
 		return None
+	def VH_char(self):
+		if self.is_vert():
+			return "V"
+		else:
+			return "H"
 	def v_axis(self):
 		return np.array([self.x1-self.x0, self.y1-self.y0])
 	#Unit vector along the axis
@@ -648,7 +680,7 @@ class Member:
 			rep_text += "\nMax Tensile Stress = " + str(sigfig(sig_max)) + " MPa"
 			smax_coords = np.where(S1m == sig_max)
 			smax_d = smax_coords[1][0] * self.length/(self.dq_resolution-1)
-			smax_h = y1min + smax_coords[0][0] * (y1max-y1min) / (self.hq_resolution-1)
+			smax_h = h_dom[0] + smax_coords[0][0] * (h_dom[1]-h_dom[0]) / (self.hq_resolution-1)
 			smax_th = S1th[smax_coords[0][0], smax_coords[1][0]]
 			rep_text += " at d="+str(sigfig(smax_d))+"m, h="+str(sigfig(smax_h*1e3))+"mm"
 			rep_text += ", \u03B8="+str(sigfig(math.degrees(smax_th)))+"\u00B0"
@@ -656,7 +688,7 @@ class Member:
 			rep_text += "\nMax Compressive Stress = " + str(sigfig(-sig_min)) + " MPa"
 			smin_coords = np.where(S1m == sig_min)
 			smin_d = smin_coords[1][0] * self.length/(self.dq_resolution-1)
-			smin_h = y1min + smin_coords[0][0] * (y1max-y1min) / (self.hq_resolution-1)
+			smin_h = h_dom[0] + smin_coords[0][0] * (h_dom[1]-h_dom[0]) / (self.hq_resolution-1)
 			smin_th = S1th[smin_coords[0][0], smin_coords[1][0]]
 			rep_text += " at d="+str(sigfig(smin_d))+"m, h="+str(sigfig(smin_h*1e3))+"mm"
 			rep_text += ", \u03B8="+str(sigfig(math.degrees(smin_th)))+"\u00B0"
@@ -688,6 +720,7 @@ class Materials:
 	materials = ("steel", "aluminum")
 	#Used values for ASTM-A514 steel
 	steel = {
+		"vname": "steel", #Variable name
 		"name": "structural steel",
 		"color": "#43464B",
 		#Mass density
@@ -701,6 +734,7 @@ class Materials:
 	}
 	#Used values for 6061-T6 alloy
 	aluminum = {
+		"vname": "aluminum",
 		"name": "aluminum",
 		"color": "#848789",
 		#Mass density

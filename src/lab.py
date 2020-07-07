@@ -9,38 +9,25 @@ from member import *
 from region import *
 from support import *
 from load import *
+import pmfs
 
 
 class Lab:
 	#Constants
-	px_per_m = 360#scale
-	#how long is a 1kN force arrow
-	px_per_kN = 4.0#4.0 gives 200px=50kN
-	dash_len = int(px_per_m/6)
+	version = "0.1.0"
 	snap_dist = 15
+	dash_len = 30
 	
 	def __init__(self, main_frm, add_mem_bar, add_sup_bar, add_load_bar):
 		self.c_wd = 756
-		#Remember that when c_wd = 800 pixels, this corrosponds to x=[0,799]
 		self.c_ht = 468
-		self.subdivision = 5 #For grid lines smaller than 1m
-		#self.mem_wtls = True
 		
-		self.ltag_n = 0
-		self.sel_mem_cb = None
-		self.sel_txt = None
-		#mode: 0=None, 1=add_mem, 2=add_sup, 3=add_load
-		self.add_mode = 0
-		self.floating = None
-		self.dlq0_temp = None #Temp 1/2 distributed load
 		add_mem_bar.add_btn.config(command=self.toggle_mem_mode)
 		self.add_mem_bar = add_mem_bar
 		add_sup_bar.add_btn.config(command=self.toggle_sup_mode)
 		self.add_sup_bar = add_sup_bar
 		add_load_bar.add_btn.config(command=self.toggle_load_mode)
 		self.add_load_bar = add_load_bar
-		self.members = []
-		self.popups = []
 		
 		self.canv = tk.Canvas(main_frm, width=self.c_wd, height=self.c_ht, bg='white')
 		self.canv.config(borderwidth=0, highlightthickness=0)
@@ -50,10 +37,28 @@ class Lab:
 		self.canv.bind("<Button-1>", self.mouse_click)
 		self.bgbox = self.canv.create_rectangle(0,0,self.c_wd-1,self.c_ht-1)
 		self.bggrid = [] #Switch this to a tag
-		self.redraw_grid()
 		
-		#TEMP
-		self.temptoggle = False
+		self.members = []
+		self.popups = []
+		self.reset_lab()
+	
+	def to_xml(self):
+		data = """
+<lab version=\""""+self.version+"""\">
+	<options>
+		<c_wd>"""+str(self.c_wd)+"""</c_wd>
+		<c_ht>"""+str(self.c_ht)+"""</c_ht>
+		<px_per_m>"""+str(self.px_per_m)+"""</px_per_m>
+		<subdivision>"""+str(self.subdivision)+"""</subdivision>
+		<px_per_kN>"""+str(self.px_per_kN)+"""</px_per_kN>
+	</options>
+	<members>"""
+		for mem in self.members:
+			data += mem.to_xml()
+		data += """
+	</members>
+</lab>"""
+		return data
 	
 	#convert x,y coordinates in meters to their place on the canvas in pixels
 	def coords_to_px(self, xc, yc):
@@ -90,6 +95,35 @@ class Lab:
 			return self.show_ld.get()
 		except:# Was not set
 			return True
+	def save(self):
+		pmfs.save(self)
+	def open(self):
+		pmfs.open(self)
+	def reset_lab(self):
+		self.c_wd = 756
+		#Remember that when c_wd = 800 pixels, this corrosponds to x=[0,799]
+		self.c_ht = 468
+		self.px_per_m = 360#scale
+		self.subdivision = 5 #For grid lines smaller than 1m
+		#how long is a 1kN force arrow
+		self.px_per_kN = 4.0#4.0 gives 200px=50kN
+		#A counter used to create unique tk tags for loads
+		self.ltag_n = 0
+		#Callback function to execute after selecting a member
+		self.sel_mem_cb = None
+		#The tk tag for the "SELECT A MEMBER" label
+		self.sel_txt = None
+		#mode: 0=None, 1=add_mem, 2=add_sup, 3=add_load
+		self.add_mode = 0
+		#The tk tag for a floating image following the cursor
+		self.floating = None
+		#Temp 1/2 of distributed load
+		self.dlq0_temp = None
+		self.cleanup()
+		self.clear_all()
+		self.redraw()
+		self.members = []
+		self.popups = []
 	#Snap x,y (in px) to the ends of existing members
 	def snap_to_mem_ends(self, xp, yp):
 		xc, yc = self.px_to_coords(xp,yp)
@@ -168,6 +202,7 @@ class Lab:
 	def redraw_grid(self):
 		#Make it okay with no grid lines
 		self.canv.delete(*self.bggrid)
+		self.bggrid = []
 		subdist = self.px_per_m / self.subdivision
 		xn = int(self.c_wd / subdist)
 		yn = int(self.c_ht / subdist)
@@ -281,50 +316,82 @@ class Lab:
 		m = Member(matl, xsec, L)
 		if not self.wtls():
 			m.has_weight = True
-		xc,yc = self.px_to_coords(x,y)
-		m.place(xc, yc, self.add_mem_bar.get_vh())
-		m.img_ref = self.canv.create_rectangle(*self.rect_mem_coords(x, y, L*self.px_per_m), fill=rgb)
-		self.members.append(m)
-		#print("Added new " + str(m))
+		self.place_member(m, xp=x, yp=y, vh=self.add_mem_bar.get_vh())
 		self.set_add_mode(0)
+	def place_member(self, mem, xp=None, yp=None, xc=None, yc=None, vh=True, xs_prms=None):
+		if xs_prms is None:
+			xs_prms = self.add_mem_bar.get_xparams()
+		if vh == "V":
+			vh = True
+		elif vh == "H":
+			vh = False
+		if not self.wtls():
+			mem.has_weight = True
+		if not (xp is None) and not (yp is None):
+			xc, yc = self.px_to_coords(xp, yp)
+		elif not (xc is None) and not (yc is None):
+			xp, yp = self.coords_to_px(xc, yc)
+		else:
+			return "Error: Must provide xp&yp or xc&yc"
+		rgb = mem.material["color"]
+		mem.place(xc, yc, vh)
+		rcoords = self.rect_mem_coords(xp, yp, mem.length*self.px_per_m, 
+			hh=Region.half_h(mem.xsection.rtype, xs_prms), vh=vh)
+		#print(*rcoords)
+		mem.img_ref = self.canv.create_rectangle(*rcoords, fill=rgb)
+		self.members.append(mem)
+		#print("Added new " + str(m))
 	def add_support(self, event):
 		x = event.x
 		y = event.y
 		(xp,yp), mem, side = self.snap_to_mem_ends(x,y)
 		if mem != None:
 			stype = self.add_sup_bar.get_sup_type()
-			stag = 'sup_'+str(mem.img_ref)+'_s'+str(side)
-			self.canv.delete(stag)#Delete the support img if it exists
-			if stype == 0:
-				sup = Fixed(stag)
-				sup.draw(self.canv, xp, yp, mem.sup_dir(side))
-			elif stype == 1:
-				sup = Pin(stag)
-				sup.draw(self.canv, xp, yp, mem.sup_dir(side))
-			elif stype == 2:
-				sup = Slot(stag, False)
-				sup.draw(self.canv, xp, yp)
-			elif stype == 3:
-				sup = Slot(stag, True)
-				sup.draw(self.canv, xp, yp)
-			mem.sup[side] = sup
+			self.place_support(mem, side, stype, xp, yp)
 			self.set_add_mode(0)
+	def place_support(self, mem, side, stype, xp=None, yp=None):
+		if xp is None or yp is None:
+			x0, y0, x1, y1 = mem.get_pos()
+			if side == 0:
+				xp, yp = self.coords_to_px(x0, y0)
+			if side == 1:
+				xp, yp = self.coords_to_px(x1, y1)
+		stag = 'sup_'+str(mem.img_ref)+'_s'+str(side)
+		self.canv.delete(stag)#Delete the support img if it exists
+		if stype == 0:
+			sup = Fixed(stag)
+			sup.draw(self.canv, xp, yp, mem.sup_dir(side))
+		elif stype == 1:
+			sup = Pin(stag)
+			sup.draw(self.canv, xp, yp, mem.sup_dir(side))
+		elif stype == 2:
+			sup = Slot(stag, False)
+			sup.draw(self.canv, xp, yp)
+		elif stype == 3:
+			sup = Slot(stag, True)
+			sup.draw(self.canv, xp, yp)
+		mem.sup[side] = sup
 	def add_load(self, event):
 		x = event.x
 		y = event.y
-		(xp,yp), mem, ax_dist = self.snap_to_mem_axis(x,y)
+		(xp,yp), mem, axd = self.snap_to_mem_axis(x,y)
 		#(xc,yc) = self.px_to_coords(xp,yp)
 		if mem != None:
-			ltag = "load_"+str(self.ltag_n)
-			self.ltag_n += 1
-			#ltag = 'load_'+str(mem.img_ref)+'_d'+str(ax_dist)
-			#self.canv.delete(ltag)
-			load = Load(ltag, *self.add_load_bar.get_P(), ax_dist)
-			load.draw(self, xp, yp)
-			mem.loads.append(load)
+			Px, Py = self.add_load_bar.get_P()
+			self.place_load(mem, Px, Py, axd, xp, yp)
 			self.set_add_mode(0)
-			#popup_report(mem, 0)
-			#mem.axial_stress()
+	def place_load(self, mem, Px, Py, axd, xp=None, yp=None):
+		if xp is None or yp is None:
+			x0, y0, *_ = mem.get_pos()
+			xc, yc = np.array((x0, y0)) + axd*mem.uv_axis()
+			xp, yp = self.coords_to_px(xc, yc)
+		ltag = "ld_"+str(self.ltag_n)
+		self.ltag_n += 1
+		#ltag = 'load_'+str(mem.img_ref)+'_d'+str(ax_dist)
+		#self.canv.delete(ltag)
+		load = Load(ltag, Px, Py, axd)
+		load.draw(self, xp, yp)
+		mem.loads.append(load)
 	def add_distr_load(self, event):
 		x = event.x
 		y = event.y
@@ -339,20 +406,26 @@ class Lab:
 			else:
 				(q0x, q0y), (q1x, q1y) = self.add_load_bar.get_P()
 				axd0 = self.dlq0_temp.ax_dist
-				isv = mem.is_vert()
-				dltag = "dl_"+str(self.ltag_n)
-				self.ltag_n += 1
-				#+str(mem.img_ref)+"_d"+str(self.dlq0_temp.ax_dist)+"-"+str(ax_dist)
-				dl = Distr_Load(dltag, q0x, q0y, axd0, q1x, q1y, ax_dist, isv)
-				mem.loads.append(dl)
 				if mem.is_vert():
 					yp += (ax_dist - axd0)*self.px_per_m
 				else:
 					xp -= (ax_dist - axd0)*self.px_per_m
-				dl.draw(self, xp, yp)
+				self.place_distr_load(mem, q0x, q0y, axd0, q1x, q1y, ax_dist, xp, yp)
 				self.canv.delete(self.dlq0_temp.tag)
 				self.dlq0_temp = None
 				self.set_add_mode(0)
+	def place_distr_load(self, mem, q0x, q0y, axd0, q1x, q1y, axd1, xp=None, yp=None):
+		if xp is None or yp is None:
+			x0, y0, *_ = mem.get_pos()
+			xc, yc = np.array((x0, y0)) + axd0*mem.uv_axis()
+			xp, yp = self.coords_to_px(xc, yc)
+		isv = mem.is_vert()
+		dltag = "dl_"+str(self.ltag_n)
+		self.ltag_n += 1
+		#+str(mem.img_ref)+"_d"+str(self.dlq0_temp.ax_dist)+"-"+str(ax_dist)
+		dl = Distr_Load(dltag, q0x, q0y, axd0, q1x, q1y, axd1, isv)
+		mem.loads.append(dl)
+		dl.draw(self, xp, yp)
 	def sel_mem(self, event):
 		x = event.x
 		y = event.y
@@ -363,12 +436,15 @@ class Lab:
 			self.sel_mem_cb = None
 			self.canv.delete(self.sel_txt)
 			cb(mem)
-	def rect_mem_coords(self, x, y, L_px):
-		hh = self.add_mem_bar.half_h()
-		if hh=="NaN":
+	def rect_mem_coords(self, x, y, L_px, hh=None, vh=None):
+		if hh is None:
+			hh = self.add_mem_bar.half_h()
+		if hh == "NaN":
 			return "NaN"
+		if vh is None:
+			vh = self.add_mem_bar.get_vh()
 		hh *= self.px_per_m
-		if(self.add_mem_bar.get_vh()):
+		if vh:
 			x1 = x - hh
 			y1 = y
 			x2 = x + hh
