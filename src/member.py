@@ -717,7 +717,7 @@ class Member:
 
 #This class is really just for reference. I'm not sure if this is the best way to do this.
 class Materials:
-	materials = ("steel", "aluminum")
+	materials = ("steel", "aluminum", "pla")
 	#Used values for ASTM-A514 steel
 	steel = {
 		"vname": "steel", #Variable name
@@ -745,4 +745,18 @@ class Materials:
 		"sig_y": 270e6, #270MPa
 		#ultimate stress
 		"sig_u": 310e6 #310MPa
+	}
+	#PLA Plastic (average values from http://www.matweb.com/search/DataSheet.aspx?MatGUID=ab96a4c0655c4018a8785ac4031b9278&ckck=1)
+	pla = {
+		"vname": "pla",
+		"name": "PLA Plastic",
+		"color": "#65b565",
+		#Mass density
+		"rho": 1290, #1.00 - 2.47 g/cc
+		#Young's modulus
+		"E": 2.91e9, #0.0850 - 13.8 GPa	
+		#yield stress (TENSILE)
+		"sig_y": 38.0e6, #2.00 - 103 MPa	
+		#ultimate stress (TENSILE)
+		"sig_u": 47.2e6 #14.0 - 117 MPa	
 	}

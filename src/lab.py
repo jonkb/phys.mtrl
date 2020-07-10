@@ -41,6 +41,9 @@ class Lab:
 		self.members = []
 		self.popups = []
 		self.reset_lab()
+		
+		#TEMP
+		#self.main_frm = main_frm
 	
 	def to_xml(self):
 		data = """
@@ -106,7 +109,7 @@ class Lab:
 		self.px_per_m = 360#scale
 		self.subdivision = 5 #For grid lines smaller than 1m
 		#how long is a 1kN force arrow
-		self.px_per_kN = 4.0#4.0 gives 200px=50kN
+		self.px_per_kN = 20.0#4.0 gives 200px=50kN
 		#A counter used to create unique tk tags for loads
 		self.ltag_n = 0
 		#Callback function to execute after selecting a member
@@ -180,15 +183,14 @@ class Lab:
 					xp,yp = self.coords_to_px(*pf)
 		return ((xp,yp), closest, v_comp)
 	def redraw(self, w=None, h=None):
-		if w == None:
-			w = self.c_wd
-		if h == None:
-			h = self.c_ht
-		#This can actually be way simplified by calculating a delta y just once.
-		#Also I should make it change all the images if the scale changes.
 		for m in self.members:
 			m.oldx, m.oldy = self.coords_to_px(m.x0, m.y0)
-		self.c_wd, self.c_ht = w, h
+		if w != None and h != None:
+			self.c_wd, self.c_ht = w, h
+			#This next line works only if the window hasn't been manually resized yet.
+			self.canv.config(width=w, height=h)
+		#This can actually be way simplified by calculating a delta y just once.
+		#Also I should make it change all the images if the scale changes.
 		self.canv.coords(self.bgbox, 0, 0, self.c_wd-1,self.c_ht-1)
 		for m in self.members:
 			newx, newy = self.coords_to_px(m.x0, m.y0)
@@ -275,7 +277,8 @@ class Lab:
 		self.floating_x = x
 		self.floating_y = y
 	def mouse_click(self, event):
-		#print(self.canv.find_all())
+		#print("self.canv.config(width=300, height=300)")
+		#self.canv.config(width=300, height=300)
 		if self.add_mode == 1:
 			self.add_member(event)
 		elif self.add_mode == 2:

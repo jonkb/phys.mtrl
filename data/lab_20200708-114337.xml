@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- This is a lab file created with phys.mtrl -->
+<!-- https://github.com/jonkb/phys.mtrl -->
+
+<lab version="0.1.0">
+	<options>
+		<c_wd>589</c_wd>
+		<c_ht>395</c_ht>
+		<px_per_m>200</px_per_m>
+		<subdivision>4</subdivision>
+		<px_per_kN>8.0</px_per_kN>
+	</options>
+	<members>
+		<mem>
+			<def>
+				<material>steel</material>
+				<xsec region="circle">
+					<radius>0.05</radius>
+				</xsec>
+				<length>1.0</length>
+			</def>
+			<place>
+				<x0>1.0</x0>
+				<y0>0.51</y0>
+				<vh>V</vh>
+			</place>
+			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->
+			<sup type="0" end="0"/>
+			<!-- Ld Type= 0:Point, 1:Distributed -->
+		</mem>
+	</members>
+</lab>
