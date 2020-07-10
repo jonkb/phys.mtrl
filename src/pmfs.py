@@ -27,6 +27,8 @@ def save(lab):
 def open(lab):
 	file = tk.filedialog.askopenfile(mode="r", 
 		initialdir=save_dir, defaultextension=".xml")
+	if file is None:
+		return
 	lstr = file.read()
 	file.close()
 	data = ET.fromstring(lstr)

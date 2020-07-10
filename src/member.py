@@ -4,36 +4,7 @@ import sympy as sym
 import matplotlib.pyplot as plt
 from load import *
 #from region import Region
-eps = 1e-14
-default_sigfig = 4
-grav = 9.81 #m/s^2
-
-#round x to n significant figures
-def sigfig(x, n=default_sigfig):
-	if abs(x) < eps:
-		return 0
-	return round(x, int(-math.log10(abs(x))+n))
-#Takes an iterable and rounds those elements that are very close to int
-def eps_round(A):
-	for i,e in enumerate(A):
-		if (abs(e)+eps/2) % 1 < eps:
-			A[i] = round(e)
-	return A
-def sigfig_iter(A, n=default_sigfig):
-	for i,e in enumerate(A):
-		A[i] = sigfig(e,n)
-	return A
-def N_to_kN_str(N, n=default_sigfig):
-	k = N/1e3
-	return str(sigfig(k, n))+"kN"
-def Nm_to_kNm_str(Nm, n=default_sigfig):
-	km = Nm/1e3
-	return str(sigfig(km, n))+"kN-m"
-def Pa_to_MPa_str(P, n=default_sigfig):
-	M = P/1e6
-	return str(sigfig(M, n))+"MPa"
-def coords_str(x,y, n=default_sigfig):
-	return "("+str(sigfig(x,n))+","+str(sigfig(y,n))+")"
+from math_util import *
 
 #prismatic uniform members
 class Member:
@@ -598,11 +569,12 @@ class Member:
 	def sig_tau_rep(self):
 		reps = []
 		d, h = sym.symbols("d h")
-		sig = self.axial_stress_sym()
+		sig = self.axial_stress_sym()/1e6 #MPa
 		y1min, y1max = self.xsection.y1_domain()
 		tau, h_dom = self.tau_sym()
-		sigf = sym.lambdify((d,h), sig/1e6, "numpy")
-		tauf = sym.lambdify((d,h), tau/1e6, "numpy")
+		tau = tau/1e6
+		sigf = sym.lambdify((d,h), sig, "numpy")
+		tauf = sym.lambdify((d,h), tau, "numpy")
 		#TEMP
 		(smvp, smvc, tmvp, tmvc) = self.mohr_trsfm(sig, tau, fm=sym)
 		smx, smy = smvc
@@ -613,23 +585,34 @@ class Member:
 		D, H_s = np.meshgrid(d_ls, h_sig_ls)
 		_, H_t = np.meshgrid(d_ls, h_tau_ls)
 		SIG = sigf(D, H_s)
-		sig_max = np.max(SIG)
-		sig_min = np.min(SIG)
+		(sig_max, smax_d, smax_h), (sig_min, smin_d, smin_h) = max2d(
+			sig, d, h, [0, self.length], h_dom)
+		
+		#sig_max = np.max(SIG)
+		#sig_min = np.min(SIG)
 		sig_rng = max(abs(sig_min), abs(sig_max))
 		rep_text = "Measuring 'd' (in m) from end zero (left or bottom) of the member"
 		rep_text += " and 'h' (in mm) from the neutral axis of bending,"
 		if True: #OLD
 			if sig_max > 0:
 				rep_text += "\nMax Tensile Axial Stress = " + str(sigfig(sig_max)) + " MPa"
-				smax_coords = np.where(SIG == sig_max)
-				smax_d = smax_coords[1][0] * self.length/(self.d_resolution-1)
-				smax_h = y1min + smax_coords[0][0] * (y1max-y1min) / (self.h_resolution-1)
+				"""
+				#smax_coords = np.where(SIG == sig_max)
+				#smax_coords = np.where(SIG_critvals == sig_max)
+				#smax_d, smax_h = SIG_critpts[smax_coords[0][0]]
+				#smax_d = smax_coords[1][0] * self.length/(self.d_resolution-1)
+				#smax_h = y1min + smax_coords[0][0] * (y1max-y1min) / (self.h_resolution-1)
+				"""
 				rep_text += " at d="+str(sigfig(smax_d))+"m, h="+str(sigfig(smax_h*1e3))+"mm"
 			if sig_min < 0:
-				rep_text += "\nMax Compressive Axial Stress = " + str(sigfig(abs(sig_min))) + " MPa"
-				smin_coords = np.where(SIG == sig_min)
-				smin_d = smin_coords[1][0] * self.length/(self.d_resolution-1)
-				smin_h = y1min + smin_coords[0][0] * (y1max-y1min) / (self.h_resolution-1)
+				rep_text += "\nMax Compressive Axial Stress = " + str(sigfig(-sig_min)) + " MPa"
+				"""
+				#smin_coords = np.where(SIG == sig_min)
+				#smin_coords = np.where(SIG_critvals == sig_min)
+				#smin_d, smin_h = SIG_critpts[smin_coords[0][0]]
+				#smin_d = smin_coords[1][0] * self.length/(self.d_resolution-1)
+				#smin_h = y1min + smin_coords[0][0] * (y1max-y1min) / (self.h_resolution-1)
+				"""
 				rep_text += " at d="+str(sigfig(smin_d))+"m, h="+str(sigfig(smin_h*1e3))+"mm"
 		TAU = tauf(D, H_t)
 		tau_max = np.max(TAU)
