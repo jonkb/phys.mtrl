@@ -42,7 +42,7 @@ def open(lab):
 	lab.px_per_kN = float(options.find("px_per_kN").text)
 	lab.subdivision = int(options.find("subdivision").text)
 	#print(44)
-	lab.redraw(int(options.find("c_wd").text), int(options.find("c_ht").text))
+	lab.redraw(int(options.find("c_wd").text), int(options.find("c_ht").text), True)
 	members = data.find("members")
 	for mem in members.findall("mem"):
 		mem_def = mem.find("def")

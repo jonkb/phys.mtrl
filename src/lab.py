@@ -182,13 +182,14 @@ class Lab:
 					pf = s0 + v_comp*uv_axis
 					xp,yp = self.coords_to_px(*pf)
 		return ((xp,yp), closest, v_comp)
-	def redraw(self, w=None, h=None):
+	def redraw(self, w=None, h=None, set_size=False):
 		for m in self.members:
 			m.oldx, m.oldy = self.coords_to_px(m.x0, m.y0)
 		if w != None and h != None:
 			self.c_wd, self.c_ht = w, h
-			#This next line works only if the window hasn't been manually resized yet.
-			self.canv.config(width=w, height=h)
+			if set_size:
+				#This next line works only if the window hasn't been manually resized yet.
+				self.canv.config(width=w, height=h)
 		#This can actually be way simplified by calculating a delta y just once.
 		#Also I should make it change all the images if the scale changes.
 		self.canv.coords(self.bgbox, 0, 0, self.c_wd-1,self.c_ht-1)
@@ -553,11 +554,34 @@ class Lab:
 				rep_lbl = tk.Label(popup, text=report, justify=tk.LEFT)
 				rep_lbl.pack()
 			else:
-				rep_text, fig = report
-				rep_lbl = tk.Label(popup, text=rep_text, justify=tk.LEFT)
-				rep_lbl.pack()
-				figcanv = FigureCanvasTkAgg(fig, popup)
-				figcanv.get_tk_widget().pack(fill=tk.BOTH, expand=1)
+				tk.Label(popup, text="Choose which report to show:").pack()
+				rep_names = []
+				rep_widgets = []
+				for rep in report:
+					rep_name, rep_text, fig = rep
+					rep_names.append(rep_name)
+					rep_lbl = tk.Label(popup, text=rep_text, justify=tk.LEFT)
+					#rep_lbl.pack()
+					figcanv = FigureCanvasTkAgg(fig, popup)
+					rep_canv = figcanv.get_tk_widget()
+					#rep_canv.pack(fill=tk.BOTH, expand=1)
+					rep_widgets.append((rep_lbl, rep_canv))
+				#Pulldown to choose which report to show
+				rep_option = tk.StringVar(popup)
+				rep_option.set(rep_names[0])
+				matl_option = tk.OptionMenu(popup, rep_option, *rep_names)
+				matl_option.config(width=16)
+				matl_option.pack()
+				popup.current_rep = 0
+				rep_widgets[popup.current_rep][0].pack()
+				rep_widgets[popup.current_rep][1].pack(fill=tk.BOTH, expand=1)
+				def switch_rep(*args):
+					rep_widgets[popup.current_rep][0].pack_forget()
+					rep_widgets[popup.current_rep][1].pack_forget()
+					popup.current_rep = rep_names.index(rep_option.get())
+					rep_widgets[popup.current_rep][0].pack()
+					rep_widgets[popup.current_rep][1].pack(fill=tk.BOTH, expand=1)
+				rep_option.trace("w", switch_rep)
 		
 		#Flash blue
 		self.canv.itemconfig(mem.img_ref, outline="blue")

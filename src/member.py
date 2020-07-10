@@ -596,8 +596,7 @@ class Member:
 		sp2.set(xlabel="Axial Distance d (m)")
 		return (rep_text, fig)
 	def sig_tau_rep(self):
-		rep_text = "Measuring 'd' (in m) from end zero (left or bottom) of the member"
-		rep_text += " and 'h' (in mm) from the neutral axis of bending,"
+		reps = []
 		d, h = sym.symbols("d h")
 		sig = self.axial_stress_sym()
 		y1min, y1max = self.xsection.y1_domain()
@@ -607,7 +606,6 @@ class Member:
 		#TEMP
 		(smvp, smvc, tmvp, tmvc) = self.mohr_trsfm(sig, tau, fm=sym)
 		smx, smy = smvc
-		print(575)
 		#\TEMP
 		d_ls = np.linspace(0, self.length, self.d_resolution)
 		h_sig_ls = np.linspace(y1min, y1max, self.h_resolution)
@@ -618,7 +616,9 @@ class Member:
 		sig_max = np.max(SIG)
 		sig_min = np.min(SIG)
 		sig_rng = max(abs(sig_min), abs(sig_max))
-		if False: #OLD
+		rep_text = "Measuring 'd' (in m) from end zero (left or bottom) of the member"
+		rep_text += " and 'h' (in mm) from the neutral axis of bending,"
+		if True: #OLD
 			if sig_max > 0:
 				rep_text += "\nMax Tensile Axial Stress = " + str(sigfig(sig_max)) + " MPa"
 				smax_coords = np.where(SIG == sig_max)
@@ -635,7 +635,7 @@ class Member:
 		tau_max = np.max(TAU)
 		tau_min = np.min(TAU)
 		tau_rng = max(abs(tau_min), abs(tau_max))
-		if False:
+		if True:
 			if tau_max > 0:
 				rep_text += "\nMax Positive Sheer Stress = " + str(sigfig(tau_max)) + " MPa"
 				tmax_coords = np.where(TAU == tau_max)
@@ -649,19 +649,24 @@ class Member:
 				tmin_h = h_dom[0] + tmin_coords[0][0] * (h_dom[1]-h_dom[0]) / (self.h_resolution-1)
 				rep_text += " at d="+str(sigfig(tmin_d))+"m, h="+str(sigfig(tmin_h*1e3))+"mm"
 		
-		fig, ((sp1, sp2), (sp3, sp4)) = plt.subplots(2, 2, sharex=True, figsize=(11,5))
+		#fig, ((sp1, sp2), (sp3, sp4)) = plt.subplots(2, 2, sharex=True, figsize=(11,5))
+		fig1, (sp1, sp3) = plt.subplots(2, sharex=True, figsize=(6,5))
+		fig2, (sp2, sp4) = plt.subplots(2, sharex=True, figsize=(6,5))
 		sp1.set_title("Axial Stress \u03C3 (MPa)")
 		sp1.set(ylabel="Height h (mm)")
 		im1 = sp1.imshow(SIG, cmap=plt.cm.RdBu, interpolation="bilinear", aspect="auto", 
 			extent=[0, self.length, y1min*1e3, y1max*1e3], vmin=-sig_rng, vmax=sig_rng, origin="lower")
 			#Using vmin&max normalizes zero on the colormap
-		fig.colorbar(im1, ax=sp1)
+		fig1.colorbar(im1, ax=sp1)
 		sp3.set_title("Shear Stress \u03C4 (MPa)")
 		sp3.set(xlabel="Axial Distance d (m)", ylabel="Height h (mm)")
 		im2 = sp3.imshow(TAU, cmap=plt.cm.BrBG, interpolation="bilinear", aspect="auto", 
 			extent=[0, self.length, h_dom[0]*1e3, h_dom[1]*1e3], vmin=-tau_rng, vmax=tau_rng, origin="lower")
-		fig.colorbar(im2, ax=sp3)
+		fig1.colorbar(im2, ax=sp3)
+		reps.append(("In-plane \u03C3 & \u03C4", rep_text, fig1))
 		
+		rep_text = "Measuring 'd' (in m) from end zero (left or bottom) of the member"
+		rep_text += " and 'h' (in mm) from the neutral axis of bending,"
 		#Quiver plots for max shear & tension
 		d_qls = np.linspace(0, self.length, self.dq_resolution)
 		h_qls = np.linspace(*h_dom, self.hq_resolution)
@@ -704,16 +709,17 @@ class Member:
 		sp2.set_title("Principal Stress \u03C3_p (MPa)")
 		q1 = sp2.quiver(Dq, Hq*1e3, S1x, S1y, S1m, cmap=plt.cm.RdBu, clim=(-sig_rng, sig_rng),
 			pivot="mid", headaxislength=0, headlength = 0, headwidth=1, width=.009)
-		fig.colorbar(q1, ax=sp2)
+		fig2.colorbar(q1, ax=sp2)
 		sp4.set(xlabel="Axial Distance d (m)")
 		sp4.set_title("Principal Shear Stress \u03C4_p (MPa)")
 		q2 = sp4.quiver(Dq, Hq*1e3, T1x, T1y, T1m, cmap=plt.cm.BrBG, clim=(-tau_rng, tau_rng),
 			pivot="mid", headaxislength=0, headlength = 0, headwidth=1, width=.009)
-		fig.colorbar(q2, ax=sp4)
+		fig2.colorbar(q2, ax=sp4)
+		reps.append(("Out-of-plane \u03C3 & \u03C4", rep_text, fig2))
 		
 		plt.subplots_adjust(.07, .1, .99, .93, wspace=.09)
 		
-		return (rep_text, fig)
+		return reps
 
 #This class is really just for reference. I'm not sure if this is the best way to do this.
 class Materials:
