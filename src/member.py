@@ -723,7 +723,7 @@ class Member:
 
 #This class is really just for reference. I'm not sure if this is the best way to do this.
 class Materials:
-	materials = ("steel", "aluminum", "pla")
+	materials = ("steel", "aluminum", "pla", "cell_pvc", "oak")
 	#Used values for ASTM-A514 steel
 	steel = {
 		"vname": "steel", #Variable name
@@ -765,4 +765,24 @@ class Materials:
 		"sig_y": 38.0e6, #2.00 - 103 MPa	
 		#ultimate stress (TENSILE)
 		"sig_u": 47.2e6 #14.0 - 117 MPa	
+	}
+	#cellular PVC board (https://azekexteriors.com/docs/technical/azek-csi-format-spec-1-22-19v1-1.pdf)
+	cell_pvc = {
+		"vname": "cell_pvc",
+		"name": "Cellular PVC",
+		"color": "#f0f0f0",
+		"rho": 550,
+		"E": 992845050, #.99 GPa
+		"sig_y": 0, #Unknown
+		"sig_u": 15.56e6
+	}
+	#Oak wood (http://www.matweb.com/search/datasheet_print.aspx?matguid=3a971164050b4313930591eed2539366)
+	oak = {
+		"vname": "oak",
+		"name": "Oak Wood",
+		"color": "#d0ac7c",
+		"rho": 630,
+		"E": 12.56e9,
+		"sig_y": 47.0e6, #Compressive, perpindicular to grain
+		"sig_u": 5.5e6 #Tensile
 	}
