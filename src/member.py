@@ -41,6 +41,8 @@ class Member:
 	h_resolution = 50
 	dq_resolution = 50
 	hq_resolution = 25
+	#W, S, E, N
+	plot_margins = (.11, .19, 1, .9)
 	rep_err = ["Underconstrained", "Overconstrained", "Not Placed", "No Solution Found"]
 	#Names of each Evaluation Report
 	eval_names = {
@@ -244,15 +246,15 @@ class Member:
 		#Rewriting as piecewise helps it to integrate the Heaviside
 		return V.rewrite(sym.Piecewise).doit()
 	def moment_symf(self):
-		d = sym.symbols('d')
-		#M = integrate(V, 0, d)
-		M = sym.integrate(self.shear_symf(), d)
-		M -= M.subs(d, 0)
 		reactions = self.reactions()
 		if isinstance(reactions, str):
 		#if reactions in self.rep_err:
 			return reactions
 		(_, _, s0m, *_) = reactions
+		d = sym.symbols('d')
+		#M = integrate(V, 0, d)
+		M = sym.integrate(self.shear_symf(), d)
+		M -= M.subs(d, 0)
 		M -= s0m
 		return M.rewrite(sym.Piecewise).doit()
 	#Do the statics to calculate the reaction forces with two supports
@@ -434,14 +436,23 @@ class Member:
 	def axial_stress_sym(self):
 		#sig_x = Px/A - My/I
 		h = sym.symbols('h')
-		Sig_P = self.axial_loads_sym() / self.xarea
-		Sig_M = - self.moment_symf() * h / self.xIx
+		P = self.axial_loads_sym()
+		if isinstance(P, str):
+			return P
+		M = self.moment_symf()
+		if isinstance(M, str):
+			return M
+		Sig_P = P / self.xarea
+		Sig_M = - M * h / self.xIx
 		return Sig_P + Sig_M
 	#Return internal shear stress due to bending as a function of 'd' and 'h'.
 	#Returns (tau, h domain)
 	def tau_sym(self):
 		h = sym.symbols('h')
-		tau = -self.shear_symf() * self.xsection.Q_div_Ib(h)
+		V = self.shear_symf()
+		if isinstance(V, str):
+			return V
+		tau = -V * self.xsection.Q_div_Ib(h)
 		return (tau, self.xsection.Q_domain())
 	def axial_stress(self):
 		p_segments = self.axial_loads()
@@ -599,8 +610,13 @@ class Member:
 		reps = []
 		d, h = sym.symbols("d h")
 		sig = self.axial_stress_sym()
+		if isinstance(sig, str):
+			return sig #ERROR
 		y1min, y1max = self.xsection.y1_domain()
-		tau, h_dom = self.tau_sym()
+		tau_res = self.tau_sym()
+		if isinstance(tau_res, str):
+			return tau_res
+		tau, h_dom = tau_res
 		sigf = sym.lambdify((d,h), sig/1e6, "numpy")
 		tauf = sym.lambdify((d,h), tau/1e6, "numpy")
 		#TEMP
@@ -616,57 +632,60 @@ class Member:
 		sig_max = np.max(SIG)
 		sig_min = np.min(SIG)
 		sig_rng = max(abs(sig_min), abs(sig_max))
-		rep_text = "Measuring 'd' (in m) from end zero (left or bottom) of the member"
-		rep_text += " and 'h' (in mm) from the neutral axis of bending,"
+		s1_rep_text = "Measuring 'd' (in m) from end zero (left or bottom) of the member"
+		s1_rep_text += " and 'h' (in mm) from the neutral axis of bending,"
 		if True: #OLD
 			if sig_max > 0:
-				rep_text += "\nMax Tensile Axial Stress = " + str(sigfig(sig_max)) + " MPa"
+				s1_rep_text += "\nMax Tensile Axial Stress = " + str(sigfig(sig_max)) + " MPa"
 				smax_coords = np.where(SIG == sig_max)
 				smax_d = smax_coords[1][0] * self.length/(self.d_resolution-1)
 				smax_h = y1min + smax_coords[0][0] * (y1max-y1min) / (self.h_resolution-1)
-				rep_text += " at d="+str(sigfig(smax_d))+"m, h="+str(sigfig(smax_h*1e3))+"mm"
+				s1_rep_text += " at d="+str(sigfig(smax_d))+"m, h="+str(sigfig(smax_h*1e3))+"mm"
 			if sig_min < 0:
-				rep_text += "\nMax Compressive Axial Stress = " + str(sigfig(abs(sig_min))) + " MPa"
+				s1_rep_text += "\nMax Compressive Axial Stress = " + str(sigfig(abs(sig_min))) + " MPa"
 				smin_coords = np.where(SIG == sig_min)
 				smin_d = smin_coords[1][0] * self.length/(self.d_resolution-1)
 				smin_h = y1min + smin_coords[0][0] * (y1max-y1min) / (self.h_resolution-1)
-				rep_text += " at d="+str(sigfig(smin_d))+"m, h="+str(sigfig(smin_h*1e3))+"mm"
+				s1_rep_text += " at d="+str(sigfig(smin_d))+"m, h="+str(sigfig(smin_h*1e3))+"mm"
 		TAU = tauf(D, H_t)
 		tau_max = np.max(TAU)
 		tau_min = np.min(TAU)
 		tau_rng = max(abs(tau_min), abs(tau_max))
+		t1_rep_text = "Measuring 'd' (in m) from end zero (left or bottom) of the member"
+		t1_rep_text += " and 'h' (in mm) from the neutral axis of bending,"
 		if True:
 			if tau_max > 0:
-				rep_text += "\nMax Positive Sheer Stress = " + str(sigfig(tau_max)) + " MPa"
+				t1_rep_text += "\nMax Positive Sheer Stress = " + str(sigfig(tau_max)) + " MPa"
 				tmax_coords = np.where(TAU == tau_max)
 				tmax_d = tmax_coords[1][0] * self.length/(self.d_resolution-1)
 				tmax_h = h_dom[0] + tmax_coords[0][0] * (h_dom[1]-h_dom[0]) / (self.h_resolution-1)
-				rep_text += " at d="+str(sigfig(tmax_d))+"m, h="+str(sigfig(tmax_h*1e3))+"mm"
+				t1_rep_text += " at d="+str(sigfig(tmax_d))+"m, h="+str(sigfig(tmax_h*1e3))+"mm"
 			if tau_min < 0:
-				rep_text += "\nMax Negative Sheer Stress = " + str(sigfig(abs(tau_min))) + " MPa"
+				t1_rep_text += "\nMax Negative Sheer Stress = " + str(sigfig(abs(tau_min))) + " MPa"
 				tmin_coords = np.where(TAU == tau_min)
 				tmin_d = tmin_coords[1][0] * self.length/(self.d_resolution-1)
 				tmin_h = h_dom[0] + tmin_coords[0][0] * (h_dom[1]-h_dom[0]) / (self.h_resolution-1)
-				rep_text += " at d="+str(sigfig(tmin_d))+"m, h="+str(sigfig(tmin_h*1e3))+"mm"
+				t1_rep_text += " at d="+str(sigfig(tmin_d))+"m, h="+str(sigfig(tmin_h*1e3))+"mm"
 		
-		#fig, ((sp1, sp2), (sp3, sp4)) = plt.subplots(2, 2, sharex=True, figsize=(11,5))
-		fig1, (sp1, sp3) = plt.subplots(2, sharex=True, figsize=(6,5))
-		fig2, (sp2, sp4) = plt.subplots(2, sharex=True, figsize=(6,5))
-		sp1.set_title("Axial Stress \u03C3 (MPa)")
-		sp1.set(ylabel="Height h (mm)")
-		im1 = sp1.imshow(SIG, cmap=plt.cm.RdBu, interpolation="bilinear", aspect="auto", 
+		#Plot of in-plane axial stress
+		fig1, ax1 = plt.subplots(figsize=(7,3))
+		ax1.set_title("Axial Stress \u03C3 (MPa)")
+		ax1.set(xlabel="Axial Distance d (m)", ylabel="Height h (mm)")
+		im1 = ax1.imshow(SIG, cmap=plt.cm.RdBu, interpolation="bilinear", aspect="auto", 
 			extent=[0, self.length, y1min*1e3, y1max*1e3], vmin=-sig_rng, vmax=sig_rng, origin="lower")
-			#Using vmin&max normalizes zero on the colormap
-		fig1.colorbar(im1, ax=sp1)
-		sp3.set_title("Shear Stress \u03C4 (MPa)")
-		sp3.set(xlabel="Axial Distance d (m)", ylabel="Height h (mm)")
-		im2 = sp3.imshow(TAU, cmap=plt.cm.BrBG, interpolation="bilinear", aspect="auto", 
+		fig1.colorbar(im1, ax=ax1)
+		plt.subplots_adjust(*self.plot_margins, wspace=.09)
+		reps.append(("In-plane \u03C3", s1_rep_text, fig1))
+		#Plot of in-plane shear stress
+		fig2, ax2 = plt.subplots(figsize=(7,3))
+		ax2.set_title("Shear Stress \u03C4 (MPa)")
+		ax2.set(xlabel="Axial Distance d (m)", ylabel="Height h (mm)")
+		im2 = ax2.imshow(TAU, cmap=plt.cm.BrBG, interpolation="bilinear", aspect="auto", 
 			extent=[0, self.length, h_dom[0]*1e3, h_dom[1]*1e3], vmin=-tau_rng, vmax=tau_rng, origin="lower")
-		fig1.colorbar(im2, ax=sp3)
-		reps.append(("In-plane \u03C3 & \u03C4", rep_text, fig1))
+		fig2.colorbar(im2, ax=ax2)
+		plt.subplots_adjust(*self.plot_margins, wspace=.09)
+		reps.append(("In-plane \u03C4", t1_rep_text, fig2))
 		
-		rep_text = "Measuring 'd' (in m) from end zero (left or bottom) of the member"
-		rep_text += " and 'h' (in mm) from the neutral axis of bending,"
 		#Quiver plots for max shear & tension
 		d_qls = np.linspace(0, self.length, self.dq_resolution)
 		h_qls = np.linspace(*h_dom, self.hq_resolution)
@@ -681,43 +700,53 @@ class Member:
 		tau_max = np.max(T1m)
 		tau_min = np.min(T1m)
 		tau_rng = max(abs(tau_min), abs(tau_max))
+		s2_rep_text = "Measuring 'd' (in m) from end zero (left or bottom) of the member"
+		s2_rep_text += " and 'h' (in mm) from the neutral axis of bending,"
 		if sig_max > 0:
-			rep_text += "\nMax Tensile Stress = " + str(sigfig(sig_max)) + " MPa"
+			s2_rep_text += "\nMax Tensile Stress = " + str(sigfig(sig_max)) + " MPa"
 			smax_coords = np.where(S1m == sig_max)
 			smax_d = smax_coords[1][0] * self.length/(self.dq_resolution-1)
 			smax_h = h_dom[0] + smax_coords[0][0] * (h_dom[1]-h_dom[0]) / (self.hq_resolution-1)
 			smax_th = S1th[smax_coords[0][0], smax_coords[1][0]]
-			rep_text += " at d="+str(sigfig(smax_d))+"m, h="+str(sigfig(smax_h*1e3))+"mm"
-			rep_text += ", \u03B8="+str(sigfig(math.degrees(smax_th)))+"\u00B0"
+			s2_rep_text += " at d="+str(sigfig(smax_d))+"m, h="+str(sigfig(smax_h*1e3))+"mm"
+			s2_rep_text += ", \u03B8="+str(sigfig(math.degrees(smax_th)))+"\u00B0"
 		if sig_min < 0:
-			rep_text += "\nMax Compressive Stress = " + str(sigfig(-sig_min)) + " MPa"
+			s2_rep_text += "\nMax Compressive Stress = " + str(sigfig(-sig_min)) + " MPa"
 			smin_coords = np.where(S1m == sig_min)
 			smin_d = smin_coords[1][0] * self.length/(self.dq_resolution-1)
 			smin_h = h_dom[0] + smin_coords[0][0] * (h_dom[1]-h_dom[0]) / (self.hq_resolution-1)
 			smin_th = S1th[smin_coords[0][0], smin_coords[1][0]]
-			rep_text += " at d="+str(sigfig(smin_d))+"m, h="+str(sigfig(smin_h*1e3))+"mm"
-			rep_text += ", \u03B8="+str(sigfig(math.degrees(smin_th)))+"\u00B0"
+			s2_rep_text += " at d="+str(sigfig(smin_d))+"m, h="+str(sigfig(smin_h*1e3))+"mm"
+			s2_rep_text += ", \u03B8="+str(sigfig(math.degrees(smin_th)))+"\u00B0"
+		t2_rep_text = "Measuring 'd' (in m) from end zero (left or bottom) of the member"
+		t2_rep_text += " and 'h' (in mm) from the neutral axis of bending,"
 		if tau_rng > 0:
-			rep_text += "\nMax Sheer Stress = " + str(sigfig(tau_rng)) + " MPa"
+			t2_rep_text += "\nMax Sheer Stress = " + str(sigfig(tau_rng)) + " MPa"
 			tmax_coords = np.where(abs(T1m) == tau_rng)
 			tmax_d = tmax_coords[1][0] * self.length/(self.dq_resolution-1)
 			tmax_h = h_dom[0] + tmax_coords[0][0] * (h_dom[1]-h_dom[0]) / (self.hq_resolution-1)
 			tmax_th = T1th[tmax_coords[0][0], tmax_coords[1][0]]
-			rep_text += " at d="+str(sigfig(tmax_d))+"m, h="+str(sigfig(tmax_h*1e3))+"mm"
-			rep_text += ", \u03B8="+str(sigfig(math.degrees(tmax_th)))+"\u00B0"
+			t2_rep_text += " at d="+str(sigfig(tmax_d))+"m, h="+str(sigfig(tmax_h*1e3))+"mm"
+			t2_rep_text += ", \u03B8="+str(sigfig(math.degrees(tmax_th)))+"\u00B0"
 		
-		sp2.set_title("Principal Stress \u03C3_p (MPa)")
-		q1 = sp2.quiver(Dq, Hq*1e3, S1x, S1y, S1m, cmap=plt.cm.RdBu, clim=(-sig_rng, sig_rng),
+		#Plot of principal (out-of-plane) stress
+		fig3, ax3 = plt.subplots(figsize=(7,3))
+		ax3.set_title("Principal Stress \u03C3_p (MPa)")
+		ax3.set(xlabel="Axial Distance d (m)", ylabel="Height h (mm)")
+		q1 = ax3.quiver(Dq, Hq*1e3, S1x, S1y, S1m, cmap=plt.cm.RdBu, clim=(-sig_rng, sig_rng),
 			pivot="mid", headaxislength=0, headlength = 0, headwidth=1, width=.009)
-		fig2.colorbar(q1, ax=sp2)
-		sp4.set(xlabel="Axial Distance d (m)")
-		sp4.set_title("Principal Shear Stress \u03C4_p (MPa)")
-		q2 = sp4.quiver(Dq, Hq*1e3, T1x, T1y, T1m, cmap=plt.cm.BrBG, clim=(-tau_rng, tau_rng),
+		fig3.colorbar(q1, ax=ax3)
+		plt.subplots_adjust(*self.plot_margins, wspace=.09)
+		reps.append(("Out-of-plane \u03C3", s2_rep_text, fig3))
+		#Plot of principal (out-of-plane) shear stress
+		fig4, ax4 = plt.subplots(figsize=(7,3))
+		ax4.set_title("Principal Shear Stress \u03C4_p (MPa)")
+		ax4.set(xlabel="Axial Distance d (m)", ylabel="Height h (mm)")
+		q2 = ax4.quiver(Dq, Hq*1e3, T1x, T1y, T1m, cmap=plt.cm.BrBG, clim=(-tau_rng, tau_rng),
 			pivot="mid", headaxislength=0, headlength = 0, headwidth=1, width=.009)
-		fig2.colorbar(q2, ax=sp4)
-		reps.append(("Out-of-plane \u03C3 & \u03C4", rep_text, fig2))
-		
-		plt.subplots_adjust(.07, .1, .99, .93, wspace=.09)
+		fig4.colorbar(q2, ax=ax4)
+		plt.subplots_adjust(*self.plot_margins, wspace=.09)
+		reps.append(("Out-of-plane \u03C4", t2_rep_text, fig4))
 		
 		return reps
 

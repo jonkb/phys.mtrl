@@ -553,7 +553,12 @@ class Lab:
 				#This can be either a text-only report or an error message
 				rep_lbl = tk.Label(popup, text=report, justify=tk.LEFT)
 				rep_lbl.pack()
-			else:
+			elif isinstance(report, tuple):
+				rep_text, fig = report
+				tk.Label(popup, text=rep_text, justify=tk.LEFT).pack()
+				figcanv = FigureCanvasTkAgg(fig, popup)
+				figcanv.get_tk_widget().pack(fill=tk.BOTH, expand=1)
+			elif isinstance(report, list):
 				tk.Label(popup, text="Choose which report to show:").pack()
 				rep_names = []
 				rep_widgets = []
@@ -582,6 +587,8 @@ class Lab:
 					rep_widgets[popup.current_rep][0].pack()
 					rep_widgets[popup.current_rep][1].pack(fill=tk.BOTH, expand=1)
 				rep_option.trace("w", switch_rep)
+			else:
+				tk.Label(popup, text="Error: unknown report data", justify=tk.LEFT).pack()
 		
 		#Flash blue
 		self.canv.itemconfig(mem.img_ref, outline="blue")
