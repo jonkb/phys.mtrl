@@ -318,7 +318,7 @@ class Member:
 		try:
 			#numpy uses "arctan"
 			atan = fm.arctan
-		except NameError:
+		except AttributeError:
 			#sympy uses "atan"
 			atan = fm.atan
 		th_a = atan(2*tau/sigx)/2
