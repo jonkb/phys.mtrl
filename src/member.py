@@ -277,7 +277,7 @@ class Member:
 		M_B = [-s_px, -s_py, -s_m, 0, 0, 0]
 		try:
 			SOL = np.linalg.solve(M_A, M_B)
-		except:
+		except np.linalg.LinAlgError:
 			return self.rep_err[3]
 		return sigfig_iter(SOL, 6) #eps_round(SOL)
 	#Do mohr's circle transformations on an element with sigma_x and tau_xy (assumes no sig_y)
@@ -289,7 +289,7 @@ class Member:
 		try:
 			#numpy uses "arctan"
 			atan = fm.arctan
-		except:
+		except AttributeError:
 			#sympy uses "atan"
 			atan = fm.atan
 		th_a = atan(2*tau/sigx)/2
@@ -549,7 +549,7 @@ class Member:
 		try:
 			assert len(dax) == len(Vax)
 			assert len(dax) == len(Max)
-		except:
+		except AssertionError:
 			#Check to see if they're constant functions
 			Vc = Vf(0)
 			for xi in dax:

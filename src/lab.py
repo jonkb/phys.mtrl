@@ -81,22 +81,22 @@ class Lab:
 	def wtls(self):
 		try:
 			return self.mem_wtls.get()
-		except:# Was not set
+		except NameError:# Was not set
 			return True
 	def smem(self):
 		try:
 			return self.show_mem.get()
-		except:# Was not set
+		except NameError:# Was not set
 			return True
 	def ssup(self):
 		try:
 			return self.show_sup.get()
-		except:# Was not set
+		except NameError:# Was not set
 			return True
 	def sld(self):
 		try:
 			return self.show_ld.get()
-		except:# Was not set
+		except NameError:# Was not set
 			return True
 	def save(self):
 		pmfs.save(self)
@@ -638,20 +638,20 @@ class Lab:
 			try:
 				ppm = int(ppm_e.get())
 				self.px_per_m = ppm
-			except:
+			except ValueError:
 				ppm_e.delete(0, tk.END)
 				ppm_e.insert(0, self.px_per_m)
 			try:
 				ppk = float(ppk_e.get())
 				self.px_per_kN = ppk
-			except:
+			except ValueError:
 				ppk_e.delete(0, tk.END)
 				ppk_e.insert(0, self.px_per_kN)
 			try:
 				#Limit to Z or N
 				sd = int(sd_e.get())
 				self.subdivision = sd
-			except:
+			except ValueError:
 				sd_e.delete(0, tk.END)
 				sd_e.insert(0, self.subdivision)
 			self.clear_all()
