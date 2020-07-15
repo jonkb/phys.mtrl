@@ -35,7 +35,7 @@ class Region:
 					r = float(params["radius"])
 				else:
 					r = float(params[0])/1000 #mm
-			except:
+			except ValueError:
 				return "NaN"
 			return r
 		if xsec == "rectangle":
@@ -44,7 +44,7 @@ class Region:
 					h = float(params["height"])
 				else:
 					h = float(params[1])/1000
-			except:
+			except ValueError:
 				return "NaN"
 			return h/2
 		if xsec == "I-beam":
@@ -53,7 +53,7 @@ class Region:
 					d = float(params["depth"])
 				else:
 					d = float(params[0])/1000
-			except:
+			except ValueError:
 				return "NaN"
 			return d/2
 

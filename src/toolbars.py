@@ -151,9 +151,10 @@ class Add_mem:
 			for v in self.get_xparams():
 				if float(v) <= 0:
 					return false
-		except:#Flash fields red here?
+		except ValueError:#Flash fields red here?
 			return False
-		return True
+		else:
+			return True
 
 #Add support toolbar
 class Add_sup:
@@ -303,7 +304,7 @@ class Add_load:
 		try:
 			Pc1 = float(self.Pc1_entry.get())
 			Pc2 = float(self.Pc2_entry.get())
-		except:
+		except ValueError:
 			return ("NaN","NaN")
 		if self.pt_ds.get() == 0:
 			if self.c_p.get() == 0: #"Components"
@@ -314,7 +315,7 @@ class Add_load:
 			try:
 				Pc3 = float(self.Pc3_entry.get())
 				Pc4 = float(self.Pc4_entry.get())
-			except:
+			except ValueError:
 				return ("NaN","NaN")
 			if self.c_p.get() == 0:
 				return ( (Pc1*1000, Pc2*1000), (Pc3*1000, Pc4*1000) )
@@ -350,7 +351,7 @@ class Add_load:
 			if self.pt_ds.get() == 1:
 				float(self.Pc3_entry.get())
 				float(self.Pc4_entry.get())
-		except:
+		except ValueError:
 			return False
 		#print(371)
 		return True
