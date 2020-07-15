@@ -583,6 +583,7 @@ class Member:
 		sig = self.axial_stress_sym()
 		if isinstance(sig, str):
 			return sig #ERROR
+		print(586, ": sig (Pa) =", sig)
 		sig = sig/1e6 #MPa
 		y1min, y1max = self.xsection.y1_domain()
 		tau_res = self.tau_sym()
@@ -596,26 +597,27 @@ class Member:
 		#TEMP
 		(smvp, smvc, tmvp, tmvc) = self.mohr_trsfm(sig, tau, fm=sym)
 		smx, smy = smvc
-		#\TEMP
+		#/TEMP
 		d_ls = np.linspace(0, self.length, self.d_resolution)
 		h_sig_ls = np.linspace(y1min, y1max, self.h_resolution)
 		h_tau_ls = np.linspace(*h_dom, self.h_resolution)
 		D, H_s = np.meshgrid(d_ls, h_sig_ls)
 		_, H_t = np.meshgrid(d_ls, h_tau_ls)
 		SIG = sigf(D, H_s)
+		print(606, ": sig =", sig)
 		(sig_max, smax_d, smax_h), (sig_min, smin_d, smin_h) = max2d(
 			sig, d, h, [0, self.length], h_dom)
+		print(609, ": smax,min", sig_max, sig_min)
 		
 		sig_rng = max(abs(sig_min), abs(sig_max))
 		s1_rep_text = "Measuring 'd' (in m) from end zero (left or bottom) of the member"
 		s1_rep_text += " and 'h' (in mm) from the neutral axis of bending,"
-		if True: #OLD
-			if sig_max > 0:
-				s1_rep_text += "\nMax Tensile Axial Stress = " + str(sigfig(sig_max)) + " MPa"
-				s1_rep_text += " at d="+str(sigfig(smax_d))+"m, h="+str(sigfig(smax_h*1e3))+"mm"
-			if sig_min < 0:
-				s1_rep_text += "\nMax Compressive Axial Stress = " + str(sigfig(-sig_min)) + " MPa"
-				s1_rep_text += " at d="+str(sigfig(smin_d))+"m, h="+str(sigfig(smin_h*1e3))+"mm"
+		if sig_max > 0:
+			s1_rep_text += "\nMax Tensile Axial Stress = " + str(sigfig(sig_max)) + " MPa"
+			s1_rep_text += " at d="+str(sigfig(smax_d))+"m, h="+str(sigfig(smax_h*1e3))+"mm"
+		if sig_min < 0:
+			s1_rep_text += "\nMax Compressive Axial Stress = " + str(sigfig(-sig_min)) + " MPa"
+			s1_rep_text += " at d="+str(sigfig(smin_d))+"m, h="+str(sigfig(smin_h*1e3))+"mm"
 		#Still the old way:
 		TAU = tauf(D, H_t)
 		tau_max = np.max(TAU)

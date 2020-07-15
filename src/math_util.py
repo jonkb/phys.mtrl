@@ -1,7 +1,8 @@
 import math
 import numpy as np
 import sympy as sym
-#from sympy.sets import Interval
+from sympy.calculus.singularities import singularities
+from sympy.sets import Interval
 
 eps = 1e-14
 default_sigfig = 4
@@ -34,6 +35,51 @@ def Pa_to_MPa_str(P, n=default_sigfig):
 def coords_str(x,y, n=default_sigfig):
 	return "("+str(sigfig(x,n))+","+str(sigfig(y,n))+")"
 
+#Returns the limits of the subdomains of an expression that may contain piecewise
+def pw_sdls(f, x):
+	lims = []
+	#look for all piecewise func in the expr tree 
+	#(see https://docs.sympy.org/latest/tutorial/manipulation.html)
+	def rec_search(expr):
+		nonlocal lims
+		if type(expr) == sym.Piecewise:
+			sdoms = expr._intervals(x)
+			for sdom in sdoms:
+				if math.isfinite(sdom[0]):
+					lims = np.append(lims, float(sdom[0]))
+				if math.isfinite(sdom[1]):
+					lims = np.append(lims, float(sdom[1]))
+		for arg in expr.args:
+			rec_search(arg)
+	rec_search(f)
+	return lims
+#Returns the discontinuities in the function along the interval
+#Supports everything that singularities supports as well as Piecewise
+def discontinuities(f, x, dom=None):
+	discont = np.array([])
+	try: sings = singularities(f, x, domain=Interval.open(*dom))
+	except: pass #singularities throws exceptions for Piecewise
+	else: discont = np.array(list(sings)).astype(np.float64)
+	
+	pw_sd_limits = pw_sdls(f,x)
+	flam = sym.lambdify(x, f, "numpy")
+	for sdlim in pw_sd_limits:
+		x_delta = eps
+		f_xl = flam(sdlim - x_delta)
+		f_xr = flam(sdlim + x_delta)
+		y_epsilon = abs(f_xr - f_xl)
+		#5e6*eps means anything with slope steeper than 5e7/2 will trigger as discontinuous
+		#I'm worried to make it a bigger threshold because it could miss small steps.
+		if y_epsilon > 5e7*eps:
+			discont = np.append(discont, sdlim)
+	if dom is None:
+		return discont
+	d_in_dom = []
+	for pt in discont:
+		if pt > dom[0] and pt < dom[1]:
+			d_in_dom = np.append(d_in_dom, pt)
+	return d_in_dom
+	
 #Returns (Max, Max_x), (Min, Min_x)
 def max1d(f, x, dom):
 	#interval = Interval(*dom)
@@ -44,8 +90,16 @@ def max1d(f, x, dom):
 	f_lam = sym.lambdify(x, f, "numpy")
 	dfdx = f.diff(x)
 	critpts = np.array(sym.solve(sym.Eq(dfdx,0), x)).astype(np.float64)
-	critpts = np.array( [pt for pt in critpts if (pt > dom[0] and pt < dom[1])] )
-	critpts = np.append(np.append(critpts, dom[0]), dom[1])
+	discont = discontinuities(f, x, dom)
+	if len(discont) > 0:
+		critpts = np.append(critpts, [discont, discont-eps, discont+eps])
+	#critpts = np.array( [pt for pt in critpts if (pt > dom[0] and pt < dom[1])] )
+	cpts_in_dom = []
+	for pt in critpts:
+		if pt > dom[0] and pt < dom[1]:
+			cpts_in_dom = np.append(cpts_in_dom, pt)
+	critpts = cpts_in_dom
+	critpts = np.append(critpts, dom)
 	critvals = f_lam(critpts)
 	f_max = np.max(critvals)
 	x_max = critpts[np.where(critvals == f_max)[0][0]]
@@ -58,6 +112,7 @@ def max1d(f, x, dom):
 def max2d(f, x, y, xdom, ydom):
 	x0, x1 = xdom
 	y0, y1 = ydom
+	print(61, xdom, ydom)
 	f_lam = sym.lambdify((x,y), f, "numpy")
 	#print("f: ", f)
 	#print("dfdx: ", f.diff(x))
@@ -66,27 +121,42 @@ def max2d(f, x, y, xdom, ydom):
 	#print(63, grad0 )
 	#print(64, sym.solve(grad0, (x,y)) )
 	critpts = np.array(sym.solve(grad0, (x,y))).astype(np.float64)
-	#print(69, critpts)
-	critpts = np.array( [pt for pt in critpts if 
-		(pt[0] > xdom[0] and pt[0] < xdom[1] and pt[1] > ydom[0] and pt[1] < ydom[1])] )
-	#print(72, critpts)
-	critvals = f_lam(critpts[:,0], critpts[:,1])
+	print(69, critpts)
+	cpts_in_dom = np.empty((0,2), float)
+	for pt in critpts:
+		if pt[0] > xdom[0] and pt[0] < xdom[1] and pt[1] > ydom[0] and pt[1] < ydom[1]:
+			cpts_in_dom = np.append(cpts_in_dom, [pt], axis=0)
+	critpts = cpts_in_dom
+	#critpts = np.array( [pt for pt in critpts if 
+	#	(pt[0] > xdom[0] and pt[0] < xdom[1] and pt[1] > ydom[0] and pt[1] < ydom[1])] )
+	print(77, critpts)
+	critvals = []
+	if len(critpts) > 0:
+		critvals = f_lam(critpts[:,0], critpts[:,1])
+	else:
+		critvals = []
 	N_bound = f.subs(y, y1)
 	(N_max, N_max_x), (N_min, N_min_x) = max1d(N_bound, x, (x0, x1))
-	critvals = np.append(np.append(critvals, N_max), N_min)
-	critpts = np.append(np.append(critpts, [[N_max_x, y1]], axis=0), [[N_min_x, y1]], axis=0)
+	critvals = np.append(critvals, [N_max, N_min])
+	print(92, N_bound)
+	print(93, critpts)
+	critpts = np.append(critpts, [[N_max_x, y1], [N_min_x, y1]], axis=0)
+	print(94, critpts)
 	E_bound = f.subs(x, x1)
 	(E_max, E_max_y), (E_min, E_min_y) = max1d(E_bound, y, (y0, y1))
-	critvals = np.append(np.append(critvals, E_max), E_min)
-	critpts = np.append(np.append(critpts, [[x1, E_max_y]], axis=0), [[x1, E_min_y]], axis=0)
+	critvals = np.append(critvals, [E_max, E_min])
+	critpts = np.append(critpts, [[x1, E_max_y], [x1, E_min_y]], axis=0)
+	print(99, critpts)
 	S_bound = f.subs(y, y0)
 	(S_max, S_max_x), (S_min, S_min_x) = max1d(S_bound, x, (x0, x1))
-	critvals = np.append(np.append(critvals, S_max), S_min)
-	critpts = np.append(np.append(critpts, [[S_max_x, y0]], axis=0), [[S_min_x, y0]], axis=0)
+	critvals = np.append(critvals, [S_max, S_min])
+	critpts = np.append(critpts, [[S_max_x, y0], [S_min_x, y0]], axis=0)
+	print(104, critpts)
 	W_bound = f.subs(x, x0)
 	(W_max, W_max_y), (W_min, W_min_y) = max1d(W_bound, y, (y0, y1))
-	critvals = np.append(np.append(critvals, W_max), W_min)
-	critpts = np.append(np.append(critpts, [[x0, W_max_y]], axis=0), [[x0, W_min_y]], axis=0)
+	critvals = np.append(critvals, [W_max, W_min])
+	critpts = np.append(critpts, [[x0, W_max_y], [x0, W_min_y]], axis=0)
+	print(109, critpts)
 	#print(56, critpts)
 	f_max = np.max(critvals)
 	#print(89, np.where(critvals == f_max))
@@ -94,12 +164,6 @@ def max2d(f, x, y, xdom, ydom):
 	f_min = np.min(critvals)
 	xy_min = critpts[np.where(critvals == f_min)[0][0]]
 	return (f_max, xy_max[0], xy_max[1]), (f_min, xy_min[0], xy_min[1])
-
-
-
-
-
-
 
 
 
