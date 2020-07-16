@@ -18,9 +18,10 @@ class Member:
 	#Names of each Evaluation Report
 	eval_names = {
 		0: "Mass Properties",
-		1: "Axial and Shear Stress",
+		1: "Axial Stress and Strain",
 		2: "Shear and Moment",
-		3: "Euler Buckling"
+		3: "Axial and Shear Stress",
+		4: "Euler Buckling"
 	}
 	
 	def __init__(self, material, xsection, length):
@@ -36,9 +37,10 @@ class Member:
 		
 		self.eval_reports = {
 			0: self.mass_prop_rep,
-			1: self.sig_tau_rep,
+			1: self.axial_stress_rep,
 			2: self.VM_rep,
-			3: self.axial_buckling_rep
+			3: self.sig_tau_rep,
+			4: self.buckling_rep
 		}
 	def __repr__(self):
 		return "Member({},{},{})".format(self.material, self.xsection, self.length)
@@ -285,21 +287,27 @@ class Member:
 	#fm = module with appropriate functions. Default numpy.
 	@staticmethod
 	def mohr_trsfm(sigx, tau, fm=np):
+		#Force the angle to be more horizontal so you get negative instead of perpindicular
 		convert_to_neg = False
-		try:
-			#numpy uses "arctan"
-			atan = fm.arctan
-		except AttributeError:
-			#sympy uses "atan"
-			atan = fm.atan
-		th_a = atan(2*tau/sigx)/2
-		#th_a = np.arctan2(2*tau,sigx)/2   --   This would be just to avoid /0 Repercussions?
+		#numpy uses "arctan" but sympy and math use "atan"
+		try: atan = fm.arctan
+		except AttributeError: atan = fm.atan
+		
+		#print(294, tau/sigx, type(tau/sigx))
+		#Does not work with sym expr
+		th_a = np.array(atan(2*tau/sigx)/2, dtype="float64")
+		#print(295, th_a, type(th_a))
+		#Replace oo with pi/4 (which is (pi/2)/2)
+		th_a = np.nan_to_num(th_a, nan=np.pi/4, posinf=np.pi/4, neginf=np.pi/4)
+		#print(299, th_a, type(th_a))
 		th_b = th_a + math.pi/2
 		sig_a = sigx/2*(1+fm.cos(2*th_a)) + tau*fm.sin(2*th_a)
 		sig_b = sigx/2*(1+fm.cos(2*th_b)) + tau*fm.sin(2*th_b)
+		#print(300, sigx, tau, th_a, th_b, sig_a, sig_b)
 		#I converted the ternaries to array-compatible logic
-		b_gt_a = sig_b > sig_a
-		b_agt_a = abs(sig_b) > abs(sig_a)
+		#Must be int because sympy isn't dealing with T/F multiplication
+		b_gt_a = np.array(sig_b > sig_a, dtype="bool")
+		b_agt_a = np.array(abs(sig_b) > abs(sig_a), dtype="bool")
 		#th_smax = th_b if abs(sig_b) > abs(sig_a) else th_a
 		th_smax = th_b*b_agt_a + th_a*(1 - b_agt_a)
 		#sig_max = sig_b if abs(sig_b) > abs(sig_a) else sig_a
@@ -308,7 +316,6 @@ class Member:
 		th_s1 = th_b*b_gt_a + th_a*(1 - b_gt_a)
 		th_t1 = th_s1 - math.pi/4 #Alg. max tau
 		th_t2 = th_t1 + math.pi/2
-		#Force the angle to be more horizontal so you get negative instead of perpindicular
 		if convert_to_neg:
 			t1_horiz = math.pi/2 - abs(th_t1%math.pi - math.pi/2)
 			t2_horiz = math.pi/2 - abs(th_t2%math.pi - math.pi/2)
@@ -316,7 +323,7 @@ class Member:
 			t1_is_h = t2_horiz >= t1_horiz
 			th_tmax = th_t1*t1_is_h + th_t2*(1-t1_is_h)
 			tau_max = -.5*sigx*fm.sin(2*th_tmax) + tau*fm.cos(2*th_tmax)
-		else: #Just accept the alg. max. tau
+		else: #Just accept the (positive) alg. max. tau
 			th_tmax = th_t1
 			tau_max = fm.sqrt((sigx/2)**2 + tau**2) #alg. max
 		#return (sig_max, th_smax), (tau_max, th_tmax)
@@ -324,6 +331,7 @@ class Member:
 		sig_max_vc = (sig_max*fm.cos(th_smax), sig_max*fm.sin(th_smax))
 		tau_max_vp = (tau_max, th_tmax)
 		tau_max_vc = (tau_max*fm.cos(th_tmax), tau_max*fm.sin(th_tmax))
+		#print(331, sig_max_vp, sig_max_vc, tau_max_vp, tau_max_vc)
 		return sig_max_vp, sig_max_vc, tau_max_vp, tau_max_vc
 	#Return report text (& any figures) for each type of evaluation
 	#Be sure to make this line up with the dictionary in Lab
@@ -331,16 +339,16 @@ class Member:
 		return self.eval_reports[type]()
 	def mass_prop_rep(self):
 		rep_text = "cross sectional area A = "+str(sigfig(self.xarea))+" m^2"
-		rep_text += "\n\tsecond moment of area about horizontal axis I_x = "+str(sigfig(self.xIx))+" m^4"
-		rep_text += "\n\tsecond moment of area about vertical axis I_y = "+str(sigfig(self.xIy))+" m^4"
+		rep_text += "\n    | second moment of area about horizontal axis I_x = "+str(sigfig(self.xIx))+" m^4"
+		rep_text += "\n    | second moment of area about vertical axis I_y = "+str(sigfig(self.xIy))+" m^4"
 		rep_text += "\nvolume V = "+str(sigfig(self.volume))+" m^3"
 		rep_text += "\nmass m = "+str(sigfig(self.mass))+" kg"
 		rep_text += "\nweight W = "+str(sigfig(self.weight))+" N"
 		rep_text += "\n\nProperties of "+self.material["name"]+":"
-		rep_text += "\n\tmass density \u03C1 = "+str(self.material["rho"])+" kg/m^3"
-		rep_text += "\n\tYoung's modulus E = "+str(self.material["E"]/1e9)+" GPa"
-		rep_text += "\n\tyield stress \u03C3_y = "+str(self.material["sig_y"]/1e6)+" MPa"
-		rep_text += "\n\tultimate stress \u03C3_y = "+str(self.material["sig_u"]/1e6)+" MPa"
+		rep_text += "\n    | mass density \u03C1 = "+str(self.material["rho"])+" kg/m^3"
+		rep_text += "\n    | Young's modulus E = "+str(self.material["E"]/1e9)+" GPa"
+		rep_text += "\n    | yield stress \u03C3_y = "+str(self.material["sig_y"]/1e6)+" MPa"
+		rep_text += "\n    | ultimate stress \u03C3_y = "+str(self.material["sig_u"]/1e6)+" MPa"
 		return rep_text
 	def axial_loads(self):
 		if max(self.d_of_f()) > 0:
@@ -492,7 +500,7 @@ class Member:
 			rep_text += str(cuper)+"% of the ultimate stress."
 			rep_text += "\nThis evaluation does not consider buckling."
 		return rep_text
-	def axial_buckling_rep(self):
+	def buckling_rep(self):
 		p_seg = self.axial_loads()
 		if isinstance(p_seg, str):
 		#if p_seg in self.rep_err:
@@ -591,12 +599,13 @@ class Member:
 			return tau_res
 		tau, h_dom = tau_res
 		tau = tau/1e6
+		#Fix this for zero functions. See line 558
 		sigf = sym.lambdify((d,h), sig, "numpy")
 		tauf = sym.lambdify((d,h), tau, "numpy")
 		
 		#TEMP
-		(smvp, smvc, tmvp, tmvc) = self.mohr_trsfm(sig, tau, fm=sym)
-		smx, smy = smvc
+		#(smvp, smvc, tmvp, tmvc) = self.mohr_trsfm(sig, tau, fm=sym)
+		#smx, smy = smvc
 		#/TEMP
 		d_ls = np.linspace(0, self.length, self.d_resolution)
 		h_sig_ls = np.linspace(y1min, y1max, self.h_resolution)
@@ -643,6 +652,8 @@ class Member:
 		fig1, ax1 = plt.subplots(figsize=(7,3))
 		ax1.set_title("Axial Stress \u03C3 (MPa)")
 		ax1.set(xlabel="Axial Distance d (m)", ylabel="Height h (mm)")
+		print(651, SIG)
+		print(652, [0, self.length, y1min*1e3, y1max*1e3])
 		im1 = ax1.imshow(SIG, cmap=plt.cm.RdBu, interpolation="bilinear", aspect="auto", 
 			extent=[0, self.length, y1min*1e3, y1max*1e3], vmin=-sig_rng, vmax=sig_rng, origin="lower")
 		fig1.colorbar(im1, ax=ax1)

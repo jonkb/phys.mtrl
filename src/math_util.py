@@ -4,7 +4,7 @@ import sympy as sym
 #from sympy.sets import Interval
 
 eps = 1e-14
-default_sigfig = 4
+default_sigfig = 6
 grav = 9.81 #m/s^2
 
 #round x to n significant figures
@@ -60,17 +60,21 @@ def discontinuities(f, x, dom=None):
 	try: sings = sym.singularities(f, x)#, domain=Interval.open(*dom))
 	except NotImplementedError: pass #singularities throws exceptions for Piecewise
 	else: discont = np.array(list(sings)).astype(np.float64)
-	
+	#Now inspect the limits of any piecewise subdomains
 	pw_sd_limits = pw_sdls(f,x)
 	flam = sym.lambdify(x, f, "numpy")
 	for sdlim in pw_sd_limits:
-		x_delta = eps
-		f_xl = flam(sdlim - x_delta)
-		f_xr = flam(sdlim + x_delta)
-		y_epsilon = abs(f_xr - f_xl)
-		#5e6*eps means anything with slope steeper than 5e7/2 will trigger as discontinuous
-		#I'm worried to make it a bigger threshold because it could miss small steps.
-		if y_epsilon > 5e7*eps:
+		dx = eps
+		f_xl = flam(sdlim - dx)
+		f_xll = flam(sdlim - dx*2)
+		dfdxl = (f_xl - f_xll)/dx
+		#Linear extrapolation 2*dx to the right to skip over the discontinuity
+		expected_f_xr = f_xl + dfdxl*(dx*2)
+		f_xr = flam(sdlim + dx)
+		eps_y = abs(f_xr - expected_f_xr)
+		#Anything with 2nd derivitave greater than 1e3 will trigger as discontinuous
+		#Anything with a discontinuous derivitave, like sqrt(0), may also fire
+		if eps_y > 2e3*eps:
 			discont = np.append(discont, sdlim)
 	if dom is None:
 		return discont

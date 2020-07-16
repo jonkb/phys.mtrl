@@ -9,6 +9,7 @@ from member import *
 from region import *
 from support import *
 from load import *
+from tk_wig import Txt_wig
 import pmfs
 
 
@@ -551,11 +552,11 @@ class Lab:
 			mem_lbl.pack()
 			if isinstance(report, str):
 				#This can be either a text-only report or an error message
-				rep_lbl = tk.Label(popup, text=report, justify=tk.LEFT)
-				rep_lbl.pack()
+				rep_lbl = Txt_wig(popup, report)
+				rep_lbl.packslf()
 			elif isinstance(report, tuple):
 				rep_text, fig = report
-				tk.Label(popup, text=rep_text, justify=tk.LEFT).pack()
+				Txt_wig(popup, rep_text).packslf()
 				figcanv = FigureCanvasTkAgg(fig, popup)
 				figcanv.get_tk_widget().pack(fill=tk.BOTH, expand=1)
 			elif isinstance(report, list):
@@ -565,8 +566,7 @@ class Lab:
 				for rep in report:
 					rep_name, rep_text, fig = rep
 					rep_names.append(rep_name)
-					rep_lbl = tk.Label(popup, text=rep_text, justify=tk.LEFT)
-					#rep_lbl.pack()
+					rep_lbl = Txt_wig(popup, rep_text)
 					figcanv = FigureCanvasTkAgg(fig, popup)
 					rep_canv = figcanv.get_tk_widget()
 					#rep_canv.pack(fill=tk.BOTH, expand=1)
@@ -578,13 +578,13 @@ class Lab:
 				matl_option.config(width=16)
 				matl_option.pack()
 				popup.current_rep = 0
-				rep_widgets[popup.current_rep][0].pack()
+				rep_widgets[popup.current_rep][0].packslf()
 				rep_widgets[popup.current_rep][1].pack(fill=tk.BOTH, expand=1)
 				def switch_rep(*args):
 					rep_widgets[popup.current_rep][0].pack_forget()
 					rep_widgets[popup.current_rep][1].pack_forget()
 					popup.current_rep = rep_names.index(rep_option.get())
-					rep_widgets[popup.current_rep][0].pack()
+					rep_widgets[popup.current_rep][0].packslf()
 					rep_widgets[popup.current_rep][1].pack(fill=tk.BOTH, expand=1)
 				rep_option.trace("w", switch_rep)
 			else:
