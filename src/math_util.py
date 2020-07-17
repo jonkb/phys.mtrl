@@ -36,6 +36,7 @@ def coords_str(x,y, n=default_sigfig):
 
 #Returns the limits of the subdomains of an expression that may contain piecewise
 def pw_sdls(f, x):
+	#NOTE: should have used sym.piecewise_fold to simplify this
 	lims = []
 	#look for all piecewise func in the expr tree 
 	#(see https://docs.sympy.org/latest/tutorial/manipulation.html)
@@ -52,8 +53,44 @@ def pw_sdls(f, x):
 			rec_search(arg)
 	rec_search(f)
 	return lims
+#Returns the roots of a piecewise expression
+def pw_roots(f, x):
+	roots = []
+	#This combines any addition or multiplication into the piecewise
+	f = sym.piecewise_fold(f)
+	def rec_search(expr):
+		nonlocal roots
+		if type(expr) == sym.Piecewise:
+			sdoms = expr.as_expr_set_pairs()
+			for sdom in sdoms:
+				subf = sdom[0]
+				limits = list(sdom[1].boundary)
+				#print(65, limits)
+				sf_eq0 = sym.Eq(subf, 0)
+				if sf_eq0 == True: #function is zero
+					numlims = len(limits)
+					if numlims == 0: #(-inf, inf)
+						#Arbitrarily return zero if the range is infinite
+						root = 0
+					elif numlims == 1:
+						root = limits[0]
+					else:
+						root = float(limits[1]+limits[0])/2
+					roots = np.append(roots, root)
+				else:
+					roots = np.append(roots, sym.solve(subf, x))
+		for arg in expr.args:
+			rec_search(arg)
+	if type(f) == sym.Piecewise:
+		rec_search(f)
+	else:
+		roots = sym.solve(f, x)
+	return roots
+#Return a simplified version of the piecewise function, restricted to the given domain
+def pw_strip(f, dom):
+	pass
 #Returns the discontinuities in the function along the interval
-#Supports everything that singularities supports as well as Piecewise
+#Supports everything that sym.singularities supports as well as Piecewise
 def discontinuities(f, x, dom=None):
 	discont = np.array([])
 	#Try the pre-made singularities function to see if it's enough
@@ -93,7 +130,9 @@ def max1d(f, x, dom):
 	#x_min = sym.solve(sym.Eq(f, f_min))[0]
 	f_lam = sym.lambdify(x, f, "numpy")
 	dfdx = f.diff(x)
-	critpts = np.array(sym.solve(sym.Eq(dfdx,0), x)).astype(np.float64)
+	try: critpts = sym.solve(dfdx, x)
+	except NotImplementedError: critpts = pw_roots(f,x)
+	critpts = np.array(critpts).astype(np.float64)
 	discont = discontinuities(f, x, dom)
 	if len(discont) > 0:
 		critpts = np.append(critpts, [discont, discont-eps, discont+eps])
@@ -111,9 +150,32 @@ def max1d(f, x, dom):
 	x_min = critpts[np.where(critvals == f_min)[0][0]]
 	return (f_max, x_max), (f_min, x_min)
 
+#Calculates the max and min of a 2d function on the given domain
+#First, it tries to do it analytically, then if that fails, numerically.
+#Returns (Max, Max_x, Max_y), (Min, Min_x, Min_y)
+def max2d(f, x, y, xdom, ydom, xres=100, yres=100):
+	try:
+		return max2d_grad(f, x, y, xdom, ydom)
+	except Exception as e:
+		print(160, e)
+		f_lam = sym.lambdify((x,y), f, "numpy")
+		xls = np.linspace(*xdom, xres)
+		yls = np.linspace(*ydom, yres)
+		X, Y = np.meshgrid(xls, yls)
+		F = f_lam(X, Y)
+		fmax = np.max(F)
+		fmin = np.min(F)
+		max_coords = np.where(F == fmax)
+		min_coords = np.where(F == fmin)
+		max_x = max_coords[1][0] * (xdom[1]-xdom[0])/(xres-1) + xdom[0]
+		max_y = max_coords[0][0] * (ydom[1]-ydom[0])/(yres-1) + ydom[0]
+		min_x = min_coords[1][0] * (xdom[1]-xdom[0])/(xres-1) + xdom[0]
+		min_y = min_coords[0][0] * (ydom[1]-ydom[0])/(yres-1) + ydom[0]
+		return (fmax, max_x, max_y), (fmin, min_x, min_y)
+
 #Symbolically calculate the max and min of the given 2d function on the given domain
 #Returns (Max, Max_x, Max_y), (Min, Min_x, Min_y)
-def max2d(f, x, y, xdom, ydom):
+def max2d_grad(f, x, y, xdom, ydom):
 	x0, x1 = xdom
 	y0, y1 = ydom
 	#print(61, xdom, ydom)
@@ -122,8 +184,9 @@ def max2d(f, x, y, xdom, ydom):
 	#print("dfdx: ", f.diff(x))
 	#print("dfdy: ", f.diff(y))
 	grad0 = ( sym.Eq(f.diff(x),0), sym.Eq(f.diff(y),0) )
-	#print(63, grad0 )
-	#print(64, sym.solve(grad0, (x,y)) )
+	#print(125, grad0 )
+	#print(126, sym.solve(grad0, (x,y)) )
+	#Likely to fail with Piecewise. :(
 	critpts = np.array(sym.solve(grad0, (x,y))).astype(np.float64)
 	#print(69, critpts)
 	cpts_in_dom = np.empty((0,2), float)
@@ -160,7 +223,7 @@ def max2d(f, x, y, xdom, ydom):
 	(W_max, W_max_y), (W_min, W_min_y) = max1d(W_bound, y, (y0, y1))
 	critvals = np.append(critvals, [W_max, W_min])
 	critpts = np.append(critpts, [[x0, W_max_y], [x0, W_min_y]], axis=0)
-	print(109, critpts)
+	#print(109, critpts)
 	f_max = np.max(critvals)
 	#print(89, np.where(critvals == f_max))
 	xy_max = critpts[np.where(critvals == f_max)[0][0]]
@@ -190,3 +253,35 @@ def test_maxmin():
 	print("max2d(sin(x)+1.1*sin(y), x, y, [0, math.pi+.001], [0, math.pi+.001])")
 	print(max2d(fxy, x, y, [0, math.pi+.001], [0, math.pi+.001]))
 #test_maxmin()
+
+def test_solve_pw():
+	d, h = sym.symbols('d,h')
+	eq0 = sym.Eq(-75.0*sym.Piecewise((-2000.0*d, d < 1.0), (-2000.0, True)) - 150000.0, 0)
+	#print(eq0)
+	#print(sym.solve(eq0), d)
+	
+	eq1 = sym.Eq(-75.0*h*sym.Piecewise((-2000.0, d < 1.0), (0, True)), 0)
+	#print(eq1)
+	#print(sym.solve((eq0, eq1), (d,h)))
+	
+	x = sym.symbols('x')
+	f = sym.Piecewise((x, x<1), (1, x<2), (3-x, True))
+	try:
+		sym.solve(sym.Eq(sym.diff(f),0), x)
+	except NotImplementedError:
+		print(211)
+	
+	#IDEA: first strip Piecewise of anything outside of the domain of interest
+	#Piecewise((x, x < L and x > 0), (0, True)) --> f = x (on (0,L))
+	#I think all the boundaries should be considered anyway
+	
+	#Another problem is when an interval is constant "solve cannot represent interval solutions"
+
+test_solve_pw()
+
+
+
+
+
+
+

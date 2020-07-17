@@ -285,6 +285,7 @@ class Member:
 	#Do mohr's circle transformations on an element with sigma_x and tau_xy (assumes no sig_y)
 	#Return two vectors, each in polar and cartesian: smvp, smvc, tmvp, tmvc
 	#fm = module with appropriate functions. Default numpy.
+	#not quite working yet for symbolic expressions
 	@staticmethod
 	def mohr_trsfm(sigx, tau, fm=np):
 		#Force the angle to be more horizontal so you get negative instead of perpindicular
@@ -298,7 +299,7 @@ class Member:
 		th_a = np.array(atan(2*tau/sigx)/2, dtype="float64")
 		#print(295, th_a, type(th_a))
 		#Replace oo with pi/4 (which is (pi/2)/2)
-		th_a = np.nan_to_num(th_a, nan=np.pi/4, posinf=np.pi/4, neginf=np.pi/4)
+		th_a = np.nan_to_num(th_a, nan=np.pi/4, posinf=np.pi/4, neginf=-np.pi/4)
 		#print(299, th_a, type(th_a))
 		th_b = th_a + math.pi/2
 		sig_a = sigx/2*(1+fm.cos(2*th_a)) + tau*fm.sin(2*th_a)
@@ -599,7 +600,7 @@ class Member:
 			return tau_res
 		tau, h_dom = tau_res
 		tau = tau/1e6
-		#Fix this for zero functions. See line 558
+		#Fix this for zero / constant functions. See line 558
 		sigf = sym.lambdify((d,h), sig, "numpy")
 		tauf = sym.lambdify((d,h), tau, "numpy")
 		
@@ -612,12 +613,12 @@ class Member:
 		h_tau_ls = np.linspace(*h_dom, self.h_resolution)
 		D, H_s = np.meshgrid(d_ls, h_sig_ls)
 		_, H_t = np.meshgrid(d_ls, h_tau_ls)
+		#Sigma - report 1
 		SIG = sigf(D, H_s)
 		print(606, ": sig =", sig)
-		(sig_max, smax_d, smax_h), (sig_min, smin_d, smin_h) = max2d(
-			sig, d, h, [0, self.length], h_dom)
+		(sig_max, smax_d, smax_h), (sig_min, smin_d, smin_h) = max2d(sig, d, h, 
+			(0, self.length), h_dom, xres=self.d_resolution*5, yres=self.h_resolution*5)
 		print(609, ": smax,min", sig_max, sig_min)
-		
 		sig_rng = max(abs(sig_min), abs(sig_max))
 		s1_rep_text = "Measuring 'd' (in m) from end zero (left or bottom) of the member"
 		s1_rep_text += " and 'h' (in mm) from the neutral axis of bending,"
@@ -627,33 +628,26 @@ class Member:
 		if sig_min < 0:
 			s1_rep_text += "\nMax Compressive Axial Stress = " + str(sigfig(-sig_min)) + " MPa"
 			s1_rep_text += " at d="+str(sigfig(smin_d))+"m, h="+str(sigfig(smin_h*1e3))+"mm"
-		#Still the old way:
+		#TAU - report 2
 		TAU = tauf(D, H_t)
-		tau_max = np.max(TAU)
-		tau_min = np.min(TAU)
+		(tau_max, tmax_d, tmax_h), (tau_min, tmin_d, tmin_h) = max2d(tau, d, h, 
+			(0, self.length), h_dom, xres=self.d_resolution*5, yres=self.h_resolution*5)
 		tau_rng = max(abs(tau_min), abs(tau_max))
 		t1_rep_text = "Measuring 'd' (in m) from end zero (left or bottom) of the member"
 		t1_rep_text += " and 'h' (in mm) from the neutral axis of bending,"
-		if True:
-			if tau_max > 0:
-				t1_rep_text += "\nMax Positive Sheer Stress = " + str(sigfig(tau_max)) + " MPa"
-				tmax_coords = np.where(TAU == tau_max)
-				tmax_d = tmax_coords[1][0] * self.length/(self.d_resolution-1)
-				tmax_h = h_dom[0] + tmax_coords[0][0] * (h_dom[1]-h_dom[0]) / (self.h_resolution-1)
-				t1_rep_text += " at d="+str(sigfig(tmax_d))+"m, h="+str(sigfig(tmax_h*1e3))+"mm"
-			if tau_min < 0:
-				t1_rep_text += "\nMax Negative Sheer Stress = " + str(sigfig(abs(tau_min))) + " MPa"
-				tmin_coords = np.where(TAU == tau_min)
-				tmin_d = tmin_coords[1][0] * self.length/(self.d_resolution-1)
-				tmin_h = h_dom[0] + tmin_coords[0][0] * (h_dom[1]-h_dom[0]) / (self.h_resolution-1)
-				t1_rep_text += " at d="+str(sigfig(tmin_d))+"m, h="+str(sigfig(tmin_h*1e3))+"mm"
+		if tau_max > 0:
+			t1_rep_text += "\nMax Positive Sheer Stress = " + str(sigfig(tau_max)) + " MPa"
+			t1_rep_text += " at d="+str(sigfig(tmax_d))+"m, h="+str(sigfig(tmax_h*1e3))+"mm"
+		if tau_min < 0:
+			t1_rep_text += "\nMax Negative Sheer Stress = " + str(sigfig(abs(tau_min))) + " MPa"
+			t1_rep_text += " at d="+str(sigfig(tmin_d))+"m, h="+str(sigfig(tmin_h*1e3))+"mm"
 		
 		#Plot of in-plane axial stress
 		fig1, ax1 = plt.subplots(figsize=(7,3))
 		ax1.set_title("Axial Stress \u03C3 (MPa)")
 		ax1.set(xlabel="Axial Distance d (m)", ylabel="Height h (mm)")
-		print(651, SIG)
-		print(652, [0, self.length, y1min*1e3, y1max*1e3])
+		#print(651, SIG)
+		#print(652, [0, self.length, y1min*1e3, y1max*1e3])
 		im1 = ax1.imshow(SIG, cmap=plt.cm.RdBu, interpolation="bilinear", aspect="auto", 
 			extent=[0, self.length, y1min*1e3, y1max*1e3], vmin=-sig_rng, vmax=sig_rng, origin="lower")
 		fig1.colorbar(im1, ax=ax1)

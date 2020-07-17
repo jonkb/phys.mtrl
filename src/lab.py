@@ -82,22 +82,22 @@ class Lab:
 	def wtls(self):
 		try:
 			return self.mem_wtls.get()
-		except NameError:# Was not set
+		except AttributeError:# Was not set
 			return True
 	def smem(self):
 		try:
 			return self.show_mem.get()
-		except NameError:# Was not set
+		except AttributeError:# Was not set
 			return True
 	def ssup(self):
 		try:
 			return self.show_sup.get()
-		except NameError:# Was not set
+		except AttributeError:# Was not set
 			return True
 	def sld(self):
 		try:
 			return self.show_ld.get()
-		except NameError:# Was not set
+		except AttributeError:# Was not set
 			return True
 	def save(self):
 		pmfs.save(self)
