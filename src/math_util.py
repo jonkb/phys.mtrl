@@ -277,7 +277,7 @@ def test_solve_pw():
 	
 	#Another problem is when an interval is constant "solve cannot represent interval solutions"
 
-test_solve_pw()
+#test_solve_pw()
 
 
 
