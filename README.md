@@ -1,4 +1,4 @@
-# Mechanics of Materials Workbench
+# Phys.Mtrl: A Mechanics of Materials Workbench
 phys.mtrl is GUI Workbench for performing Mechanics of Materials calculations.
 
 ## Dependencies
@@ -44,6 +44,6 @@ Here is a summary of some of the currently implemented features.
 - Add keyboard shortcuts
 
 ## LICENSE
-See LICENSE file
+MIT License. See LICENSE file.
 
 
