@@ -1,6 +1,13 @@
 # Mechanics of Materials Workbench
 phys.mtrl is GUI Workbench for performing Mechanics of Materials calculations.
 
+## Dependencies
+- Python 3
+- tkinter
+- numpy
+- sympy
+- matplotlib
+
 ## Implemented Features
 Here is a summary of some of the currently implemented features.
 
@@ -35,5 +42,8 @@ Here is a summary of some of the currently implemented features.
 - Find a better way to represent the principal stresses when they're only known along the neutral axis, like for a circular cross section (sig\_tau report).
 - Nicer support appearance, and supports that can be placed anywhere along the axis.
 - Add keyboard shortcuts
+
+## LICENSE
+See LICENSE file
 
 
