@@ -223,7 +223,7 @@ def max2d_grad(f, x, y, xdom, ydom):
 	(W_max, W_max_y), (W_min, W_min_y) = max1d(W_bound, y, (y0, y1))
 	critvals = np.append(critvals, [W_max, W_min])
 	critpts = np.append(critpts, [[x0, W_max_y], [x0, W_min_y]], axis=0)
-	#print(109, critpts)
+	#print(226, critpts)
 	f_max = np.max(critvals)
 	#print(89, np.where(critvals == f_max))
 	xy_max = critpts[np.where(critvals == f_max)[0][0]]

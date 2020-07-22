@@ -13,8 +13,15 @@ class Member:
 	dq_resolution = 50
 	hq_resolution = 25
 	#W, S, E, N
-	plot_margins = (.11, .19, 1, .9)
+	plot_margins = (.11, .19, .95, .9)
+	implot_margins = (.11, .19, 1, .9)
 	rep_err = ["Underconstrained", "Overconstrained", "Not Placed", "No Solution Found"]
+	rep_wrng = ["Warning: because of the shape of the cross section, tau is only known \
+at the neutral axis, so the max and min values presented here may be inaccurate.\n",
+		"Warning: because of the shape of the cross section, the calculation for tau is not \
+valid over the whole height, so the max and min values presented here may be inaccurate.\n"]
+
+
 	#Names of each Evaluation Report
 	eval_names = {
 		0: "Mass Properties",
@@ -592,7 +599,7 @@ class Member:
 		sig = self.axial_stress_sym()
 		if isinstance(sig, str):
 			return sig #ERROR
-		print(586, ": sig (Pa) =", sig)
+		#print(586, ": sig (Pa) =", sig)
 		sig = sig/1e6 #MPa
 		y1min, y1max = self.xsection.y1_domain()
 		tau_res = self.tau_sym()
@@ -600,11 +607,20 @@ class Member:
 			return tau_res
 		tau, h_dom = tau_res
 		tau = tau/1e6
-		#Fix this for zero / constant functions. See line 558
+		y1_rng = y1max - y1min
+		h_rng = h_dom[1] - h_dom[0]
 		sigf = sym.lambdify((d,h), sig, "numpy")
 		tauf = sym.lambdify((d,h), tau, "numpy")
+		#Fix this for zero / constant functions. See line 558
+		#This way it returns an array of the same size if arrays are passed
+		if isinstance(sig, sym.Integer):
+			sigf = lambda d,h: 0*d + float(sig)
+		if isinstance(tau, sym.Integer):
+			tauf = lambda d,h: 0*d + float(sig)
 		
 		#TEMP
+		#print(608, "y1 domain:", [y1min, y1max])
+		#print(609, "h_dom:", h_dom)
 		#(smvp, smvc, tmvp, tmvc) = self.mohr_trsfm(sig, tau, fm=sym)
 		#smx, smy = smvc
 		#/TEMP
@@ -613,11 +629,12 @@ class Member:
 		h_tau_ls = np.linspace(*h_dom, self.h_resolution)
 		D, H_s = np.meshgrid(d_ls, h_sig_ls)
 		_, H_t = np.meshgrid(d_ls, h_tau_ls)
+		
 		#Sigma - report 1
 		SIG = sigf(D, H_s)
-		print(606, ": sig =", sig)
+		#print(606, ": sig =", sig)
 		(sig_max, smax_d, smax_h), (sig_min, smin_d, smin_h) = max2d(sig, d, h, 
-			(0, self.length), h_dom, xres=self.d_resolution*5, yres=self.h_resolution*5)
+			(0, self.length), (y1min, y1max), xres=self.d_resolution*5, yres=self.h_resolution*5)
 		print(609, ": smax,min", sig_max, sig_min)
 		sig_rng = max(abs(sig_min), abs(sig_max))
 		s1_rep_text = "Measuring 'd' (in m) from end zero (left or bottom) of the member"
@@ -628,20 +645,6 @@ class Member:
 		if sig_min < 0:
 			s1_rep_text += "\nMax Compressive Axial Stress = " + str(sigfig(-sig_min)) + " MPa"
 			s1_rep_text += " at d="+str(sigfig(smin_d))+"m, h="+str(sigfig(smin_h*1e3))+"mm"
-		#TAU - report 2
-		TAU = tauf(D, H_t)
-		(tau_max, tmax_d, tmax_h), (tau_min, tmin_d, tmin_h) = max2d(tau, d, h, 
-			(0, self.length), h_dom, xres=self.d_resolution*5, yres=self.h_resolution*5)
-		tau_rng = max(abs(tau_min), abs(tau_max))
-		t1_rep_text = "Measuring 'd' (in m) from end zero (left or bottom) of the member"
-		t1_rep_text += " and 'h' (in mm) from the neutral axis of bending,"
-		if tau_max > 0:
-			t1_rep_text += "\nMax Positive Sheer Stress = " + str(sigfig(tau_max)) + " MPa"
-			t1_rep_text += " at d="+str(sigfig(tmax_d))+"m, h="+str(sigfig(tmax_h*1e3))+"mm"
-		if tau_min < 0:
-			t1_rep_text += "\nMax Negative Sheer Stress = " + str(sigfig(abs(tau_min))) + " MPa"
-			t1_rep_text += " at d="+str(sigfig(tmin_d))+"m, h="+str(sigfig(tmin_h*1e3))+"mm"
-		
 		#Plot of in-plane axial stress
 		fig1, ax1 = plt.subplots(figsize=(7,3))
 		ax1.set_title("Axial Stress \u03C3 (MPa)")
@@ -651,16 +654,44 @@ class Member:
 		im1 = ax1.imshow(SIG, cmap=plt.cm.RdBu, interpolation="bilinear", aspect="auto", 
 			extent=[0, self.length, y1min*1e3, y1max*1e3], vmin=-sig_rng, vmax=sig_rng, origin="lower")
 		fig1.colorbar(im1, ax=ax1)
-		plt.subplots_adjust(*self.plot_margins, wspace=.09)
+		plt.subplots_adjust(*self.implot_margins, wspace=.09)
 		reps.append(("In-plane \u03C3", s1_rep_text, fig1))
-		#Plot of in-plane shear stress
+		
+		#TAU - report 2
+		#Plot of in-plane shear stress TAU
 		fig2, ax2 = plt.subplots(figsize=(7,3))
 		ax2.set_title("Shear Stress \u03C4 (MPa)")
-		ax2.set(xlabel="Axial Distance d (m)", ylabel="Height h (mm)")
-		im2 = ax2.imshow(TAU, cmap=plt.cm.BrBG, interpolation="bilinear", aspect="auto", 
-			extent=[0, self.length, h_dom[0]*1e3, h_dom[1]*1e3], vmin=-tau_rng, vmax=tau_rng, origin="lower")
-		fig2.colorbar(im2, ax=ax2)
-		plt.subplots_adjust(*self.plot_margins, wspace=.09)
+		t1_rep_text = ""
+		if h_rng == 0:
+			t1_rep_text += self.rep_wrng[0]
+			(tau_max, tmax_d), (tau_min, tmin_d) = max1d(tau.subs(h, h_dom[0]),
+				d, (0, self.length))
+			tmin_h = 0
+			tmax_h = 0
+			ax2.set(xlabel="Axial Distance d (m)", ylabel="Shear at Neutral Axis (MPa)")
+			TAU_nax = tauf(d_ls, h_dom[0])#TAU along the neutral axis
+			ax2.plot(d_ls, TAU_nax)
+			plt.subplots_adjust(*self.plot_margins, wspace=.09)
+		else:
+			if h_rng < y1_rng:
+				t1_rep_text += self.rep_wrng[1]
+			(tau_max, tmax_d, tmax_h), (tau_min, tmin_d, tmin_h) = max2d(tau, d, h, 
+				(0, self.length), h_dom, xres=self.d_resolution*5, yres=self.h_resolution*5)
+			tau_rng = max(abs(tau_min), abs(tau_max))
+			ax2.set(xlabel="Axial Distance d (m)", ylabel="Height h (mm)")
+			TAU = tauf(D, H_t)
+			im2 = ax2.imshow(TAU, cmap=plt.cm.BrBG, interpolation="bilinear", aspect="auto", origin="lower",
+				extent=[0, self.length, h_dom[0]*1e3, h_dom[1]*1e3], vmin=-tau_rng, vmax=tau_rng)
+			fig2.colorbar(im2, ax=ax2)
+			plt.subplots_adjust(*self.implot_margins, wspace=.09)
+		t1_rep_text += "Measuring 'd' (in m) from end zero (left or bottom) of the member"
+		t1_rep_text += " and 'h' (in mm) from the neutral axis of bending,"
+		if tau_max > 0:
+			t1_rep_text += "\nMax Positive Sheer Stress = " + str(sigfig(tau_max)) + " MPa"
+			t1_rep_text += " at d="+str(sigfig(tmax_d))+"m, h="+str(sigfig(tmax_h*1e3))+"mm"
+		if tau_min < 0:
+			t1_rep_text += "\nMax Negative Sheer Stress = " + str(sigfig(abs(tau_min))) + " MPa"
+			t1_rep_text += " at d="+str(sigfig(tmin_d))+"m, h="+str(sigfig(tmin_h*1e3))+"mm"
 		reps.append(("In-plane \u03C4", t1_rep_text, fig2))
 		
 		#Quiver plots for max shear & tension
@@ -677,7 +708,18 @@ class Member:
 		tau_max = np.max(T1m)
 		tau_min = np.min(T1m)
 		tau_rng = max(abs(tau_min), abs(tau_max))
-		s2_rep_text = "Measuring 'd' (in m) from end zero (left or bottom) of the member"
+		
+		s2_rep_text = ""
+		t2_rep_text = ""
+		if h_rng == 0:
+			s2_rep_text += self.rep_wrng[0]
+			t2_rep_text += self.rep_wrng[0]
+			#Use a different kind of plot?
+			#Though I'm not sure what I'd like it to look like.
+		elif h_rng < y1_rng:
+			s2_rep_text += self.rep_wrng[1]
+			t2_rep_text += self.rep_wrng[1]
+		s2_rep_text += "Measuring 'd' (in m) from end zero (left or bottom) of the member"
 		s2_rep_text += " and 'h' (in mm) from the neutral axis of bending,"
 		if sig_max > 0:
 			s2_rep_text += "\nMax Tensile Stress = " + str(sigfig(sig_max)) + " MPa"
@@ -695,7 +737,7 @@ class Member:
 			smin_th = S1th[smin_coords[0][0], smin_coords[1][0]]
 			s2_rep_text += " at d="+str(sigfig(smin_d))+"m, h="+str(sigfig(smin_h*1e3))+"mm"
 			s2_rep_text += ", \u03B8="+str(sigfig(math.degrees(smin_th)))+"\u00B0"
-		t2_rep_text = "Measuring 'd' (in m) from end zero (left or bottom) of the member"
+		t2_rep_text += "Measuring 'd' (in m) from end zero (left or bottom) of the member"
 		t2_rep_text += " and 'h' (in mm) from the neutral axis of bending,"
 		if tau_rng > 0:
 			t2_rep_text += "\nMax Sheer Stress = " + str(sigfig(tau_rng)) + " MPa"
@@ -713,7 +755,7 @@ class Member:
 		q1 = ax3.quiver(Dq, Hq*1e3, S1x, S1y, S1m, cmap=plt.cm.RdBu, clim=(-sig_rng, sig_rng),
 			pivot="mid", headaxislength=0, headlength = 0, headwidth=1, width=.009)
 		fig3.colorbar(q1, ax=ax3)
-		plt.subplots_adjust(*self.plot_margins, wspace=.09)
+		plt.subplots_adjust(*self.implot_margins, wspace=.09)
 		reps.append(("Out-of-plane \u03C3", s2_rep_text, fig3))
 		#Plot of principal (out-of-plane) shear stress
 		fig4, ax4 = plt.subplots(figsize=(7,3))
@@ -722,7 +764,7 @@ class Member:
 		q2 = ax4.quiver(Dq, Hq*1e3, T1x, T1y, T1m, cmap=plt.cm.BrBG, clim=(-tau_rng, tau_rng),
 			pivot="mid", headaxislength=0, headlength = 0, headwidth=1, width=.009)
 		fig4.colorbar(q2, ax=ax4)
-		plt.subplots_adjust(*self.plot_margins, wspace=.09)
+		plt.subplots_adjust(*self.implot_margins, wspace=.09)
 		reps.append(("Out-of-plane \u03C4", t2_rep_text, fig4))
 		
 		return reps
