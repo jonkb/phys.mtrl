@@ -2,6 +2,16 @@ import math
 import tkinter as tk
 from tkinter import font
 
+#Wrapper for tk.Tk() incorporating the title and icon already
+class Tk_rt(tk.Tk):
+	def __init__(self, title):
+		super().__init__()
+		self.title(title)
+		try:
+			self.iconbitmap("../img/phys.ico")
+		except:
+			print("Error loading icon (\"../img/phys.ico\")")
+
 #Expansion of tk.Text, used for displaying text, not receiving any input
 #You can't copy text from a Label, which is a problem
 class Txt_wig(tk.Text):

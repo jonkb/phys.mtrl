@@ -9,7 +9,7 @@ from member import *
 from region import *
 from support import *
 from load import *
-from tk_wig import Txt_wig
+from tk_wig import Txt_wig, Tk_rt
 import pmfs
 
 
@@ -540,9 +540,7 @@ class Lab:
 	def del_mode(self):
 		self.select_mem(lambda m: self.del_mem(m))
 	def popup_report(self, mem, type):
-		popup = tk.Tk()
-		popup.title(mem.eval_names[type]+" Report")
-		popup.iconbitmap("../img/phys.ico")
+		popup = Tk_rt(mem.eval_names[type]+" Report")
 		loading_lbl = tk.Label(popup, text="LOADING", padx=48, pady=24)
 		loading_lbl.pack()
 		def add_report():
@@ -606,9 +604,7 @@ class Lab:
 		popup.mainloop()
 	#Open window to edit px_per_m and px_per_kN
 	def edit_scale(self):
-		popup = tk.Tk()
-		popup.title("Edit Lab Scale")
-		popup.iconbitmap("../img/phys.ico")
+		popup = Tk_rt("Edit Lab Scale")
 		popup.grid_columnconfigure(0, minsize=120)
 		popup.grid_columnconfigure(1, minsize=120)
 		popup.grid_rowconfigure(4, pad=16)

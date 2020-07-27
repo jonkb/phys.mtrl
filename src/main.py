@@ -3,13 +3,11 @@ import tkinter as tk
 from lab import Lab
 from member import Member
 from toolbars import Add_mem, Add_sup, Add_load
+from tk_wig import Tk_rt
 
 
 #Root window
-root = tk.Tk()
-root.title("Materials Physics")
-root.iconbitmap("../img/phys.ico")
-
+root = Tk_rt("Materials Physics")
 
 #Main frame: container for everything else
 main_frm = tk.Frame(root)
