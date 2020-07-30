@@ -1,16 +1,18 @@
 import math
 import tkinter as tk
 from tkinter import font
+import os
 
 #Wrapper for tk.Tk() incorporating the title and icon already
 class Tk_rt(tk.Tk):
+	ico_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../img/phys.ico")
 	def __init__(self, title):
 		super().__init__()
 		self.title(title)
 		try:
-			self.iconbitmap("../img/phys.ico")
+			self.iconbitmap(self.ico_path)
 		except:
-			print("Error loading icon (\"../img/phys.ico\")")
+			print("Error loading icon ("+ico_path+")")
 
 #Expansion of tk.Text, used for displaying text, not receiving any input
 #You can't copy text from a Label, which is a problem
