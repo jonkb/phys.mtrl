@@ -161,23 +161,60 @@ valid over the whole height, so the max and min values presented here may be ina
 			(False, 1) : 3
 		}
 		return dir_switch[(self.is_vert(), side)]
-	#Returns the degrees of freedom of the member #(x,y,th)
+	#Return a tuple representing the constraints on the member in each direction.
+	#It is in this order: (axial, perpindicular, th)
 	def constraints(self):
 		c = np.array((0,0,0))
 		for s in self.sup:
 			if not s == None:
 				c += s.constraints()
-		return c.tolist()
+		if self.is_vert():
+			ca = c[1]
+			cp = c[0]
+		else:
+			ca = c[0]
+			cp = c[1]
+		return (ca, cp, c[2])
+	#Returns the degrees of freedom of the member (axial, perpindicular, th)
 	def d_of_f(self):
-		c = self.constraints()
-		if c[0] > 1:#Two different x --> x+th
-			c[0] -= 1
-			c[2] += 1
-		if c[1] > 1:#Two different y --> y+th
+		c = list(self.constraints())
+		#2 perp. sup   ~~=   1 perp. and 1 moment
+		if c[1] > 1:
 			c[1] -= 1
 			c[2] += 1
+		#2 Axial do not create a moment, since they're on the same axis!
 		d = np.array((1,1,1)) - c
-		return d.tolist()
+		return d
+	#Returns True if the beam is statically determinate or an error
+	def is_stdet(self):
+		DOF = self.d_of_f()
+		if DOF.max() > 0:
+			return self.rep_err[0]# "Underconstrained"
+		if DOF.min() < 0:
+			#Overconstrained -- not statically determinate
+			#I can add a case for this later, with delta=PL/EA
+			return self.rep_err[1]# "Overconstrained"
+		assert np.all(self.d_of_f() == 0)
+		return True
+	#Returns True if the member can support an axial load
+	# 1. Must be constrained in translation and rotation
+	# 2. Must have precisely one constraint in axial direction
+	def sup_axp(self):
+		CON = self.constraints()
+		#More compact, less descriptive:
+		#if CON[0] == 1 and CON[1] > 0: #Ax = 1, Prp constraint
+		#	if CON[2] > 0 or CON[1] == 2: #Moment constraint
+		#		return True
+		if CON[2] > 0 or CON[1] == 2:
+			if CON[0] > 0 and CON[1] > 0:
+				if CON[0] == 1:
+					return True
+				else:
+					return rep_err[1] #Overconstrained in the axial direction
+			else:
+				return rep_err[0] #Underconstrained in Translation
+		else:
+			return rep_err[0] #Underconstrained in Moment
 	#Return a distributed load representing the weight of the member
 	def weight_dl(self):
 		q = grav*self.material["rho"]*self.xarea
@@ -240,12 +277,10 @@ valid over the whole height, so the max and min values presented here may be ina
 	#Do the statics to calculate the reaction forces with two supports
 	#Returns a np.array([s0x, s0y, s0m, s1x, s1y, s1m])
 	def reactions(self):
-		if max(self.d_of_f()) > 0:
-			return self.rep_err[0]# "Underconstrained"
-		if min(self.d_of_f()) < 0:
-			#Overconstrained--not statically determinate
-			#I can add a case for this later, with delta=PL/EA
-			return self.rep_err[1]# "Overconstrained"
+		is_sdet = self.is_stdet()
+		if isinstance(is_sdet, str):
+			return is_sdet
+		assert is_sdet is True
 		isv = self.is_vert()
 		if isv == None:
 			return self.rep_err[2] # "Not Placed"
@@ -359,17 +394,16 @@ valid over the whole height, so the max and min values presented here may be ina
 		rep_text += "\n    | ultimate stress \u03C3_y = "+str(self.material["sig_u"]/1e6)+" MPa"
 		return rep_text
 	def axial_loads(self):
-		if max(self.d_of_f()) > 0:
-			return self.rep_err[0]# "Underconstrained"
-		if min(self.d_of_f()) < 0:
-			#Overconstrained--not statically determinate
-			#I can add a case for this later, with delta=PL/EA
-			return self.rep_err[1]# "Overconstrained"
+		sup_axp = self.sup_axp()
+		if isinstance(sup_axp, str):
+			return sup_axp
+		assert sup_axp is True
 		isv = self.is_vert()
 		if isv == None:
 			return self.rep_err[2] #"Not Placed"
 		for i,s in enumerate(self.sup):
 			if s != None:
+				#Check which support has an axial restraint
 				if s.constraints()[isv]: #0-->x, 1-->y
 					fixed_end = i
 		loads = self.my_loads()
@@ -396,7 +430,7 @@ valid over the whole height, so the max and min values presented here may be ina
 			if abs(prev_d - d_2free) > eps:
 				p_segments.append( ((prev_d, d_2free), p_internal) )
 			p_internal += p_ax
-			prev_d = d_2free
+			prev_d = d_2free #Is this in the right place?
 		if self.length - prev_d > eps:
 			p_segments.append( ((prev_d, self.length), p_internal) )
 		return p_segments
@@ -509,6 +543,47 @@ valid over the whole height, so the max and min values presented here may be ina
 			rep_text += "\nThis evaluation does not consider buckling."
 		return rep_text
 	def buckling_rep(self):
+		sup_com = self.sup_axp()
+		if isinstance(sup_com, str):
+			return sup_com
+		assert sup_com is True
+		
+		CON = self.constraints()
+		Pcr = math.pi**2 * self.E * self.xImin / self.length**2
+		#if CON == (1,2,0): #Pin-Sx
+		#	pass
+		#if CON == (1,1,2): #Fixed-M or Ty-Tx
+		#	pass
+		if CON == (1,1,1): #Fixed-Free or Pin-M or Sy-Tx or Ty-Sx
+			Pcr /= 4
+		elif CON == (1,2,1): #Fixed-Sx or Pin-Tx
+			Pcr *= 2.046 #From book - table on columns
+		elif CON == (1,2,2): #Fixed-Tx
+			Pcr *= 4
+		
+		p_seg = self.axial_loads()
+		if isinstance(p_seg, str):
+			return p_seg
+		if len(p_seg) > 1:
+			rep_text = "Sorry, I'm not exactly sure how to deal with "
+			rep_text += "\nbuckling in a column with multiple loads."
+			#I could give it a shot later, but I think it includes messing with the
+			#differential equation and solving it generically instead of using the 4[/10] cases.
+			return rep_text
+		Pmax = -p_seg[0][1]
+		if Pmax <= 0:
+			rep_text = "There is no compressive load on this member, so it will not buckle."
+			return rep_text
+		Pper = round(Pmax / Pcr * 100, 2)
+		rep_text = "The load applied to this member P = " + N_to_kN_str(Pmax)
+		rep_text += "\nThis is " + str(Pper) + "% of the critical load Pcr = " + N_to_kN_str(Pcr)
+		if Pmax < Pcr:
+			rep_text += "\nSo the member is stable"
+		if Pmax >= Pcr:
+			rep_text += "\nSo the member is unstable"
+		return rep_text
+	#OLD VERSION
+	def old_buckling_rep(self):
 		p_seg = self.axial_loads()
 		if isinstance(p_seg, str):
 		#if p_seg in self.rep_err:
@@ -522,7 +597,7 @@ valid over the whole height, so the max and min values presented here may be ina
 		rep_text = "Sorry, this is super basic right now."
 		rep_text += "\nI can only deal with fixed-free columns."
 		Pmax = -p_seg[0][1]
-		if Pmax < 0:
+		if Pmax <= 0:
 			rep_text += "\nThere is no compressive load on this member, so it will not buckle."
 			return rep_text
 		Pcr = math.pi**2 * self.E * self.xImin / (4 * self.length**2)

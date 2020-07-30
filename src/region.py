@@ -29,33 +29,30 @@ class Region:
 		"annulus": Annulus}
 	@staticmethod
 	def half_h(xsec, params):
-		if xsec == "circle" or xsec == "annulus":
-			try:
-				if isinstance(params, dict):
-					r = float(params["radius"])
-				else:
-					r = float(params[0])/1000 #mm
-			except ValueError:
-				return "NaN"
-			return r
-		if xsec == "rectangle":
-			try:
-				if isinstance(params, dict):
-					h = float(params["height"])
-				else:
-					h = float(params[1])/1000
-			except ValueError:
-				return "NaN"
-			return h/2
-		if xsec == "I-beam":
-			try:
-				if isinstance(params, dict):
-					d = float(params["depth"])
-				else:
-					d = float(params[0])/1000
-			except ValueError:
-				return "NaN"
-			return d/2
+		if isinstance(params, dict):
+			if xsec == "circle":
+				try: return float(params["radius"])
+				except ValueError: return "NaN"
+			elif xsec == "annulus":
+				try: return float(params["ro"])
+				except ValueError: return "NaN"
+			elif xsec == "rectangle":
+				try: return float(params["height"]) / 2
+				except ValueError: return "NaN"
+			elif xsec == "I-beam":
+				try: return float(params["depth"]) / 2
+				except ValueError: return "NaN"
+		else:
+			if xsec == "circle" or xsec == "annulus":
+				try: return float(params[0])/1000
+				except ValueError: return "NaN"
+			elif xsec == "rectangle":
+				try: return float(params[1])/1000 / 2
+				except ValueError: return "NaN"
+			elif xsec == "I-beam":
+				try: return float(params[0])/1000 / 2
+				except ValueError: return "NaN"
+		return "Unknown cross-section"
 
 class Circle(Region):
 	rtype = "circle"
