@@ -60,7 +60,7 @@ def open(lab):
 		regions = Region.reg_dict()
 		xsection = regions[xsec_reg](**xs_param)
 		m = Member(matl, xsection, L)
-		lab.place_member(m, xc=x0, yc=y0, vh=VH, xs_prms=xs_param)
+		lab.place_member(m, xc=x0, yc=y0, vh=VH)
 		
 		for sup in mem.findall("sup"):
 			stype = int(sup.attrib["type"])

@@ -16,7 +16,7 @@ import pmfs
 class Lab:
 	#Constants
 	version = "0.1.0"
-	snap_dist = 15
+	snap_dist = 15 #px
 	dash_len = 30
 	
 	def __init__(self, main_frm, add_mem_bar, add_sup_bar, add_load_bar):
@@ -154,35 +154,67 @@ class Lab:
 		xc, yc = self.px_to_coords(xp,yp)
 		closest_r = self.snap_dist / self.px_per_m
 		closest = None
-		v_comp = 0 #store the distance along the member (the comp.)
+		#store axd along the member (the component of the projection)
+		closest_axd = 0
 		for m in self.members:
 			v_axis = m.v_axis()
 			uv_axis = m.uv_axis()
 			v_s0_P = (xc-m.x0, yc-m.y0)
 			v_s1_P = (xc-m.x1, yc-m.y1)
-			if np.dot(v_axis, v_s0_P) < 0: #P is before s0
+			axd = np.dot(v_s0_P,uv_axis)
+			if axd < 0: #P is before s0
 				r = math.sqrt((m.x0-xc)**2 + (m.y0-yc)**2)
 				if r < closest_r:
 					closest_r = r
 					closest = m
 					xp,yp = self.coords_to_px(m.x0, m.y0)
-			elif np.dot(v_axis, v_s1_P) > 0: #P is after s1
+					closest_axd = 0
+			elif axd - m.length > 0: #P is after s1
 				r = math.sqrt((m.x1-xc)**2 + (m.y1-yc)**2)
 				if r < closest_r:
 					closest_r = r
 					closest = m
 					xp,yp = self.coords_to_px(m.x1, m.y1)
-					v_comp = m.length
+					closest_axd = m.length
 			else:
 				r = abs(float(np.cross(uv_axis,v_s0_P)))
 				if r < closest_r:
 					closest_r = r
 					closest = m
 					s0 = np.array((m.x0,m.y0))
-					v_comp = float(np.dot(v_s0_P,uv_axis))
-					pf = s0 + v_comp*uv_axis
+					closest_axd = axd
+					pf = s0 + closest_axd*uv_axis
 					xp,yp = self.coords_to_px(*pf)
-		return ((xp,yp), closest, v_comp)
+		return ((xp,yp), closest, closest_axd)
+	def snap_to_mem(self, xp, yp):
+		xc, yc = self.px_to_coords(xp,yp)
+		closest_r = self.snap_dist / self.px_per_m
+		closest = None
+		for m in self.members:
+			v_axis = m.v_axis()
+			uv_axis = m.uv_axis()
+			uv_prp = np.array((-uv_axis[1], uv_axis[0]))
+			P = np.array((xc, yc))
+			v_s0_P = P - (m.x0, m.y0)
+			axdP = np.dot(uv_axis, v_s0_P)
+			axdP_s1 = axdP - m.length
+			prpdP = np.dot(uv_prp, v_s0_P)
+			hhdP = abs(prpdP) - m.half_h()
+			O_ax = 0
+			O_prp = 0
+			if axdP < 0: #P is before s0
+				O_ax = -axdP
+			elif axdP_s1 > 0: #P is after s1
+				O_ax = -axdP_s1
+			if hhdP > 0: #P is further away from the axis than halfh
+				O_prp = -hhdP * np.sign(prpdP)
+			r = math.sqrt(O_ax**2 + O_prp**2)
+			if r < closest_r:
+				closest_r = r
+				closest = m
+				P += O_ax*uv_axis + O_prp*uv_prp
+				xp,yp = self.coords_to_px(*P)
+		return ((xp,yp), closest)
 	def redraw(self, w=None, h=None, set_size=False):
 		for m in self.members:
 			m.oldx, m.oldy = self.coords_to_px(m.x0, m.y0)
@@ -323,9 +355,7 @@ class Lab:
 			m.has_weight = True
 		self.place_member(m, xp=x, yp=y, vh=self.add_mem_bar.get_vh())
 		self.set_add_mode(0)
-	def place_member(self, mem, xp=None, yp=None, xc=None, yc=None, vh=True, xs_prms=None):
-		if xs_prms is None:
-			xs_prms = self.add_mem_bar.get_xparams()
+	def place_member(self, mem, xp=None, yp=None, xc=None, yc=None, vh=True):
 		if vh == "V":
 			vh = True
 		elif vh == "H":
@@ -340,9 +370,8 @@ class Lab:
 			return "Error: Must provide xp&yp or xc&yc"
 		rgb = mem.material["color"]
 		mem.place(xc, yc, vh)
-		rcoords = self.rect_mem_coords(xp, yp, mem.length*self.px_per_m, 
-			hh=Region.half_h(mem.xsection.rtype, xs_prms), vh=vh)
-		#print(*rcoords)
+		rcoords = self.rect_mem_coords(xp, yp, 
+			mem.length*self.px_per_m, hh=mem.half_h(), vh=vh)
 		mem.img_ref = self.canv.create_rectangle(*rcoords, fill=rgb)
 		self.members.append(mem)
 		#print("Added new " + str(m))
@@ -434,7 +463,7 @@ class Lab:
 	def sel_mem(self, event):
 		x = event.x
 		y = event.y
-		(xp,yp), mem, _ = self.snap_to_mem_axis(x,y)
+		(xp,yp), mem = self.snap_to_mem(x,y)
 		if mem != None:
 			#print("251: "+str(mem))
 			cb = self.sel_mem_cb
@@ -474,7 +503,7 @@ class Lab:
 		self.floating = None
 		self.add_mode = mode
 	#callback is a function that accepts a reference to a member
-	def select_mem(self, callback):
+	def set_sel_mem_cb(self, callback):
 		self.canv.delete(self.sel_txt)
 		self.sel_txt = self.canv.create_text(self.c_wd - 75, self.c_ht - 12, text="SELECT A MEMBER")
 		self.sel_mem_cb = callback
@@ -536,9 +565,9 @@ class Lab:
 			self.add_load_bar.tb_frm.pack_forget()
 			self.show_ld.set(False)
 	def eval_report(self, type):
-		self.select_mem(lambda m: self.popup_report(m,type))
+		self.set_sel_mem_cb(lambda m: self.popup_report(m,type))
 	def del_mode(self):
-		self.select_mem(lambda m: self.del_mem(m))
+		self.set_sel_mem_cb(lambda m: self.del_mem(m))
 	def popup_report(self, mem, type):
 		popup = Tk_rt(mem.eval_names[type]+" Report")
 		loading_lbl = tk.Label(popup, text="LOADING", padx=48, pady=24)

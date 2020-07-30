@@ -144,6 +144,10 @@ valid over the whole height, so the max and min values presented here may be ina
 			return "V"
 		else:
 			return "H"
+	def half_h(self):
+		y1_dom = self.xsection.y1_domain()
+		assert y1_dom[0] == -y1_dom[1]
+		return abs(y1_dom[0])
 	def v_axis(self):
 		return np.array([self.x1-self.x0, self.y1-self.y0])
 	#Unit vector along the axis
@@ -210,11 +214,11 @@ valid over the whole height, so the max and min values presented here may be ina
 				if CON[0] == 1:
 					return True
 				else:
-					return rep_err[1] #Overconstrained in the axial direction
+					return self.rep_err[1] #Overconstrained in the axial direction
 			else:
-				return rep_err[0] #Underconstrained in Translation
+				return self.rep_err[0] #Underconstrained in Translation
 		else:
-			return rep_err[0] #Underconstrained in Moment
+			return self.rep_err[0] #Underconstrained in Moment
 	#Return a distributed load representing the weight of the member
 	def weight_dl(self):
 		q = grav*self.material["rho"]*self.xarea
@@ -565,8 +569,8 @@ valid over the whole height, so the max and min values presented here may be ina
 		if isinstance(p_seg, str):
 			return p_seg
 		if len(p_seg) > 1:
-			rep_text = "Sorry, I'm not exactly sure how to deal with "
-			rep_text += "\nbuckling in a column with multiple loads."
+			rep_text = "Sorry, I'm not exactly sure how to deal with buckling "
+			rep_text += "\nin a column with multiple loads or distributed loads."
 			#I could give it a shot later, but I think it includes messing with the
 			#differential equation and solving it generically instead of using the 4[/10] cases.
 			return rep_text
