@@ -6,7 +6,9 @@ class Support:
 		1: "Pin",
 		#2: "Roller"
 		2: "Slot (x)",
-		3: "Slot (y)"
+		3: "Slot (y)",
+		4: "Thrust (x)",
+		5: "Thrust (y)"
 	}
 	img_w = 20
 	def __init__(self, tag):
@@ -80,22 +82,16 @@ class Pin(Support):
 		
 class Slot(Support):
 	R = Support.img_w/2
-	gap = 3
+	gap = 4
 	def __init__(self, tag, isv):
 		super().__init__(tag)
 		self.isv = isv
 	@property
 	def stype(self):
-		if(self.isv):
-			return 3
-		else:
-			return 2
+		return 3 if self.isv else 2
 	def constraints(self):
-		if self.isv:
-			return (1,0,0)
-		else:
-			return (0,1,0)
-	def draw(self, canv, x, y):
+		return (1,0,0) if self.isv else (0,1,0)
+	def draw_track(self, canv, x, y):
 		if self.isv:
 			canv.create_arc(x-self.R, y-3*self.R, x+self.R, y-self.R, extent=180, start=0, 
 				width=2, style="arc", tags=self.tag)
@@ -118,6 +114,32 @@ class Slot(Support):
 				width=2, style="arc", tags=self.tag)
 			canv.create_line(x-2*self.R, y-self.R, x+2*self.R, y-self.R, width=2, tags=self.tag)
 			canv.create_line(x-2*self.R, y+self.R, x+2*self.R, y+self.R, width=2, tags=self.tag)
+	def draw(self, canv, x, y):
+		self.draw_track(canv, x, y)
 		#Pin
 		canv.create_oval(x-self.R+self.gap, y-self.R+self.gap, x+self.R-self.gap, 
 			y+self.R-self.gap, fill="black", tags=self.tag)
+
+class Thrust(Slot):
+	def __init__(self, tag, isv):
+		super().__init__(tag, isv)
+	@property
+	def stype(self):
+		return 5 if self.isv else 4
+	def constraints(self):
+		return (1,0,1) if self.isv else (0,1,1)
+	def draw(self, canv, x, y):
+		self.draw_track(canv, x, y)
+		#Pins
+		if self.isv:
+			canv.create_oval(x-self.R+self.gap, y-2*self.R+self.gap, x+self.R-self.gap, 
+				y-self.gap, fill="black", tags=self.tag)
+			canv.create_oval(x-self.R+self.gap, y+self.gap, x+self.R-self.gap, 
+				y+2*self.R-self.gap, fill="black", tags=self.tag)
+		else:
+			canv.create_oval(x-2*self.R+self.gap, y-self.R+self.gap, x-self.gap, 
+				y+self.R-self.gap, fill="black", tags=self.tag)
+			canv.create_oval(x+self.gap, y-self.R+self.gap, x+2*self.R-self.gap, 
+				y+self.R-self.gap, fill="black", tags=self.tag)
+		
+		

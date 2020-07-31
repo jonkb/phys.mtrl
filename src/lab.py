@@ -404,6 +404,12 @@ class Lab:
 		elif stype == 3:
 			sup = Slot(stag, True)
 			sup.draw(self.canv, xp, yp)
+		elif stype == 4:
+			sup = Thrust(stag, False)
+			sup.draw(self.canv, xp, yp)
+		elif stype == 5:
+			sup = Thrust(stag, True)
+			sup.draw(self.canv, xp, yp)
 		mem.sup[side] = sup
 	def add_load(self, event):
 		x = event.x

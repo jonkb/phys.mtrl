@@ -21,7 +21,6 @@ at the neutral axis, so the max and min values presented here may be inaccurate.
 		"Warning: because of the shape of the cross section, the calculation for tau is not \
 valid over the whole height, so the max and min values presented here may be inaccurate.\n"]
 
-
 	#Names of each Evaluation Report
 	eval_names = {
 		0: "Mass Properties",
@@ -49,12 +48,15 @@ valid over the whole height, so the max and min values presented here may be ina
 			3: self.sig_tau_rep,
 			4: self.buckling_rep
 		}
+	
 	def __repr__(self):
 		return "Member({},{},{})".format(self.material, self.xsection, self.length)
+	
 	def __str__(self):
 		s = self.material["name"] + " member with cross section=("
 		s += str(self.xsection) + "), and length=" + str(self.length)
 		return s
+	
 	def to_xml(self):
 		data = """
 		<mem>
@@ -86,36 +88,47 @@ valid over the whole height, so the max and min values presented here may be ina
 	@property
 	def E(self):
 		return self.material["E"]
+	
 	@property
 	def sig_y(self):
 		return self.material["sig_y"]
+	
 	@property
 	def sig_u(self):
 		return self.material["sig_u"]
+	
 	@property
 	def xarea(self):
 		return self.xsection.area
+	
 	@property
 	def xIx(self):
 		return self.xsection.Ix
+	
 	@property
 	def xIy(self):
 		return self.xsection.Iy
+	
 	@property
 	def xIp(self):
 		return self.xsection.Ip
+	
 	@property
 	def xImin(self):
 		return self.xsection.Imin
+	
 	@property
 	def volume(self):
 		return self.xarea * self.length
+	
 	@property
 	def mass(self):
 		return self.volume * self.material["rho"]
+	
 	@property
 	def weight(self):
 		return self.mass * grav
+	
 	#Define the position in the xy plane. Units are meters.
 	#vh True = vertical. vh False = horizontal.
 	def place(self, x, y, vh):
@@ -128,10 +141,12 @@ valid over the whole height, so the max and min values presented here may be ina
 			self.x1 = x+self.length
 			self.y1 = y
 		self.placed = True
+	
 	def get_pos(self):
 		if self.placed:
 			return (self.x0, self.y0, self.x1, self.y1)
 		return None
+	
 	def is_vert(self):
 		if self.placed:
 			if self.x1 == self.x0:
@@ -139,21 +154,26 @@ valid over the whole height, so the max and min values presented here may be ina
 			else:
 				return False
 		return None
+	
 	def VH_char(self):
 		if self.is_vert():
 			return "V"
 		else:
 			return "H"
+	
 	def half_h(self):
 		y1_dom = self.xsection.y1_domain()
 		assert y1_dom[0] == -y1_dom[1]
 		return abs(y1_dom[0])
+	
 	def v_axis(self):
 		return np.array([self.x1-self.x0, self.y1-self.y0])
+	
 	#Unit vector along the axis
 	def uv_axis(self):
 		#np.array(v_axis) / np.linalg.norm(v_axis)
 		return self.v_axis() / self.length
+	
 	#side: 0 or 1 (start or end)
 	#direction: 0,1,2,3 --> Up, Left, Down, Right (Pointing away from member)
 	def sup_dir(self, side):
@@ -165,6 +185,7 @@ valid over the whole height, so the max and min values presented here may be ina
 			(False, 1) : 3
 		}
 		return dir_switch[(self.is_vert(), side)]
+	
 	#Return a tuple representing the constraints on the member in each direction.
 	#It is in this order: (axial, perpindicular, th)
 	def constraints(self):
@@ -179,6 +200,7 @@ valid over the whole height, so the max and min values presented here may be ina
 			ca = c[0]
 			cp = c[1]
 		return (ca, cp, c[2])
+	
 	#Returns the degrees of freedom of the member (axial, perpindicular, th)
 	def d_of_f(self):
 		c = list(self.constraints())
@@ -189,6 +211,7 @@ valid over the whole height, so the max and min values presented here may be ina
 		#2 Axial do not create a moment, since they're on the same axis!
 		d = np.array((1,1,1)) - c
 		return d
+	
 	#Returns True if the beam is statically determinate or an error
 	def is_stdet(self):
 		DOF = self.d_of_f()
@@ -200,6 +223,7 @@ valid over the whole height, so the max and min values presented here may be ina
 			return self.rep_err[1]# "Overconstrained"
 		assert np.all(self.d_of_f() == 0)
 		return True
+	
 	#Returns True if the member can support an axial load
 	# 1. Must be constrained in translation and rotation
 	# 2. Must have precisely one constraint in axial direction
@@ -219,17 +243,20 @@ valid over the whole height, so the max and min values presented here may be ina
 				return self.rep_err[0] #Underconstrained in Translation
 		else:
 			return self.rep_err[0] #Underconstrained in Moment
+	
 	#Return a distributed load representing the weight of the member
 	def weight_dl(self):
 		q = grav*self.material["rho"]*self.xarea
 		wdl = Distr_Load(None, 0, -q, 0, 0, -q, self.length, self.is_vert())
 		return wdl
+	
 	#Return a copy of acting loads. Include weight if we're counting weight.
 	def my_loads(self):
 		loads_c = self.loads.copy()
 		if self.has_weight:
 			loads_c.append(self.weight_dl())
 		return loads_c
+	
 	#Returns two functions (of 'd') representing the sum of all distributed loads.
 	def sum_my_dl(self):
 		fx = sym.Integer(0)
@@ -240,6 +267,7 @@ valid over the whole height, so the max and min values presented here may be ina
 				fx += Qx
 				fy += Qy
 		return (fx, fy)
+	
 	#Return shear as a function of 'd'.
 	#Convention: shear that would cause clockwise rotation is positive.
 	def shear_symf(self):
@@ -266,6 +294,7 @@ valid over the whole height, so the max and min values presented here may be ina
 					V += p.yc * sym.Heaviside(d-p.ax_dist, .5)
 		#Rewriting as piecewise helps it to integrate the Heaviside
 		return V.rewrite(sym.Piecewise).doit()
+	
 	def moment_symf(self):
 		reactions = self.reactions()
 		if isinstance(reactions, str):
@@ -278,6 +307,7 @@ valid over the whole height, so the max and min values presented here may be ina
 		M -= M.subs(d, 0)
 		M -= s0m
 		return M.rewrite(sym.Piecewise).doit()
+	
 	#Do the statics to calculate the reaction forces with two supports
 	#Returns a np.array([s0x, s0y, s0m, s1x, s1y, s1m])
 	def reactions(self):
@@ -328,6 +358,7 @@ valid over the whole height, so the max and min values presented here may be ina
 		except np.linalg.LinAlgError:
 			return self.rep_err[3]
 		return sigfig_iter(SOL, 6) #eps_round(SOL)
+	
 	#Do mohr's circle transformations on an element with sigma_x and tau_xy (assumes no sig_y)
 	#Return two vectors, each in polar and cartesian: smvp, smvc, tmvp, tmvc
 	#fm = module with appropriate functions. Default numpy.
@@ -380,10 +411,12 @@ valid over the whole height, so the max and min values presented here may be ina
 		tau_max_vc = (tau_max*fm.cos(th_tmax), tau_max*fm.sin(th_tmax))
 		#print(331, sig_max_vp, sig_max_vc, tau_max_vp, tau_max_vc)
 		return sig_max_vp, sig_max_vc, tau_max_vp, tau_max_vc
+	
 	#Return report text (& any figures) for each type of evaluation
 	#Be sure to make this line up with the dictionary in Lab
 	def gen_report(self, type):
 		return self.eval_reports[type]()
+	
 	def mass_prop_rep(self):
 		rep_text = "cross sectional area A = "+str(sigfig(self.xarea))+" m^2"
 		rep_text += "\n    | second moment of area about horizontal axis I_x = "+str(sigfig(self.xIx))+" m^4"
@@ -397,6 +430,7 @@ valid over the whole height, so the max and min values presented here may be ina
 		rep_text += "\n    | yield stress \u03C3_y = "+str(self.material["sig_y"]/1e6)+" MPa"
 		rep_text += "\n    | ultimate stress \u03C3_y = "+str(self.material["sig_u"]/1e6)+" MPa"
 		return rep_text
+	
 	def axial_loads(self):
 		sup_axp = self.sup_axp()
 		if isinstance(sup_axp, str):
@@ -438,6 +472,7 @@ valid over the whole height, so the max and min values presented here may be ina
 		if self.length - prev_d > eps:
 			p_segments.append( ((prev_d, self.length), p_internal) )
 		return p_segments
+	
 	#Return internal axial loads as a function of 'd'.
 	#Convention: tension is positive.
 	def axial_loads_sym(self):
@@ -456,6 +491,7 @@ valid over the whole height, so the max and min values presented here may be ina
 				p_ax = np.dot(uv_ax, p.get_comp())
 				P -= p_ax*sym.Heaviside(d-p.ax_dist, .5)
 		return P.rewrite(sym.Piecewise).doit()
+	
 	#Return internal axial stress as a function of 'd' and 'h'.
 	#Counts axial loads as well as bending stress
 	def axial_stress_sym(self):
@@ -470,6 +506,7 @@ valid over the whole height, so the max and min values presented here may be ina
 		Sig_P = P / self.xarea
 		Sig_M = - M * h / self.xIx
 		return Sig_P + Sig_M
+	
 	#Return internal shear stress due to bending as a function of 'd' and 'h'.
 	#Returns (tau, h domain)
 	def tau_sym(self):
@@ -479,6 +516,7 @@ valid over the whole height, so the max and min values presented here may be ina
 			return V
 		tau = -V * self.xsection.Q_div_Ib(h)
 		return (tau, self.xsection.Q_domain())
+	
 	def axial_stress(self):
 		p_segments = self.axial_loads()
 		if isinstance(p_segments, str):
@@ -498,6 +536,7 @@ valid over the whole height, so the max and min values presented here may be ina
 			#	min_s = ss
 			s_segments.append(ss)
 		return s_segments# (p_segments, s_segments, min_s, max_s)
+	
 	def axial_strain(self):
 		s_segments = self.axial_stress()
 		if isinstance(s_segments, str):
@@ -509,6 +548,7 @@ valid over the whole height, so the max and min values presented here may be ina
 			eps = sig / self.E
 			eps_segments.append( (domain, p, sig, eps) )
 		return eps_segments
+	
 	#Old, non-sym function
 	def axial_stress_rep(self):
 		axeps = self.axial_strain()
@@ -546,6 +586,7 @@ valid over the whole height, so the max and min values presented here may be ina
 			rep_text += str(cuper)+"% of the ultimate stress."
 			rep_text += "\nThis evaluation does not consider buckling."
 		return rep_text
+	
 	def buckling_rep(self):
 		sup_com = self.sup_axp()
 		if isinstance(sup_com, str):
@@ -586,6 +627,7 @@ valid over the whole height, so the max and min values presented here may be ina
 		if Pmax >= Pcr:
 			rep_text += "\nSo the member is unstable"
 		return rep_text
+	
 	#OLD VERSION
 	def old_buckling_rep(self):
 		p_seg = self.axial_loads()
@@ -613,6 +655,7 @@ valid over the whole height, so the max and min values presented here may be ina
 		if Pmax >= Pcr:
 			rep_text += "\nSo the member is unstable"
 		return rep_text
+	
 	#Report on shear and moment
 	#Returns text and a pyplot figure
 	def VM_rep(self):
@@ -672,6 +715,7 @@ valid over the whole height, so the max and min values presented here may be ina
 		sp2.set_title("Moment M (kN-m)")
 		sp2.set(xlabel="Axial Distance d (m)")
 		return (rep_text, fig)
+	
 	def sig_tau_rep(self):
 		reps = []
 		d, h = sym.symbols("d h")
@@ -851,6 +895,7 @@ valid over the whole height, so the max and min values presented here may be ina
 #This class is really just for reference. I'm not sure if this is the best way to do this.
 class Materials:
 	materials = ("steel", "aluminum", "pla", "cell_pvc", "oak")
+	
 	#Used values for ASTM-A514 steel
 	steel = {
 		"vname": "steel", #Variable name
@@ -865,6 +910,7 @@ class Materials:
 		#ultimate stress
 		"sig_u": 830e6 #830MPa
 	}
+	
 	#Used values for 6061-T6 alloy
 	aluminum = {
 		"vname": "aluminum",
@@ -879,6 +925,7 @@ class Materials:
 		#ultimate stress
 		"sig_u": 310e6 #310MPa
 	}
+	
 	#PLA Plastic (average values from http://www.matweb.com/search/DataSheet.aspx?MatGUID=ab96a4c0655c4018a8785ac4031b9278&ckck=1)
 	pla = {
 		"vname": "pla",
@@ -893,6 +940,7 @@ class Materials:
 		#ultimate stress (TENSILE)
 		"sig_u": 47.2e6 #14.0 - 117 MPa	
 	}
+	
 	#cellular PVC board (https://azekexteriors.com/docs/technical/azek-csi-format-spec-1-22-19v1-1.pdf)
 	cell_pvc = {
 		"vname": "cell_pvc",
@@ -903,6 +951,7 @@ class Materials:
 		"sig_y": 0, #Unknown
 		"sig_u": 15.56e6
 	}
+	
 	#Oak wood (http://www.matweb.com/search/datasheet_print.aspx?matguid=3a971164050b4313930591eed2539366)
 	oak = {
 		"vname": "oak",

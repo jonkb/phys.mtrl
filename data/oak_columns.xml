@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- This is a lab file created with phys.mtrl -->
+<!-- https://github.com/jonkb/phys.mtrl -->
+
+<lab version="0.1.0">
+	<options>
+		<c_wd>962</c_wd>
+		<c_ht>467</c_ht>
+		<px_per_m>300</px_per_m>
+		<subdivision>5</subdivision>
+		<px_per_kN>12.0</px_per_kN>
+	</options>
+	<members>
+		<mem>
+			<def>
+				<material>oak</material>
+				<xsec region="circle">
+					<radius>0.03</radius>
+				</xsec>
+				<length>1.0</length>
+			</def>
+			<place>
+				<x0>0.6033333333333334</x0>
+				<y0>0.15666666666666668</y0>
+				<vh>V</vh>
+			</place>
+			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->
+			<sup type="0" end="0"/>
+			<sup type="3" end="1"/>
+			<!-- Ld Type= 0:Point, 1:Distributed -->
+			<ld type="0">
+				<xc>0.0</xc>
+				<yc>-7000.0</yc>
+				<axd>1.0</axd>
+			</ld>
+		</mem>
+		<mem>
+			<def>
+				<material>oak</material>
+				<xsec region="circle">
+					<radius>0.03</radius>
+				</xsec>
+				<length>1.0</length>
+			</def>
+			<place>
+				<x0>1.0033333333333334</x0>
+				<y0>0.15333333333333332</y0>
+				<vh>V</vh>
+			</place>
+			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->
+			<sup type="0" end="0"/>
+			<sup type="5" end="1"/>
+			<!-- Ld Type= 0:Point, 1:Distributed -->
+			<ld type="0">
+				<xc>0.0</xc>
+				<yc>-7000.0</yc>
+				<axd>1.0</axd>
+			</ld>
+		</mem>
+		<mem>
+			<def>
+				<material>oak</material>
+				<xsec region="circle">
+					<radius>0.03</radius>
+				</xsec>
+				<length>1.0</length>
+			</def>
+			<place>
+				<x0>1.4</x0>
+				<y0>0.15333333333333332</y0>
+				<vh>V</vh>
+			</place>
+			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->
+			<sup type="1" end="0"/>
+			<sup type="3" end="1"/>
+			<!-- Ld Type= 0:Point, 1:Distributed -->
+			<ld type="0">
+				<xc>0.0</xc>
+				<yc>-7000.0</yc>
+				<axd>1.0</axd>
+			</ld>
+		</mem>
+		<mem>
+			<def>
+				<material>oak</material>
+				<xsec region="circle">
+					<radius>0.03</radius>
+				</xsec>
+				<length>1.0</length>
+			</def>
+			<place>
+				<x0>1.8033333333333332</x0>
+				<y0>0.15666666666666668</y0>
+				<vh>V</vh>
+			</place>
+			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->
+			<sup type="1" end="0"/>
+			<sup type="5" end="1"/>
+			<!-- Ld Type= 0:Point, 1:Distributed -->
+			<ld type="0">
+				<xc>0.0</xc>
+				<yc>-7000.0</yc>
+				<axd>1.0</axd>
+			</ld>
+		</mem>
+		<mem>
+			<def>
+				<material>oak</material>
+				<xsec region="circle">
+					<radius>0.03</radius>
+				</xsec>
+				<length>1.0</length>
+			</def>
+			<place>
+				<x0>2.2</x0>
+				<y0>0.15</y0>
+				<vh>V</vh>
+			</place>
+			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->
+			<sup type="2" end="0"/>
+			<sup type="5" end="1"/>
+			<!-- Ld Type= 0:Point, 1:Distributed -->
+			<ld type="0">
+				<xc>0.0</xc>
+				<yc>-7000.0</yc>
+				<axd>1.0</axd>
+			</ld>
+		</mem>
+		<mem>
+			<def>
+				<material>oak</material>
+				<xsec region="circle">
+					<radius>0.03</radius>
+				</xsec>
+				<length>1.0</length>
+			</def>
+			<place>
+				<x0>2.6033333333333335</x0>
+				<y0>0.16</y0>
+				<vh>V</vh>
+			</place>
+			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->
+			<sup type="4" end="0"/>
+			<sup type="3" end="1"/>
+			<!-- Ld Type= 0:Point, 1:Distributed -->
+			<ld type="0">
+				<xc>0.0</xc>
+				<yc>-7000.0</yc>
+				<axd>1.0</axd>
+			</ld>
+		</mem>
+		<mem>
+			<def>
+				<material>oak</material>
+				<xsec region="circle">
+					<radius>0.03</radius>
+				</xsec>
+				<length>1.0</length>
+			</def>
+			<place>
+				<x0>3.0033333333333334</x0>
+				<y0>0.16</y0>
+				<vh>V</vh>
+			</place>
+			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->
+			<sup type="4" end="0"/>
+			<sup type="5" end="1"/>
+			<!-- Ld Type= 0:Point, 1:Distributed -->
+			<ld type="0">
+				<xc>0.0</xc>
+				<yc>-7000.0</yc>
+				<axd>1.0</axd>
+			</ld>
+		</mem>
+		<mem>
+			<def>
+				<material>oak</material>
+				<xsec region="circle">
+					<radius>0.03</radius>
+				</xsec>
+				<length>1.0</length>
+			</def>
+			<place>
+				<x0>0.20333333333333334</x0>
+				<y0>0.15333333333333332</y0>
+				<vh>V</vh>
+			</place>
+			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->
+			<sup type="0" end="0"/>
+			<!-- Ld Type= 0:Point, 1:Distributed -->
+			<ld type="0">
+				<xc>0.0</xc>
+				<yc>-7000.0</yc>
+				<axd>1.0</axd>
+			</ld>
+		</mem>
+	</members>
+</lab>
