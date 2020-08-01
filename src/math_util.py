@@ -9,15 +9,18 @@ grav = 9.81 #m/s^2
 
 #round x to n significant figures
 def sigfig(x, n=default_sigfig):
-	if abs(x) < eps:
-		return 0
-	return round(x, int(-math.log10(abs(x))+n))
+	x_log10 = np.log10(abs(x))
+	x_log10 = np.nan_to_num(x_log10, nan=0, posinf=0, neginf=0)
+	round_dec = np.floor(-x_log10+n)
+	return np.round(x*10**round_dec) *10**-round_dec
 #Takes an iterable and rounds those elements that are very close to int
+#Use for a list, not for an np.array
 def eps_round(A):
 	for i,e in enumerate(A):
 		if (abs(e)+eps/2) % 1 < eps:
 			A[i] = round(e)
 	return A
+#Use for a list, not for an np.array
 def sigfig_iter(A, n=default_sigfig):
 	for i,e in enumerate(A):
 		A[i] = sigfig(e,n)

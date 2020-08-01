@@ -3,8 +3,15 @@ import numpy as np
 import sympy as sym
 import matplotlib.pyplot as plt
 from load import *
+import joint as jt
 #from region import Region
 from math_util import *
+
+
+
+#WARNING: reactions() and axial_loads() are broken under the new support system!!!
+
+
 
 #prismatic uniform members
 class Member:
@@ -20,7 +27,7 @@ class Member:
 at the neutral axis, so the max and min values presented here may be inaccurate.\n",
 		"Warning: because of the shape of the cross section, the calculation for tau is not \
 valid over the whole height, so the max and min values presented here may be inaccurate.\n"]
-
+	
 	#Names of each Evaluation Report
 	eval_names = {
 		0: "Mass Properties",
@@ -37,7 +44,8 @@ valid over the whole height, so the max and min values presented here may be ina
 		self.placed = False
 		self.img_ref = None
 		self.popups = 0
-		self.sup = [None, None]
+		self.supports = []
+		self.joints = []
 		self.loads = []
 		self.has_weight = False
 		
@@ -72,11 +80,20 @@ valid over the whole height, so the max and min values presented here may be ina
 				<vh>"""+self.VH_char()+"""</vh>
 			</place>
 			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->"""
-		for i, sup in enumerate(self.sup):
-			if sup == None:
-				continue
+		for sup in self.supports:
 			data += """
-			<sup type="{}" end="{}"/>""".format(sup.stype, i)
+			<sup type="{}">
+				<axd>{}</axd>
+			</sup>""".format(sup.stype, sup.ax_dist)
+		data += """
+			<!-- Joint Types are the same as Sup Types -->"""
+		#I think m1 can be discovered instead of stored.
+		#NOTE: joints must be on the axis. That is an assumption of the statics calculations.
+		for jt in self.joints:
+			data += """
+			<jt type="{}">
+				<axd>{}</axd>
+			</jt>""".format(jt.stype, jt.axd(self))
 		data += """
 			<!-- Ld Type= 0:Point, 1:Distributed -->"""
 		for p in self.loads:
@@ -174,6 +191,26 @@ valid over the whole height, so the max and min values presented here may be ina
 		#np.array(v_axis) / np.linalg.norm(v_axis)
 		return self.v_axis() / self.length
 	
+	#Find the intersection point of two members, if it exists.
+	def intersection(self, mem):
+		uv0 = np.array([self.uv_axis()]).transpose()
+		uv1 = np.array([mem.uv_axis()]).transpose()
+		A = np.zeros((2,2))
+		A[0:2, 0:1] = uv0
+		A[0:2, 1:2] = -uv1
+		s00 = np.array([[self.x0], [self.y0]])
+		s01 = np.array([[mem.x0], [mem.y0]])
+		B = np.zeros((2,1))
+		B[0:2, 0:1] = s01-s00
+		#print(206, A, B)
+		try: N = np.linalg.solve(A, B)
+		except np.linalg.LinAlgError: return None #Parallel
+		#print(209, N)
+		if N[0,0] < 0 or N[0,0] > self.length: return None
+		if N[1,0] < 0 or N[1,0] > mem.length: return None
+		intsx = s00 + uv0*N[0]
+		return ((intsx[0,0], intsx[1,0]), N[0,0], N[1,0])
+	
 	#side: 0 or 1 (start or end)
 	#direction: 0,1,2,3 --> Up, Left, Down, Right (Pointing away from member)
 	def sup_dir(self, side):
@@ -190,9 +227,8 @@ valid over the whole height, so the max and min values presented here may be ina
 	#It is in this order: (axial, perpindicular, th)
 	def constraints(self):
 		c = np.array((0,0,0))
-		for s in self.sup:
-			if not s == None:
-				c += s.constraints()
+		for s in self.supports:
+			c += s.constraints()
 		if self.is_vert():
 			ca = c[1]
 			cp = c[0]
@@ -308,6 +344,119 @@ valid over the whole height, so the max and min values presented here may be ina
 		M -= s0m
 		return M.rewrite(sym.Piecewise).doit()
 	
+	#Returns a matrix representing the influence of the given joint or support on the 
+	#static equilibrium of the member.
+	#	sj: support or joint
+	def steq_mat(self, sj):
+		mat = np.empty((3,0))
+		uv_ax = self.uv_axis()
+		sj_axd = sj.ax_dist
+		if isinstance(sj, jt.Joint):
+			sj_axd = sj.axd(self)
+		sj_con = sj.constraints() #Format: (x:0/1,y:0/1,th:0/1)
+		#print(359, sj_con, self, sj)
+		if sj_con[0]:
+			v0 = np.array([[1.], [0.], [0.]])
+			v0[2, 0] = -sj_axd*uv_ax[1] #F_x influences M
+			mat = np.concatenate((mat, v0), axis=1)
+		if sj_con[1]:
+			v1 = np.array([[0.], [1.], [0.]])
+			v1[2, 0] = sj_axd*uv_ax[0] #F_y influences M
+			mat = np.concatenate((mat, v1), axis=1)
+		if sj_con[2]:
+			v2 = np.array([[0.], [0.], [1.]])
+			mat = np.concatenate((mat, v2), axis=1)
+		return mat
+	
+	#Returns the matrices for the static equilibrium equations related to all supports 
+	#and joints attached to the member and all other connected members.
+	#	neg_joints: joints to negate (equal and opposite). Also indicates that we already
+	#		have the positive version, so it's an end condition for the recursion.
+	#	returns: [([SE], m, sj), ([SE], m, sj), ...]
+	def steq_mats(self, neg_joints=[]):
+		mats = []
+		connected = [] #Format: [[m1, [j1,j2]], [m2, j3], ...]
+		for s in self.supports:
+			mats.append((self.steq_mat(s), self, s))
+		for j in self.joints:
+			jmat = self.steq_mat(j)
+			if j in neg_joints:
+				mats.append((-jmat, self, j))
+			else:
+				mats.append((jmat, self, j))
+				#Add other member and joint to connected
+				other_m = j.other_mem(self)
+				appended = False
+				for (m, js) in connected:
+					if other_m is m:
+						js.append(j)
+						appended = True
+						break
+				if not appended:
+					connected.append([other_m, [j]])
+		for (m, js) in connected:
+			#Recursive call
+			mats.extend(m.steq_mats(neg_joints=js))
+		return mats
+	
+	#Run the calculations for finding reaction forces with static equilibrium
+	#The system must be statically determinate
+	def static_eq(self):
+		SE_mats = self.steq_mats()
+		mems = []
+		sjs = []
+		for SEm in SE_mats:
+			m = SEm[1]
+			sj = SEm[2]
+			if m not in mems:
+				mems.append(m)
+			if sj not in sjs:
+				sjs.append(sj)
+		eqs = 3*len(mems) #sum_x, sum_y, sum_th
+		sj_cols = [sum(sj.constraints()) for sj in sjs]
+		unknowns = sum(sj_cols)
+		if eqs > unknowns:
+			return self.rep_err[0]
+		if eqs < unknowns:
+			return self.rep_err[1]
+		STEQ = np.zeros((eqs, unknowns))
+		for SEm in SE_mats:
+			SE = SEm[0]
+			m = SEm[1]
+			sj = SEm[2]
+			row = mems.index(m)*3
+			sji = sjs.index(sj)
+			col = sum(sj_cols[:sji])
+			rows, cols = SE.shape
+			STEQ[row:row+rows, col:col+cols] = SE
+		#print(399, eqs, unknowns)
+		#print(440, SE_mats)
+		#print(401, sj_cols)
+		#print(442, STEQ)
+		
+		#The B in Ax = B. sum(R) = -sum(P)
+		M_B = np.zeros((eqs, 1))
+		for m in mems:
+			row = mems.index(m)*3
+			s_px = 0
+			s_py = 0
+			s_m = 0
+			uv_ax = m.uv_axis()
+			for p in m.my_loads():
+				px,py = p.get_comp()
+				s_px += px
+				s_py += py
+				s_m += py*p.ax_dist*uv_ax[0] - px*p.ax_dist*uv_ax[1]
+			M_B[row:row+3, 0:1] = np.array([[-s_px], [-s_py], [-s_m]])
+		#print(418, M_B)
+		try:
+			SOL = np.linalg.solve(STEQ, M_B)
+		except np.linalg.LinAlgError:
+			return self.rep_err[3]
+		#print(423, SOL)
+		return sigfig(SOL, 6)
+	
+	#OLD
 	#Do the statics to calculate the reaction forces with two supports
 	#Returns a np.array([s0x, s0y, s0m, s1x, s1y, s1m])
 	def reactions(self):

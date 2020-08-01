@@ -7,7 +7,8 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 #My files
 from member import *
 from region import *
-from support import *
+import support
+import joint
 from load import *
 from tk_wig import Txt_wig, Tk_rt
 import pmfs
@@ -15,7 +16,7 @@ import pmfs
 
 class Lab:
 	#Constants
-	version = "0.1.0"
+	version = "0.2.0"
 	snap_dist = 15 #px
 	dash_len = 30
 	
@@ -69,40 +70,49 @@ class Lab:
 		xp = xc*self.px_per_m
 		yp = self.c_ht - yc*self.px_per_m
 		return (xp,yp)
+	
 	#convert a location on the canvas in pixels to x,y coordinates in meters
 	def px_to_coords(self, xp, yp):
 		xc = xp / self.px_per_m
 		yc = (self.c_ht - yp) / self.px_per_m
 		return (xc,yc)
+	
 	#convert a vector in kN to px
 	def kN_to_px(self, xc, yc):
 		Pxp = xc*self.px_per_kN
 		Pyp = -yc*self.px_per_kN
 		return (Pxp, Pyp)
+	
 	def wtls(self):
 		try:
 			return self.mem_wtls.get()
 		except AttributeError:# Was not set
 			return True
+	
 	def smem(self):
 		try:
 			return self.show_mem.get()
 		except AttributeError:# Was not set
 			return True
+	
 	def ssup(self):
 		try:
 			return self.show_sup.get()
 		except AttributeError:# Was not set
 			return True
+	
 	def sld(self):
 		try:
 			return self.show_ld.get()
 		except AttributeError:# Was not set
 			return True
+	
 	def save(self):
 		pmfs.save(self)
+	
 	def open(self):
 		pmfs.open(self)
+	
 	def reset_lab(self):
 		self.c_wd = 756
 		#Remember that when c_wd = 800 pixels, this corrosponds to x=[0,799]
@@ -111,8 +121,8 @@ class Lab:
 		self.subdivision = 5 #For grid lines smaller than 1m
 		#how long is a 1kN force arrow
 		self.px_per_kN = 20.0#4.0 gives 200px=50kN
-		#A counter used to create unique tk tags for loads
-		self.ltag_n = 0
+		#A counter used to create unique tk tags
+		self.tag_n = 0
 		#Callback function to execute after selecting a member
 		self.sel_mem_cb = None
 		#The tk tag for the "SELECT A MEMBER" label
@@ -128,6 +138,7 @@ class Lab:
 		self.redraw()
 		self.members = []
 		self.popups = []
+	
 	#Snap x,y (in px) to the ends of existing members
 	def snap_to_mem_ends(self, xp, yp):
 		xc, yc = self.px_to_coords(xp,yp)
@@ -150,13 +161,16 @@ class Lab:
 		#xc, yc = self.px_to_coords(x,y)
 		#closest_r_px = closest_r * self.px_per_m
 		return ((xp, yp), closest, side)#((xp, yp), closest_r_px, side, closest)
-	def snap_to_mem_axis(self, xp, yp):
+	
+	def snap_to_mem_axis(self, xp, yp, exclude=None):
 		xc, yc = self.px_to_coords(xp,yp)
 		closest_r = self.snap_dist / self.px_per_m
 		closest = None
 		#store axd along the member (the component of the projection)
 		closest_axd = 0
 		for m in self.members:
+			if m is exclude:
+				continue
 			v_axis = m.v_axis()
 			uv_axis = m.uv_axis()
 			v_s0_P = (xc-m.x0, yc-m.y0)
@@ -186,6 +200,7 @@ class Lab:
 					pf = s0 + closest_axd*uv_axis
 					xp,yp = self.coords_to_px(*pf)
 		return ((xp,yp), closest, closest_axd)
+	
 	def snap_to_mem(self, xp, yp):
 		xc, yc = self.px_to_coords(xp,yp)
 		closest_r = self.snap_dist / self.px_per_m
@@ -215,6 +230,7 @@ class Lab:
 				P += O_ax*uv_axis + O_prp*uv_prp
 				xp,yp = self.coords_to_px(*P)
 		return ((xp,yp), closest)
+		
 	def redraw(self, w=None, h=None, set_size=False):
 		for m in self.members:
 			m.oldx, m.oldy = self.coords_to_px(m.x0, m.y0)
@@ -229,12 +245,12 @@ class Lab:
 		for m in self.members:
 			newx, newy = self.coords_to_px(m.x0, m.y0)
 			self.canv.move(m.img_ref, newx-m.oldx, newy-m.oldy)
-			for s in m.sup:
-				if s != None:
-					self.canv.move(s.tag, newx-m.oldx, newy-m.oldy)
+			for s in m.supports:
+				self.canv.move(s.tag, newx-m.oldx, newy-m.oldy)
 			for l in m.loads:
 				self.canv.move(l.tag, newx-m.oldx, newy-m.oldy)
 		self.redraw_grid()
+	
 	def redraw_grid(self):
 		#Make it okay with no grid lines
 		self.canv.delete(*self.bggrid)
@@ -262,8 +278,10 @@ class Lab:
 					self.c_wd-1, self.c_ht-1-lny, fill="light gray", dash=subdash))
 		for l in self.bggrid:
 			self.canv.tag_lower(l)
+	
 	def resize(self, event):
 		self.redraw(event.width, event.height)
+	
 	def mouse_moved(self, event):
 		x = event.x
 		y = event.y
@@ -284,7 +302,10 @@ class Lab:
 				self.floating = self.canv.create_oval(x-r,y-r,x+r,y+r)
 				return
 			else:
-				(x,y),*_ = self.snap_to_mem_ends(x,y)
+				if self.add_sup_bar.is_jt():
+					(x,y),*_ = self.snap_to_mem_axis(x,y)
+				else: #CHANGE LATER ?
+					(x,y),*_ = self.snap_to_mem_ends(x,y)
 		elif self.add_mode == 3:
 			if self.floating == None:
 				if not self.add_load_bar.has_float_vals():
@@ -310,13 +331,17 @@ class Lab:
 		self.canv.move(self.floating, x-self.floating_x, y-self.floating_y)
 		self.floating_x = x
 		self.floating_y = y
+	
 	def mouse_click(self, event):
 		#print("self.canv.config(width=300, height=300)")
 		#self.canv.config(width=300, height=300)
 		if self.add_mode == 1:
 			self.add_member(event)
 		elif self.add_mode == 2:
-			self.add_support(event)
+			if self.add_sup_bar.is_jt():
+				self.add_joint(event)
+			else:
+				self.add_support(event)
 		elif self.add_mode == 3:
 			if self.add_load_bar.is_ds():
 				self.add_distr_load(event)
@@ -324,6 +349,11 @@ class Lab:
 				self.add_load(event)
 		elif self.sel_mem_cb != None:
 			self.sel_mem(event)
+		#FOR TESTING
+		else:
+			self.sel_mem_cb = lambda m: print(m.static_eq())
+			self.sel_mem(event)
+	
 	def add_member(self, event):
 		if not self.add_mem_bar.has_float_vals():
 			return
@@ -355,6 +385,7 @@ class Lab:
 			m.has_weight = True
 		self.place_member(m, xp=x, yp=y, vh=self.add_mem_bar.get_vh())
 		self.set_add_mode(0)
+	
 	def place_member(self, mem, xp=None, yp=None, xc=None, yc=None, vh=True):
 		if vh == "V":
 			vh = True
@@ -375,6 +406,7 @@ class Lab:
 		mem.img_ref = self.canv.create_rectangle(*rcoords, fill=rgb)
 		self.members.append(mem)
 		#print("Added new " + str(m))
+	
 	def add_support(self, event):
 		x = event.x
 		y = event.y
@@ -383,6 +415,7 @@ class Lab:
 			stype = self.add_sup_bar.get_sup_type()
 			self.place_support(mem, side, stype, xp, yp)
 			self.set_add_mode(0)
+	
 	def place_support(self, mem, side, stype, xp=None, yp=None):
 		if xp is None or yp is None:
 			x0, y0, x1, y1 = mem.get_pos()
@@ -390,27 +423,80 @@ class Lab:
 				xp, yp = self.coords_to_px(x0, y0)
 			if side == 1:
 				xp, yp = self.coords_to_px(x1, y1)
-		stag = 'sup_'+str(mem.img_ref)+'_s'+str(side)
-		self.canv.delete(stag)#Delete the support img if it exists
+		axd = side*mem.length
+		stag = "sup"+str(self.tag_n)+'_m'+str(mem.img_ref)
+		self.tag_n += 1
 		if stype == 0:
-			sup = Fixed(stag)
+			sup = support.Fixed(stag, ax_dist=axd)
 			sup.draw(self.canv, xp, yp, mem.sup_dir(side))
 		elif stype == 1:
-			sup = Pin(stag)
+			sup = support.Pin(stag, ax_dist=axd)
 			sup.draw(self.canv, xp, yp, mem.sup_dir(side))
 		elif stype == 2:
-			sup = Slot(stag, False)
+			sup = support.Slot(stag, False, ax_dist=axd)
 			sup.draw(self.canv, xp, yp)
 		elif stype == 3:
-			sup = Slot(stag, True)
+			sup = support.Slot(stag, True, ax_dist=axd)
 			sup.draw(self.canv, xp, yp)
 		elif stype == 4:
-			sup = Thrust(stag, False)
+			sup = support.Thrust(stag, False, ax_dist=axd)
 			sup.draw(self.canv, xp, yp)
 		elif stype == 5:
-			sup = Thrust(stag, True)
+			sup = support.Thrust(stag, True, ax_dist=axd)
 			sup.draw(self.canv, xp, yp)
-		mem.sup[side] = sup
+		mem.supports.append(sup)
+	
+	def add_joint(self, event):
+		x = event.x
+		y = event.y
+		_, mem, axd = self.snap_to_mem_axis(x,y)
+		if mem != None:
+			_, mem1, axd1 = self.snap_to_mem_axis(x,y, exclude=mem)
+			if not (mem1 is None):
+				#Include another case here for if they are in the same axis.
+				#This could be doable after adding the snap grid.
+				#Then m.intersection() will probably return None.
+				intsx = mem.intersection(mem1)
+				if not (intsx is None):
+					((xc, yc), axd0, axd1) = intsx
+					(xp, yp) = self.coords_to_px(xc, yc)
+					jtype = self.add_sup_bar.get_sup_type()
+					self.place_joint(mem, mem1, jtype, xp, yp, axd0=axd0, axd1=axd1)
+					self.set_add_mode(0)
+	
+	def place_joint(self, m0, m1, jtype, xp=None, yp=None, axd0=None, axd1=None):
+		if xp is None or yp is None:
+			intsx = m0.intersection(m1)
+			if intsx is None:
+				return "Error: No intersection"
+			((xc, yc), axd0, axd1) = intsx
+			(xp, yp) = self.coords_to_px(xc, yc)
+		jtag = "jt"+str(self.tag_n)+'_m0'+str(m0.img_ref)+'_m1'+str(m1.img_ref)
+		self.tag_n += 1
+		if jtype == 0:
+			jt = joint.Fixed(jtag, m0, m1, axd0, axd1)
+			jt.draw(self.canv, xp, yp)
+		elif jtype == 1:
+			jt = joint.Pin(jtag, m0, m1, axd0, axd1)
+			jt.draw(self.canv, xp, yp)
+		"""
+		elif jtype == 2:
+			jt = joint.Slot(jtag, False, m0, m1, axd0, axd1)
+			jt.draw(self.canv, xp, yp)
+		elif jtype == 3:
+			jt = joint.Slot(jtag, True, m0, m1, axd0, axd1)
+			jt.draw(self.canv, xp, yp)
+		elif jtype == 4:
+			jt = joint.Thrust(jtag, False, m0, m1, axd0, axd1)
+			jt.draw(self.canv, xp, yp)
+		elif jtype == 5:
+			jt = joint.Thrust(jtag, True, m0, m1, axd0, axd1)
+			jt.draw(self.canv, xp, yp)
+		"""
+		m0.joints.append(jt)
+		m1.joints.append(jt)
+		
+	
 	def add_load(self, event):
 		x = event.x
 		y = event.y
@@ -420,18 +506,20 @@ class Lab:
 			Px, Py = self.add_load_bar.get_P()
 			self.place_load(mem, Px, Py, axd, xp, yp)
 			self.set_add_mode(0)
+	
 	def place_load(self, mem, Px, Py, axd, xp=None, yp=None):
 		if xp is None or yp is None:
 			x0, y0, *_ = mem.get_pos()
 			xc, yc = np.array((x0, y0)) + axd*mem.uv_axis()
 			xp, yp = self.coords_to_px(xc, yc)
-		ltag = "ld_"+str(self.ltag_n)
-		self.ltag_n += 1
+		ltag = "ld_"+str(self.tag_n)
+		self.tag_n += 1
 		#ltag = 'load_'+str(mem.img_ref)+'_d'+str(ax_dist)
 		#self.canv.delete(ltag)
 		load = Load(ltag, Px, Py, axd)
 		load.draw(self, xp, yp)
 		mem.loads.append(load)
+	
 	def add_distr_load(self, event):
 		x = event.x
 		y = event.y
@@ -454,18 +542,20 @@ class Lab:
 				self.canv.delete(self.dlq0_temp.tag)
 				self.dlq0_temp = None
 				self.set_add_mode(0)
+	
 	def place_distr_load(self, mem, q0x, q0y, axd0, q1x, q1y, axd1, xp=None, yp=None):
 		if xp is None or yp is None:
 			x0, y0, *_ = mem.get_pos()
 			xc, yc = np.array((x0, y0)) + axd0*mem.uv_axis()
 			xp, yp = self.coords_to_px(xc, yc)
 		isv = mem.is_vert()
-		dltag = "dl_"+str(self.ltag_n)
-		self.ltag_n += 1
+		dltag = "dl_"+str(self.tag_n)
+		self.tag_n += 1
 		#+str(mem.img_ref)+"_d"+str(self.dlq0_temp.ax_dist)+"-"+str(ax_dist)
 		dl = Distr_Load(dltag, q0x, q0y, axd0, q1x, q1y, axd1, isv)
 		mem.loads.append(dl)
 		dl.draw(self, xp, yp)
+	
 	def sel_mem(self, event):
 		x = event.x
 		y = event.y
@@ -476,6 +566,7 @@ class Lab:
 			self.sel_mem_cb = None
 			self.canv.delete(self.sel_txt)
 			cb(mem)
+	
 	def rect_mem_coords(self, x, y, L_px, hh=None, vh=None):
 		if hh is None:
 			hh = self.add_mem_bar.half_h()
@@ -495,6 +586,7 @@ class Lab:
 			x2 = x + L_px
 			y2 = y + hh
 		return (x1, y1, x2, y2)
+	
 	#Mode: 0=None, 1=mem, 2=sup
 	def set_add_mode(self, mode):
 		if mode == self.add_mode:
@@ -508,48 +600,58 @@ class Lab:
 		self.canv.delete(self.floating)
 		self.floating = None
 		self.add_mode = mode
+	
 	#callback is a function that accepts a reference to a member
 	def set_sel_mem_cb(self, callback):
 		self.canv.delete(self.sel_txt)
 		self.sel_txt = self.canv.create_text(self.c_wd - 75, self.c_ht - 12, text="SELECT A MEMBER")
 		self.sel_mem_cb = callback
+	
 	def del_mem(self, mem):
 		for l in mem.loads:
 			self.canv.delete(l.tag)
-		for s in mem.sup:
-			if s != None:
-				self.canv.delete(s.tag)
+		for s in mem.supports:
+			self.canv.delete(s.tag)
 		self.canv.delete(mem.img_ref)
 		self.members.remove(mem)
+	
 	def clear_all(self):
 		mem_copy = self.members.copy()
 		for m in mem_copy:
 			self.del_mem(m)
+	
 	def toggle_mem_mode(self):
 		self.set_add_mode(0) if self.add_mode==1 else self.set_add_mode(1)
+	
 	def toggle_sup_mode(self):
 		self.set_add_mode(0) if self.add_mode==2 else self.set_add_mode(2)
+	
 	def toggle_load_mode(self):
 		#print(354, self.add_mode)
 		self.set_add_mode(0) if self.add_mode==3 else self.set_add_mode(3)
+	
 	def toggle_wtls(self):
 		for m in self.members:
 			m.has_weight = not self.wtls()
+	
 	def toggle_smem(self):
 		if self.smem():
 			self.add_mem_bar.tb_frm.pack(side=tk.TOP, fill=tk.X)
 		else:
 			self.add_mem_bar.tb_frm.pack_forget()
+	
 	def toggle_ssup(self):
 		if self.ssup():
 			self.add_sup_bar.tb_frm.pack(side=tk.TOP, fill=tk.X)
 		else:
 			self.add_sup_bar.tb_frm.pack_forget()
+	
 	def toggle_sld(self):
 		if self.sld():
 			self.add_load_bar.tb_frm.pack(side=tk.TOP, fill=tk.X)
 		else:
 			self.add_load_bar.tb_frm.pack_forget()
+	
 	def show_allt(self):
 		if not self.smem():
 			self.add_mem_bar.tb_frm.pack(side=tk.TOP, fill=tk.X)
@@ -560,6 +662,7 @@ class Lab:
 		if not self.sld():
 			self.add_load_bar.tb_frm.pack(side=tk.TOP, fill=tk.X)
 			self.show_ld.set(True)
+	
 	def hide_allt(self):
 		if self.smem():
 			self.add_mem_bar.tb_frm.pack_forget()
@@ -570,16 +673,19 @@ class Lab:
 		if self.sld():
 			self.add_load_bar.tb_frm.pack_forget()
 			self.show_ld.set(False)
-	def eval_report(self, type):
-		self.set_sel_mem_cb(lambda m: self.popup_report(m,type))
+	
+	def eval_report(self, rtype):
+		self.set_sel_mem_cb(lambda m: self.popup_report(m,rtype))
+	
 	def del_mode(self):
 		self.set_sel_mem_cb(lambda m: self.del_mem(m))
-	def popup_report(self, mem, type):
-		popup = Tk_rt(mem.eval_names[type]+" Report")
+	
+	def popup_report(self, mem, rtype):
+		popup = Tk_rt(mem.eval_names[rtype]+" Report")
 		loading_lbl = tk.Label(popup, text="LOADING", padx=48, pady=24)
 		loading_lbl.pack()
 		def add_report():
-			report = mem.gen_report(type)
+			report = mem.gen_report(rtype)
 			loading_lbl.destroy()
 			mem_lbl = tk.Label(popup, text=str(mem))
 			mem_lbl.pack()
@@ -637,6 +743,7 @@ class Lab:
 		self.popups.append(popup)
 		popup.after(200, add_report)
 		popup.mainloop()
+	
 	#Open window to edit px_per_m and px_per_kN
 	def edit_scale(self):
 		popup = Tk_rt("Edit Lab Scale")
@@ -695,6 +802,7 @@ class Lab:
 		popup.protocol("WM_DELETE_WINDOW", del_pop)
 		self.popups.append(popup)
 		popup.mainloop()
+	
 	def cleanup(self):
 		for w in self.popups:
 			w.destroy()

@@ -4,15 +4,15 @@ class Support:
 	sup_types = {
 		0: "Fixed",
 		1: "Pin",
-		#2: "Roller"
 		2: "Slot (x)",
 		3: "Slot (y)",
 		4: "Thrust (x)",
 		5: "Thrust (y)"
 	}
 	img_w = 20
-	def __init__(self, tag):
+	def __init__(self, tag, ax_dist=0):
 		self.tag = tag #tag on the canvas
+		self.ax_dist = ax_dist
 	
 	#Returns a binary tuple (x,y,th) for which directions the joint constrains
 	def constraints(self):
@@ -24,33 +24,32 @@ class Support:
 
 class Fixed(Support):
 	stype = 0
-	def __init__(self, tag):
-		super().__init__(tag)
+	def __init__(self, tag, ax_dist=0):
+		super().__init__(tag, ax_dist)
 	
 	def constraints(self):
 		return (1,1,1)
 	
-	def draw(self, canv, x, y, dir):
-		self.img_w = 20
-		if dir==0:#support is above member
+	def draw(self, canv, x, y, side):
+		if side==0:#support is above member
 			canv.create_line(x-2*self.img_w, y, x+2*self.img_w, y, width=2, tags=self.tag)
 			canv.create_line(x-2*self.img_w, y-self.img_w, x-self.img_w, y, tags=self.tag)
 			canv.create_line(x-self.img_w, y-self.img_w, x, y, tags=self.tag)
 			canv.create_line(x, y-self.img_w, x+self.img_w, y, tags=self.tag)
 			canv.create_line(x+self.img_w, y-self.img_w, x+2*self.img_w, y, tags=self.tag)
-		elif dir==1:#support is left of member
+		elif side==1:#support is left of member
 			canv.create_line(x, y+2*self.img_w, x, y-2*self.img_w, width=2, tags=self.tag)
 			canv.create_line(x-self.img_w, y+2*self.img_w, x, y+self.img_w, tags=self.tag)
 			canv.create_line(x-self.img_w, y+self.img_w, x, y, tags=self.tag)
 			canv.create_line(x-self.img_w, y, x, y-self.img_w, tags=self.tag)
 			canv.create_line(x-self.img_w, y-self.img_w, x, y-2*self.img_w, tags=self.tag)
-		elif dir==2:#support is below member
+		elif side==2:#support is below member
 			canv.create_line(x-2*self.img_w, y, x+2*self.img_w, y, width=2, tags=self.tag)
 			canv.create_line(x-2*self.img_w, y+self.img_w, x-self.img_w, y, tags=self.tag)
 			canv.create_line(x-self.img_w, y+self.img_w, x, y, tags=self.tag)
 			canv.create_line(x, y+self.img_w, x+self.img_w, y, tags=self.tag)
 			canv.create_line(x+self.img_w, y+self.img_w, x+2*self.img_w, y, tags=self.tag)
-		elif dir==3:#support is right of member
+		elif side==3:#support is right of member
 			canv.create_line(x, y+2*self.img_w, x, y-2*self.img_w, width=2, tags=self.tag)
 			canv.create_line(x+self.img_w, y+2*self.img_w, x, y+self.img_w, tags=self.tag)
 			canv.create_line(x+self.img_w, y+self.img_w, x, y, tags=self.tag)
@@ -59,21 +58,21 @@ class Fixed(Support):
 			
 class Pin(Support):
 	stype = 1
-	def __init__(self, tag):
-		super().__init__(tag)
+	def __init__(self, tag, ax_dist=0):
+		super().__init__(tag, ax_dist)
 	def constraints(self):
 		return (1,1,0)
-	def draw(self, canv, x, y, dir):
+	def draw(self, canv, x, y, side):
 		pts = [x,y, x-self.img_w/2,y-self.img_w, x+self.img_w/2,y-self.img_w]
-		if dir == 1:
+		if side == 1:
 			pts[2] = x-self.img_w
 			pts[3] = y+self.img_w/2
 			pts[4] = x-self.img_w
 			pts[5] = y-self.img_w/2
-		elif dir == 2:
+		elif side == 2:
 			pts[3] = y+self.img_w
 			pts[5] = y+self.img_w
-		elif dir == 3:
+		elif side == 3:
 			pts[2] = x+self.img_w
 			pts[3] = y+self.img_w/2
 			pts[4] = x+self.img_w
@@ -83,8 +82,8 @@ class Pin(Support):
 class Slot(Support):
 	R = Support.img_w/2
 	gap = 4
-	def __init__(self, tag, isv):
-		super().__init__(tag)
+	def __init__(self, tag, isv, ax_dist=0):
+		super().__init__(tag, ax_dist)
 		self.isv = isv
 	@property
 	def stype(self):
@@ -121,8 +120,8 @@ class Slot(Support):
 			y+self.R-self.gap, fill="black", tags=self.tag)
 
 class Thrust(Slot):
-	def __init__(self, tag, isv):
-		super().__init__(tag, isv)
+	def __init__(self, tag, isv, ax_dist=0):
+		super().__init__(tag, isv, ax_dist)
 	@property
 	def stype(self):
 		return 5 if self.isv else 4

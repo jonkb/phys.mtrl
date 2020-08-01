@@ -158,32 +158,53 @@ class Add_mem:
 
 #Add support toolbar
 class Add_sup:
+	add_sp_txt = "Add New\nSupport"
+	add_jt_txt = "Add New\nJoint"
 	def __init__(self, main_frm):
 		self.tb_frm = tk.Frame(main_frm)
 		self.tb_frm.config(highlightcolor="grey", highlightbackground="grey", highlightthickness=1)
 		self.tb_frm.pack(side=tk.TOP, fill=tk.X)
 		
-		#First label
-		tb_lbl = tk.Label(self.tb_frm, text="Add New\nSupport")
-		tb_lbl.grid(row=0, column=0)
+		#Add Support or Joint
+		self.sp_jt = tk.IntVar(self.tb_frm)
+		self.sp_jt.set(0)
+		sp_btn = tk.Radiobutton(self.tb_frm, variable=self.sp_jt, value=0, command=self.setsp)
+		sp_btn.config(indicatoron=0, text="Support")
+		sp_btn.grid(row=0, column=0, sticky=tk.W+tk.E)
+		jt_btn = tk.Radiobutton(self.tb_frm, variable=self.sp_jt, value=1, command=self.setjt)
+		jt_btn.config(indicatoron=0, text="Joint")
+		jt_btn.grid(row=1, column=0, sticky=tk.W+tk.E)
 		
-		next_col = 1
+		#First label
+		self.tb_lbl = tk.Label(self.tb_frm, text=self.add_sp_txt)
+		self.tb_lbl.grid(row=0, column=1, rowspan=2)
+		
+		next_col = 2
 		#Radio buttons for support type
 		self.sup_type = tk.IntVar(self.tb_frm)
 		self.sup_type.set(0)
 		for val, txt in Support.sup_types.items():
 			s_btn = tk.Radiobutton(self.tb_frm, variable=self.sup_type, value=val)
 			s_btn.config(indicatoron=0, text=txt, width=8)
-			s_btn.grid(row=0, column=next_col)
+			s_btn.grid(row=0, column=next_col, rowspan=2)
 			next_col += 1
 		
 		#Button to add the new support
 		self.add_btn = tk.Button(self.tb_frm, text="Add")
 		#self.add_btn.config(command=self.toggle_add)
-		self.add_btn.grid(row=0, column=next_col, padx=2, pady=2, ipadx=8, sticky=tk.N+tk.S)
+		self.add_btn.grid(row=0, column=next_col, rowspan=2, padx=2, pady=2, ipadx=8, sticky=tk.N+tk.S)
 	
 	def get_sup_type(self):
 		return self.sup_type.get()
+	
+	def is_jt(self):
+		return self.sp_jt.get()
+	
+	def setsp(self):
+		self.tb_lbl.config(text=self.add_sp_txt)
+	
+	def setjt(self):
+		self.tb_lbl.config(text=self.add_jt_txt)
 
 #Add load toolbar
 class Add_load:

@@ -64,8 +64,15 @@ def open(lab):
 		
 		for sup in mem.findall("sup"):
 			stype = int(sup.attrib["type"])
-			side = int(sup.attrib["end"])
+			axd = float(sup.find("axd").text)
+			side = 0 if axd == 0 else 1 #PATCH. Fix this inside lab.
 			lab.place_support(m, side, stype)
+		for jt in mem.findall("jt"):
+			jtype = int(sup.attrib["type"])
+			axd = float(sup.find("axd").text)
+			print("ERROR: pmfs 73")
+			break
+			lab.place_joint(m, side, stype) #BROKEN
 		for ld in mem.findall("ld"):
 			is_distr = int(ld.attrib["type"])
 			if is_distr:
