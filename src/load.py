@@ -149,10 +149,15 @@ class Distr_Load(Load):
 	def to_symf(self):
 		d = sym.symbols("d")
 		Ld = self.axd1 - self.axd0
-		chr_pls = (sym.Heaviside(d-self.axd0, .5)-sym.Heaviside(d-self.axd1, .5))
+		chr_pls = (sym.Heaviside(d-self.axd0, 1)-sym.Heaviside(d-self.axd1, 1))
 		px = self.xc0 + (d-self.axd0)/Ld*(self.xc1-self.xc0)
 		py = self.yc0 + (d-self.axd0)/Ld*(self.yc1-self.yc0)
 		return (px*chr_pls, py*chr_pls)
-	
-	
-	
+
+class Moment(Load):
+	def __init__(self, tag, mx=0, my=0, mz=0, ax_dist=0):
+		super().__init__(tag, 0, 0, ax_dist)
+		self.mx = mx
+		self.my = my
+		self.mz = mz
+	#To Do: draw function (depends on if is in plane(mx,y) or out)

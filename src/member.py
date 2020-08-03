@@ -192,6 +192,7 @@ valid over the whole height, so the max and min values presented here may be ina
 		return self.v_axis() / self.length
 	
 	#Find the intersection point of two members, if it exists.
+	#Returns: ((xc, yc), axd0, axd1)
 	def intersection(self, mem):
 		uv0 = np.array([self.uv_axis()]).transpose()
 		uv1 = np.array([mem.uv_axis()]).transpose()
@@ -304,44 +305,66 @@ valid over the whole height, so the max and min values presented here may be ina
 				fy += Qy
 		return (fx, fy)
 	
+	#Takes my_loads() and sums on the reactions at supports and joints
+	def my_P_and_R(self):
+		P = self.my_loads()
+		reactions = self.static_eq()
+		if isinstance(reactions, str):
+			return reactions
+		for (R, sj) in reactions:
+			i = 0
+			xym = sj.constraints()
+			if xym[0]:
+				P.append(Load(None, R[i], 0, sj.axd(self)))
+				i += 1
+			if xym[1]:
+				P.append(Load(None, 0, R[i], sj.axd(self)))
+				i += 1
+			if xym[2]:
+				P.append(Moment(None, mz=R[i], ax_dist=sj.axd(self)))
+		return P
+	
 	#Return shear as a function of 'd'.
 	#Convention: shear that would cause clockwise rotation is positive.
 	def shear_symf(self):
 		(qx, qy) = self.sum_my_dl()
-		reactions = self.reactions()
-		if isinstance(reactions, str):
-		#if reactions in self.rep_err:
-			return reactions
-		(s0x, s0y, *_) = reactions
+		PR = self.my_P_and_R()
+		if isinstance(PR, str):
+			return PR
 		V = sym.Integer(0)
 		d = sym.symbols('d')
-		#I should be able to do this with dot products if I ever allow angled members
-		if(self.is_vert()):
-			V += -s0x
-			V += sym.integrate(-qx, d)
-			for p in self.my_loads():
-				if not isinstance(p, Distr_Load):
-					V += -p.xc * sym.Heaviside(d-p.ax_dist, .5)
-		else:
-			V += s0y
-			V += sym.integrate(qy, d)
-			for p in self.my_loads():
-				if not isinstance(p, Distr_Load):
-					V += p.yc * sym.Heaviside(d-p.ax_dist, .5)
+		uvax = self.uv_axis()
+		uvprp = np.array((-uvax[1], uvax[0]))
+		#Dot product spelled out here (b/c it's all sym)
+		V += uvprp[0]*sym.integrate(qx, d) + uvprp[1]*sym.integrate(qy, d)
+		for p in PR:
+			#The distributed loads were all counted already
+			#Moments have no influence on V
+			if not isinstance(p, Distr_Load) and not isinstance(p, Moment):
+				Vp = np.dot(uvprp, p.get_comp())
+				V += Vp*sym.Heaviside(d-p.ax_dist, 1) #, .5)
 		#Rewriting as piecewise helps it to integrate the Heaviside
 		return V.rewrite(sym.Piecewise).doit()
 	
+	#Return moment as a function of 'd'.
+	#Convention: moment that causes concave up curvature is positive.
 	def moment_symf(self):
-		reactions = self.reactions()
-		if isinstance(reactions, str):
-		#if reactions in self.rep_err:
-			return reactions
-		(_, _, s0m, *_) = reactions
+		PR = self.my_P_and_R()
+		if isinstance(PR, str):
+			return PR
+		V = self.shear_symf()
+		if isinstance(V, str):
+			return V
+		
 		d = sym.symbols('d')
-		#M = integrate(V, 0, d)
-		M = sym.integrate(self.shear_symf(), d)
+		M = sym.integrate(V, d)
+		#Zero out s0 - constant of integration
 		M -= M.subs(d, 0)
-		M -= s0m
+		
+		for p in PR:
+			if isinstance(p, Moment):
+				M -= p.mz*sym.Heaviside(d-p.ax_dist, 1)
+		
 		return M.rewrite(sym.Piecewise).doit()
 	
 	#Returns a matrix representing the influence of the given joint or support on the 
@@ -453,8 +476,16 @@ valid over the whole height, so the max and min values presented here may be ina
 			SOL = np.linalg.solve(STEQ, M_B)
 		except np.linalg.LinAlgError:
 			return self.rep_err[3]
-		#print(423, SOL)
-		return sigfig(SOL, 6)
+		
+		print(458, sigfig(SOL))
+		result = []
+		rows_scanned = 0
+		for i, sj in enumerate(sjs):
+			R = SOL[rows_scanned:rows_scanned+sj_cols[i], 0]
+			rows_scanned += sj_cols[i]
+			if sj in self.supports or sj in self.joints:
+				result.append((R, sj))
+		return result
 	
 	#OLD
 	#Do the statics to calculate the reaction forces with two supports
@@ -625,21 +656,20 @@ valid over the whole height, so the max and min values presented here may be ina
 	#Return internal axial loads as a function of 'd'.
 	#Convention: tension is positive.
 	def axial_loads_sym(self):
+		d = sym.symbols('d')
 		uv_ax = self.uv_axis()
 		(qx, qy) = self.sum_my_dl()
-		reactions = self.reactions()
-		if isinstance(reactions, str):
-			return reactions
-		(s0x, s0y, *_) = reactions
-		P = sym.Float(np.dot([s0x, s0y], -uv_ax))
-		d = sym.symbols('d')
-		P -= sym.integrate(qx*uv_ax[0], d) + sym.integrate(qy*uv_ax[1], d)
-		for p in self.my_loads():
+		P_ax = -( sym.integrate(qx*uv_ax[0], d) + sym.integrate(qy*uv_ax[1], d) )
+		PR = self.my_P_and_R()
+		if isinstance(PR, str):
+			return PR
+		for p in PR:
 			#The distributed loads were all counted already
-			if not isinstance(p, Distr_Load):
+			#Moments have no influence on P_ax
+			if not isinstance(p, Distr_Load) and not isinstance(p, Moment):
 				p_ax = np.dot(uv_ax, p.get_comp())
-				P -= p_ax*sym.Heaviside(d-p.ax_dist, .5)
-		return P.rewrite(sym.Piecewise).doit()
+				P_ax -= p_ax*sym.Heaviside(d-p.ax_dist, 1) #, .5)
+		return P_ax.rewrite(sym.Piecewise).doit()
 	
 	#Return internal axial stress as a function of 'd' and 'h'.
 	#Counts axial loads as well as bending stress
@@ -808,17 +838,7 @@ valid over the whole height, so the max and min values presented here may be ina
 	#Report on shear and moment
 	#Returns text and a pyplot figure
 	def VM_rep(self):
-		reactions = self.reactions()
-		if isinstance(reactions, str):
-		#if reactions in self.rep_err:
-			return reactions
-		(s0x, s0y, s0m, s1x, s1y, s1m) = reactions
-		rep_text = "Support reactions (Rx, Ry, M)"
-		rep_text += "\nSupport 0: " + "("+N_to_kN_str(s0x)+","
-		rep_text += N_to_kN_str(s0y)+","+Nm_to_kNm_str(s0m)+")"
-		rep_text += "\nSupport 1: " + "("+N_to_kN_str(s1x)+","
-		rep_text += N_to_kN_str(s1y)+","+Nm_to_kNm_str(s1m)+")"
-		rep_text += "\n'd' is measured (in m) from end \"zero\" (W or S) of the member."
+		rep_text = "'d' is measured (in m) from end \"zero\" (W or S) of the member."
 		rep_text += "\nFor internal tension and stresses, see \"Axial and Shear Stress\""
 		V = self.shear_symf()
 		if V in self.rep_err:
@@ -836,7 +856,8 @@ valid over the whole height, so the max and min values presented here may be ina
 		try:
 			assert len(dax) == len(Vax)
 			assert len(dax) == len(Max)
-		except AssertionError:
+		except Exception as e: #AssertionError - sometimes typeerror
+			print(860, e)
 			#Check to see if they're constant functions
 			Vc = Vf(0)
 			for xi in dax:

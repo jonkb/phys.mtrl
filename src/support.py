@@ -14,6 +14,10 @@ class Support:
 		self.tag = tag #tag on the canvas
 		self.ax_dist = ax_dist
 	
+	#The *args is used by Joints; they care which member is asking.
+	def axd(self, *args):
+		return self.ax_dist
+	
 	#Returns a binary tuple (x,y,th) for which directions the joint constrains
 	def constraints(self):
 		return (0,0,0)
@@ -55,7 +59,7 @@ class Fixed(Support):
 			canv.create_line(x+self.img_w, y+self.img_w, x, y, tags=self.tag)
 			canv.create_line(x+self.img_w, y, x, y-self.img_w, tags=self.tag)
 			canv.create_line(x+self.img_w, y-self.img_w, x, y-2*self.img_w, tags=self.tag)
-			
+
 class Pin(Support):
 	stype = 1
 	def __init__(self, tag, ax_dist=0):
@@ -78,7 +82,7 @@ class Pin(Support):
 			pts[4] = x+self.img_w
 			pts[5] = y-self.img_w/2
 		canv.create_polygon(pts, width=2, fill="white", outline="black", tags=self.tag)
-		
+
 class Slot(Support):
 	R = Support.img_w/2
 	gap = 4
@@ -140,5 +144,3 @@ class Thrust(Slot):
 				y+self.R-self.gap, fill="black", tags=self.tag)
 			canv.create_oval(x+self.gap, y-self.R+self.gap, x+2*self.R-self.gap, 
 				y+self.R-self.gap, fill="black", tags=self.tag)
-		
-		

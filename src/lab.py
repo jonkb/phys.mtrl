@@ -230,7 +230,22 @@ class Lab:
 				P += O_ax*uv_axis + O_prp*uv_prp
 				xp,yp = self.coords_to_px(*P)
 		return ((xp,yp), closest)
-		
+	
+	#Returns: ((xp0,yp0), (m0, m0_axd), (m1, m1_axd))
+	def snap_to_intsx(self, xp, yp):
+		#Include another case here for if they are in the same axis.
+		#This could be doable, esp. after adding the snap grid.
+		#Then m.intersection() will probably return None.
+		((xp0,yp0), m0, m0_axd) = self.snap_to_mem_axis(xp, yp)
+		if m0 is None:
+			return ((xp,yp), (None, None), (None, None))
+		((xp1,yp1), m1, m1_axd) = self.snap_to_mem_axis(xp0, yp0, exclude=m0)
+		if m1 is None:
+			return ((xp0,yp0), (m0, m0_axd), (None, None))
+		((xc, yc), axd0, axd1) = m0.intersection(m1)
+		(xp, yp) = self.coords_to_px(xc,yc)
+		return ((xp, yp), (m0, axd0), (m1, axd1))
+	
 	def redraw(self, w=None, h=None, set_size=False):
 		for m in self.members:
 			m.oldx, m.oldy = self.coords_to_px(m.x0, m.y0)
@@ -303,7 +318,7 @@ class Lab:
 				return
 			else:
 				if self.add_sup_bar.is_jt():
-					(x,y),*_ = self.snap_to_mem_axis(x,y)
+					(x,y),*_ = self.snap_to_intsx(x,y)
 				else: #CHANGE LATER ?
 					(x,y),*_ = self.snap_to_mem_ends(x,y)
 		elif self.add_mode == 3:
@@ -449,20 +464,11 @@ class Lab:
 	def add_joint(self, event):
 		x = event.x
 		y = event.y
-		_, mem, axd = self.snap_to_mem_axis(x,y)
-		if mem != None:
-			_, mem1, axd1 = self.snap_to_mem_axis(x,y, exclude=mem)
-			if not (mem1 is None):
-				#Include another case here for if they are in the same axis.
-				#This could be doable after adding the snap grid.
-				#Then m.intersection() will probably return None.
-				intsx = mem.intersection(mem1)
-				if not (intsx is None):
-					((xc, yc), axd0, axd1) = intsx
-					(xp, yp) = self.coords_to_px(xc, yc)
-					jtype = self.add_sup_bar.get_sup_type()
-					self.place_joint(mem, mem1, jtype, xp, yp, axd0=axd0, axd1=axd1)
-					self.set_add_mode(0)
+		((xp, yp), (m0, axd0), (m1, axd1)) = self.snap_to_intsx(x, y)
+		if not (m0 is None or m1 is None):
+			jtype = self.add_sup_bar.get_sup_type()
+			self.place_joint(m0, m1, jtype, xp, yp, axd0=axd0, axd1=axd1)
+			self.set_add_mode(0)
 	
 	def place_joint(self, m0, m1, jtype, xp=None, yp=None, axd0=None, axd1=None):
 		if xp is None or yp is None:
@@ -479,7 +485,6 @@ class Lab:
 		elif jtype == 1:
 			jt = joint.Pin(jtag, m0, m1, axd0, axd1)
 			jt.draw(self.canv, xp, yp)
-		"""
 		elif jtype == 2:
 			jt = joint.Slot(jtag, False, m0, m1, axd0, axd1)
 			jt.draw(self.canv, xp, yp)
@@ -492,10 +497,8 @@ class Lab:
 		elif jtype == 5:
 			jt = joint.Thrust(jtag, True, m0, m1, axd0, axd1)
 			jt.draw(self.canv, xp, yp)
-		"""
 		m0.joints.append(jt)
 		m1.joints.append(jt)
-		
 	
 	def add_load(self, event):
 		x = event.x
