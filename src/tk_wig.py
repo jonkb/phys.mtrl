@@ -3,6 +3,8 @@ import tkinter as tk
 from tkinter import font
 import os
 
+from member import Member
+
 #Wrapper for tk.Tk() incorporating the title and icon already
 class Tk_rt(tk.Tk):
 	ico_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../img/phys.ico")
@@ -13,6 +15,52 @@ class Tk_rt(tk.Tk):
 			self.iconbitmap(self.ico_path)
 		except:
 			print("Error loading icon ("+ico_path+")")
+
+#Menu bar
+#Honestly, this isn't a very useful class, it's just moving code from main.py to here.
+class PM_Menu(tk.Menu):
+	def __init__(self, root, mlab):
+		super().__init__(root)
+		filemenu = tk.Menu(self, tearoff=0)
+		filemenu.add_command(label="Open Lab", command=mlab.open)
+		filemenu.add_command(label="Save Lab", command=mlab.save)
+		self.add_cascade(label="File", menu=filemenu)
+		viewmenu = tk.Menu(self, tearoff=0)
+		viewmenu.add_command(label="Show All Toolbars", command=mlab.show_allt)
+		viewmenu.add_command(label="Hide All Toolbars", command=mlab.hide_allt)
+		show_mem = tk.IntVar()
+		show_mem.set(True)
+		mlab.show_mem = show_mem
+		viewmenu.add_checkbutton(label="Add Member Toolbar", 
+			variable=show_mem, command=mlab.toggle_smem)
+		show_sup = tk.IntVar()
+		show_sup.set(True)
+		mlab.show_sup = show_sup
+		viewmenu.add_checkbutton(label="Add Support Toolbar", 
+			variable=show_sup, command=mlab.toggle_ssup)
+		show_ld = tk.IntVar()
+		show_ld.set(True)
+		mlab.show_ld = show_ld
+		viewmenu.add_checkbutton(label="Add Load Toolbar", 
+			variable=show_ld, command=mlab.toggle_sld)
+		self.add_cascade(label="View", menu=viewmenu)
+		optmenu = tk.Menu(self, tearoff=0)
+		mem_wtls = tk.IntVar()
+		mem_wtls.set(True)
+		mlab.mem_wtls = mem_wtls
+		optmenu.add_checkbutton(label="Weightless Members", 
+			variable=mem_wtls, command=mlab.toggle_wtls)
+		optmenu.add_command(label="Set Scale", command=mlab.edit_scale)
+		self.add_cascade(label="Options", menu=optmenu)
+		evalmenu = tk.Menu(self, tearoff=0)
+		for i, evnm in Member.eval_names.items():
+			evalmenu.add_command(label=evnm, command=lambda ri=i: mlab.eval_report(ri))
+		self.add_cascade(label="Evaluate", menu=evalmenu)
+		delmenu = tk.Menu(self, tearoff=0)
+		delmenu.add_command(label="Clear All", command=mlab.clear_all)
+		delmenu.add_command(label="Member", command=mlab.del_mem_mode)
+		delmenu.add_command(label="Ld/Sup/Jt", command=mlab.del_lsj_mode)
+		self.add_cascade(label="Delete", menu=delmenu)
 
 #Expansion of tk.Text, used for displaying text, not receiving any input
 #You can't copy text from a Label, which is a problem

@@ -30,7 +30,7 @@ class Fixed(Joint, sup.Fixed):
 		Joint.__init__(self, m0, m1, axd0, axd1)
 		sup.Fixed.__init__(self, tag)
 	def draw(self, canv, x, y):
-		r = self.img_w/4
+		r = self.img_w * 0.75
 		canv.create_rectangle(x-r, y-r, x+r, y+r, tags=self.tag)
 		canv.create_line(x-r, y-r, x+r, y+r, tags=self.tag)
 		canv.create_line(x-r, y+r, x+r, y-r, tags=self.tag)

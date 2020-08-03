@@ -1,6 +1,7 @@
 import tkinter as tk
 from datetime import datetime
 import xml.etree.ElementTree as ET
+import os
 #My files
 from member import *
 from region import *
@@ -8,7 +9,7 @@ from support import *
 from load import *
 
 ftypes = [('All Files', '*.*'), ('XML Files', '*.xml')]
-save_dir = "../data"
+save_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../data")
 def save(lab):
 	data = """<?xml version="1.0" encoding="UTF-8"?>
 <!-- This is a lab file created with phys.mtrl -->
@@ -46,6 +47,7 @@ def open(lab):
 	#print(44)
 	lab.redraw(int(options.find("c_wd").text), int(options.find("c_ht").text), True)
 	members = data.find("members")
+	jts = []
 	for mem in members.findall("mem"):
 		mem_def = mem.find("def")
 		mem_place = mem.find("place")
@@ -61,18 +63,15 @@ def open(lab):
 		xsection = regions[xsec_reg](**xs_param)
 		m = Member(matl, xsection, L)
 		lab.place_member(m, xc=x0, yc=y0, vh=VH)
-		
 		for sup in mem.findall("sup"):
 			stype = int(sup.attrib["type"])
 			axd = float(sup.find("axd").text)
 			side = 0 if axd == 0 else 1 #PATCH. Fix this inside lab.
 			lab.place_support(m, side, stype)
 		for jt in mem.findall("jt"):
-			jtype = int(sup.attrib["type"])
-			axd = float(sup.find("axd").text)
-			print("ERROR: pmfs 73")
-			break
-			lab.place_joint(m, side, stype) #BROKEN
+			jtype = int(jt.attrib["type"])
+			axd = float(jt.find("axd").text)
+			jts.append((m, jtype, axd)) #To add later, after all members are down.
 		for ld in mem.findall("ld"):
 			is_distr = int(ld.attrib["type"])
 			if is_distr:
@@ -88,14 +87,7 @@ def open(lab):
 				Py = float(ld.find("yc").text)
 				axd = float(ld.find("axd").text)
 				lab.place_load(m, Px, Py, axd)
+	for jt in jts:
+		lab.load_joint(*jt)
 	print("Loaded Successfully")
-	
-	
-	
-	
-	
-	
-	
-	
-	
 	

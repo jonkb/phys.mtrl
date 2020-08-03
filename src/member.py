@@ -192,8 +192,9 @@ valid over the whole height, so the max and min values presented here may be ina
 		return self.v_axis() / self.length
 	
 	#Find the intersection point of two members, if it exists.
+	#If axd0 is already known, it can be supplied as axd.
 	#Returns: ((xc, yc), axd0, axd1)
-	def intersection(self, mem):
+	def intersection(self, mem, axd=None):
 		uv0 = np.array([self.uv_axis()]).transpose()
 		uv1 = np.array([mem.uv_axis()]).transpose()
 		A = np.zeros((2,2))
@@ -211,6 +212,34 @@ valid over the whole height, so the max and min values presented here may be ina
 		if N[1,0] < 0 or N[1,0] > mem.length: return None
 		intsx = s00 + uv0*N[0]
 		return ((intsx[0,0], intsx[1,0]), N[0,0], N[1,0])
+	
+	def lsj_at(self, axd, snap_dist):
+		assert self.placed
+		for p in self.loads:
+			if isinstance(p, Distr_Load):
+				(axd0, axd1) = p.limits()
+				if axd > axd0-snap_dist and axd < axd1+snap_dist:
+					if axd < axd0: axd = axd0
+					if axd > axd1: axd = axd1
+					(xc, yc) = (self.x0, self.y0) + self.uv_axis() * axd
+					return ((xc, yc), axd, p)
+			else:
+				p_dist = p.ax_dist - axd
+				if abs(p_dist) < snap_dist:
+					(xc, yc) = (self.x0, self.y0) + self.uv_axis() * p.ax_dist
+					return ((xc, yc), p.ax_dist, p)
+		for s in self.supports:
+			s_dist = s.ax_dist - axd
+			if abs(s_dist) < snap_dist:
+				(xc, yc) = (self.x0, self.y0) + self.uv_axis() * s.ax_dist
+				return ((xc, yc), s.ax_dist, s)
+		for j in self.joints:
+			j_axd = j.axd(self)
+			j_dist = j_axd - axd
+			if abs(j_dist) < snap_dist:
+				(xc, yc) = (self.x0, self.y0) + self.uv_axis() * j.ax_dist
+				return ((xc, yc), j.ax_dist, j)
+		return None
 	
 	#side: 0 or 1 (start or end)
 	#direction: 0,1,2,3 --> Up, Left, Down, Right (Pointing away from member)
@@ -477,7 +506,7 @@ valid over the whole height, so the max and min values presented here may be ina
 		except np.linalg.LinAlgError:
 			return self.rep_err[3]
 		
-		print(458, sigfig(SOL))
+		#print(458, sigfig(SOL))
 		result = []
 		rows_scanned = 0
 		for i, sj in enumerate(sjs):
@@ -611,6 +640,7 @@ valid over the whole height, so the max and min values presented here may be ina
 		rep_text += "\n    | ultimate stress \u03C3_y = "+str(self.material["sig_u"]/1e6)+" MPa"
 		return rep_text
 	
+	#TO DO: FIX THIS
 	def axial_loads(self):
 		sup_axp = self.sup_axp()
 		if isinstance(sup_axp, str):
@@ -856,7 +886,7 @@ valid over the whole height, so the max and min values presented here may be ina
 		try:
 			assert len(dax) == len(Vax)
 			assert len(dax) == len(Max)
-		except Exception as e: #AssertionError - sometimes typeerror
+		except (AssertionError, TypeError) as e:
 			print(860, e)
 			#Check to see if they're constant functions
 			Vc = Vf(0)
@@ -904,12 +934,12 @@ valid over the whole height, so the max and min values presented here may be ina
 		h_rng = h_dom[1] - h_dom[0]
 		sigf = sym.lambdify((d,h), sig, "numpy")
 		tauf = sym.lambdify((d,h), tau, "numpy")
-		#Fix this for zero / constant functions. See line 558
+		#Fix this for zero / constant functions. See VM_rep assertions
 		#This way it returns an array of the same size if arrays are passed
 		if isinstance(sig, sym.Integer):
 			sigf = lambda d,h: 0*d + float(sig)
 		if isinstance(tau, sym.Integer):
-			tauf = lambda d,h: 0*d + float(sig)
+			tauf = lambda d,h: 0*d + float(tau)
 		
 		#TEMP
 		#print(608, "y1 domain:", [y1min, y1max])

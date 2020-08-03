@@ -97,6 +97,9 @@ class Distr_Load(Load):
 	@ax_dist.setter
 	def ax_dist(self, axd):
 		pass
+	#Return axd0 and axd1, in increasing order
+	def limits(self):
+		return (min(self.axd0, self.axd1), max(self.axd0, self.axd1))
 	#Include both ends, but keep the spacing relatively standard
 	def ax_rng(self, ax0, ax1):
 		L = ax1 - ax0

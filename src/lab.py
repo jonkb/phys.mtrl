@@ -24,6 +24,9 @@ class Lab:
 		self.c_wd = 756
 		self.c_ht = 468
 		
+		#TEMP
+		#self.main_frm = main_frm
+		
 		add_mem_bar.add_btn.config(command=self.toggle_mem_mode)
 		self.add_mem_bar = add_mem_bar
 		add_sup_bar.add_btn.config(command=self.toggle_sup_mode)
@@ -43,9 +46,6 @@ class Lab:
 		self.members = []
 		self.popups = []
 		self.reset_lab()
-		
-		#TEMP
-		#self.main_frm = main_frm
 	
 	def to_xml(self):
 		data = """
@@ -125,6 +125,7 @@ class Lab:
 		self.tag_n = 0
 		#Callback function to execute after selecting a member
 		self.sel_mem_cb = None
+		self.sel_lsj_cb = None
 		#The tk tag for the "SELECT A MEMBER" label
 		self.sel_txt = None
 		#mode: 0=None, 1=add_mem, 2=add_sup, 3=add_load
@@ -246,6 +247,17 @@ class Lab:
 		(xp, yp) = self.coords_to_px(xc,yc)
 		return ((xp, yp), (m0, axd0), (m1, axd1))
 	
+	def snap_to_lsj(self, xp, yp):
+		((xp0,yp0), m, m_axd) = self.snap_to_mem_axis(xp, yp)
+		if m is None:
+			return ((xp,yp), None)
+		lsj_snap = m.lsj_at(m_axd, self.snap_dist/self.px_per_m)
+		if lsj_snap is None:
+			return ((xp0,yp0), None)
+		((xc, yc), axd, lsj) = lsj_snap
+		(xp1, yp1) = self.coords_to_px(xc, yc)
+		return ((xp1,yp1), lsj)
+	
 	def redraw(self, w=None, h=None, set_size=False):
 		for m in self.members:
 			m.oldx, m.oldy = self.coords_to_px(m.x0, m.y0)
@@ -362,12 +374,14 @@ class Lab:
 				self.add_distr_load(event)
 			else:
 				self.add_load(event)
+		elif self.sel_lsj_cb != None:
+			self.sel_lsj(event)
 		elif self.sel_mem_cb != None:
 			self.sel_mem(event)
 		#FOR TESTING
-		else:
-			self.sel_mem_cb = lambda m: print(m.static_eq())
-			self.sel_mem(event)
+		#else:
+		#	self.sel_mem_cb = lambda m: print(m.static_eq())
+		#	self.sel_mem(event)
 	
 	def add_member(self, event):
 		if not self.add_mem_bar.has_float_vals():
@@ -470,6 +484,28 @@ class Lab:
 			self.place_joint(m0, m1, jtype, xp, yp, axd0=axd0, axd1=axd1)
 			self.set_add_mode(0)
 	
+	def load_joint(self, m, jtype, axd):
+		for m1 in self.members:
+			#print(475, m1, m, jtype, axd)
+			if m1 is m: continue
+			intsx = m.intersection(m1, axd)
+			if intsx is None: continue
+			((xc, yc), axd0, axd1) = intsx
+			break
+		else:
+			return "481: Not a valid intersection of members."
+		(xp, yp) = self.coords_to_px(xc, yc)
+		#Check if the joint object already exists
+		for j in m1.joints:
+			if j.other_mem(m1) is m and j.axd(m1) == axd1:
+				assert j.axd(m) == axd0
+				if not (j in m.joints):
+					print(491, j) #I don't think this should ever happen
+					m.joints.append(j)
+				break
+		else:
+			self.place_joint(m, m1, jtype, xp, yp, axd0, axd1)
+	
 	def place_joint(self, m0, m1, jtype, xp=None, yp=None, axd0=None, axd1=None):
 		if xp is None or yp is None:
 			intsx = m0.intersection(m1)
@@ -570,6 +606,16 @@ class Lab:
 			self.canv.delete(self.sel_txt)
 			cb(mem)
 	
+	def sel_lsj(self, event):
+		x = event.x
+		y = event.y
+		(xp,yp), lsj = self.snap_to_lsj(x,y)
+		if lsj != None:
+			cb = self.sel_lsj_cb
+			self.sel_mem_cb = None
+			self.canv.delete(self.sel_txt)
+			cb(lsj)
+	
 	def rect_mem_coords(self, x, y, L_px, hh=None, vh=None):
 		if hh is None:
 			hh = self.add_mem_bar.half_h()
@@ -604,19 +650,34 @@ class Lab:
 		self.floating = None
 		self.add_mode = mode
 	
-	#callback is a function that accepts a reference to a member
-	def set_sel_mem_cb(self, callback):
-		self.canv.delete(self.sel_txt)
-		self.sel_txt = self.canv.create_text(self.c_wd - 75, self.c_ht - 12, text="SELECT A MEMBER")
-		self.sel_mem_cb = callback
-	
 	def del_mem(self, mem):
 		for l in mem.loads:
 			self.canv.delete(l.tag)
 		for s in mem.supports:
 			self.canv.delete(s.tag)
+		for j in mem.joints:
+			self.canv.delete(j.tag)
 		self.canv.delete(mem.img_ref)
 		self.members.remove(mem)
+	
+	def del_lsj(self, lsj):
+		for m in self.members:
+			if lsj in m.loads:
+				self.canv.delete(lsj.tag)
+				m.loads.remove(lsj)
+				break
+			if lsj in m.supports:
+				self.canv.delete(lsj.tag)
+				m.supports.remove(lsj)
+				break
+			if lsj in m.joints:
+				self.canv.delete(lsj.tag)
+				lsj.other_mem(m).joints.remove(lsj)
+				m.joints.remove(lsj)
+				break
+		else:
+			return "664: Somehow the selected Load, Support, or Joint\
+is not attached to any of the members in the lab."
 	
 	def clear_all(self):
 		mem_copy = self.members.copy()
@@ -680,8 +741,26 @@ class Lab:
 	def eval_report(self, rtype):
 		self.set_sel_mem_cb(lambda m: self.popup_report(m,rtype))
 	
-	def del_mode(self):
+	#callback is a function that accepts a reference to a member
+	def set_sel_mem_cb(self, callback):
+		self.canv.delete(self.sel_txt)
+		self.sel_txt = self.canv.create_text(self.c_wd - 72, self.c_ht - 12, 
+			text="SELECT A MEMBER")
+		self.sel_lsj_cb = None
+		self.sel_mem_cb = callback
+	
+	def set_sel_lsj_cb(self, callback):
+		self.canv.delete(self.sel_txt)
+		self.sel_txt = self.canv.create_text(self.c_wd - 124, self.c_ht - 12, 
+			text="SELECT A LOAD, SUPPORT, OR JOINT")
+		self.sel_mem_cb = None
+		self.sel_lsj_cb = callback
+	
+	def del_mem_mode(self):
 		self.set_sel_mem_cb(lambda m: self.del_mem(m))
+	
+	def del_lsj_mode(self):
+		self.set_sel_lsj_cb(lambda lsj: self.del_lsj(lsj))
 	
 	def popup_report(self, mem, rtype):
 		popup = Tk_rt(mem.eval_names[rtype]+" Report")
