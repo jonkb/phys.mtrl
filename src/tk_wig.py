@@ -16,8 +16,9 @@ class Tk_rt(tk.Tk):
 		except:
 			print("Error loading icon ("+ico_path+")")
 
-#Menu bar
-#Honestly, this isn't a very useful class, it's just moving code from main.py to here.
+#Phys.Mtrl Menu bar
+#Honestly, this isn't a very useful class, since it's not reused.
+#	It's just moving code from main.py to here.
 class PM_Menu(tk.Menu):
 	def __init__(self, root, mlab):
 		super().__init__(root)

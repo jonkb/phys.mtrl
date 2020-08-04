@@ -141,6 +141,7 @@ class Lab:
 		self.popups = []
 	
 	#Snap x,y (in px) to the ends of existing members
+	#OLD
 	def snap_to_mem_ends(self, xp, yp):
 		xc, yc = self.px_to_coords(xp,yp)
 		side = 0
@@ -318,8 +319,8 @@ class Lab:
 					return
 				self.floating_x = x
 				self.floating_y = y
-				L = float(self.add_mem_bar.get_L())
-				self.floating = self.canv.create_rectangle(*self.rect_mem_coords(x, y, L*self.px_per_m))
+				self.floating = self.canv.create_polygon(*self.rect_mem_coords(x, y), 
+					outline="black", fill="")
 				return
 		elif self.add_mode == 2:
 			if self.floating == None:
@@ -332,7 +333,7 @@ class Lab:
 				if self.add_sup_bar.is_jt():
 					(x,y),*_ = self.snap_to_intsx(x,y)
 				else: #CHANGE LATER ?
-					(x,y),*_ = self.snap_to_mem_ends(x,y)
+					(x,y),*_ = self.snap_to_mem_axis(x,y)
 		elif self.add_mode == 3:
 			if self.floating == None:
 				if not self.add_load_bar.has_float_vals():
@@ -359,6 +360,7 @@ class Lab:
 		self.floating_x = x
 		self.floating_y = y
 	
+	#TO DO: add right click menu, including delete selected thing
 	def mouse_click(self, event):
 		#print("self.canv.config(width=300, height=300)")
 		#self.canv.config(width=300, height=300)
@@ -412,66 +414,56 @@ class Lab:
 		m = Member(matl, xsec, L)
 		if not self.wtls():
 			m.has_weight = True
-		self.place_member(m, xp=x, yp=y, vh=self.add_mem_bar.get_vh())
+		self.place_member(m, xp=x, yp=y, th=self.add_mem_bar.get_th())
 		self.set_add_mode(0)
 	
-	def place_member(self, mem, xp=None, yp=None, xc=None, yc=None, vh=True):
-		if vh == "V":
-			vh = True
-		elif vh == "H":
-			vh = False
-		if not self.wtls():
-			mem.has_weight = True
+	def place_member(self, mem, xp=None, yp=None, xc=None, yc=None, th=0):
+		if th == "V": th = 90
+		elif th == "H": th = 0
 		if not (xp is None) and not (yp is None):
 			xc, yc = self.px_to_coords(xp, yp)
 		elif not (xc is None) and not (yc is None):
 			xp, yp = self.coords_to_px(xc, yc)
 		else:
 			return "Error: Must provide xp&yp or xc&yc"
+		if not self.wtls():
+			mem.has_weight = True
 		rgb = mem.material["color"]
-		mem.place(xc, yc, vh)
+		mem.place(xc, yc, th)
 		rcoords = self.rect_mem_coords(xp, yp, 
-			mem.length*self.px_per_m, hh=mem.half_h(), vh=vh)
-		mem.img_ref = self.canv.create_rectangle(*rcoords, fill=rgb)
+			L=mem.length, hh=mem.half_h(), th=th)
+		mem.img_ref = self.canv.create_polygon(*rcoords, outline="black", fill=rgb)
 		self.members.append(mem)
-		#print("Added new " + str(m))
 	
 	def add_support(self, event):
 		x = event.x
 		y = event.y
-		(xp,yp), mem, side = self.snap_to_mem_ends(x,y)
+		(xp,yp), mem, axd = self.snap_to_mem_axis(x,y)
 		if mem != None:
 			stype = self.add_sup_bar.get_sup_type()
-			self.place_support(mem, side, stype, xp, yp)
+			th = self.add_sup_bar.get_th()
+			if th is None:
+				return
+			self.place_support(mem, stype, xp, yp, axd, th)
 			self.set_add_mode(0)
 	
-	def place_support(self, mem, side, stype, xp=None, yp=None):
+	def place_support(self, mem, stype, xp=None, yp=None, axd=0, th=0):
 		if xp is None or yp is None:
 			x0, y0, x1, y1 = mem.get_pos()
-			if side == 0:
-				xp, yp = self.coords_to_px(x0, y0)
-			if side == 1:
-				xp, yp = self.coords_to_px(x1, y1)
-		axd = side*mem.length
+			xp, yp = self.coords_to_px((x0, y0) + mem.uv_axis()*axd)
 		stag = "sup"+str(self.tag_n)+'_m'+str(mem.img_ref)
 		self.tag_n += 1
 		if stype == 0:
-			sup = support.Fixed(stag, ax_dist=axd)
-			sup.draw(self.canv, xp, yp, mem.sup_dir(side))
+			sup = support.Fixed(stag, axd, th)
+			sup.draw(self.canv, xp, yp)
 		elif stype == 1:
-			sup = support.Pin(stag, ax_dist=axd)
-			sup.draw(self.canv, xp, yp, mem.sup_dir(side))
+			sup = support.Pin(stag, axd, th)
+			sup.draw(self.canv, xp, yp)
 		elif stype == 2:
-			sup = support.Slot(stag, False, ax_dist=axd)
+			sup = support.Slot(stag, axd, th)
 			sup.draw(self.canv, xp, yp)
 		elif stype == 3:
-			sup = support.Slot(stag, True, ax_dist=axd)
-			sup.draw(self.canv, xp, yp)
-		elif stype == 4:
-			sup = support.Thrust(stag, False, ax_dist=axd)
-			sup.draw(self.canv, xp, yp)
-		elif stype == 5:
-			sup = support.Thrust(stag, True, ax_dist=axd)
+			sup = support.Thrust(stag, axd, th)
 			sup.draw(self.canv, xp, yp)
 		mem.supports.append(sup)
 	
@@ -481,7 +473,8 @@ class Lab:
 		((xp, yp), (m0, axd0), (m1, axd1)) = self.snap_to_intsx(x, y)
 		if not (m0 is None or m1 is None):
 			jtype = self.add_sup_bar.get_sup_type()
-			self.place_joint(m0, m1, jtype, xp, yp, axd0=axd0, axd1=axd1)
+			th = self.add_sup_bar.get_th()
+			self.place_joint(m0, m1, jtype, xp, yp, axd0, axd1, th)
 			self.set_add_mode(0)
 	
 	def load_joint(self, m, jtype, axd):
@@ -504,9 +497,10 @@ class Lab:
 					m.joints.append(j)
 				break
 		else:
+			#TO DO: load th!!!
 			self.place_joint(m, m1, jtype, xp, yp, axd0, axd1)
 	
-	def place_joint(self, m0, m1, jtype, xp=None, yp=None, axd0=None, axd1=None):
+	def place_joint(self, m0, m1, jtype, xp=None, yp=None, axd0=None, axd1=None, th=0):
 		if xp is None or yp is None:
 			intsx = m0.intersection(m1)
 			if intsx is None:
@@ -522,16 +516,10 @@ class Lab:
 			jt = joint.Pin(jtag, m0, m1, axd0, axd1)
 			jt.draw(self.canv, xp, yp)
 		elif jtype == 2:
-			jt = joint.Slot(jtag, False, m0, m1, axd0, axd1)
-			jt.draw(self.canv, xp, yp)
-		elif jtype == 3:
-			jt = joint.Slot(jtag, True, m0, m1, axd0, axd1)
+			jt = joint.Slot(jtag, m0, m1, axd0, axd1, th)
 			jt.draw(self.canv, xp, yp)
 		elif jtype == 4:
-			jt = joint.Thrust(jtag, False, m0, m1, axd0, axd1)
-			jt.draw(self.canv, xp, yp)
-		elif jtype == 5:
-			jt = joint.Thrust(jtag, True, m0, m1, axd0, axd1)
+			jt = joint.Thrust(jtag, m0, m1, axd0, axd1, th)
 			jt.draw(self.canv, xp, yp)
 		m0.joints.append(jt)
 		m1.joints.append(jt)
@@ -616,34 +604,43 @@ class Lab:
 			self.canv.delete(self.sel_txt)
 			cb(lsj)
 	
-	def rect_mem_coords(self, x, y, L_px, hh=None, vh=None):
+	#Return the coordinates in pixels for the rectangular image of a member
+	#Now to be passed to create_polygon
+	#th is in degrees
+	def rect_mem_coords(self, x, y, L=None, hh=None, th=None):
+		if L is None:
+			L = self.add_mem_bar.get_L()
 		if hh is None:
 			hh = self.add_mem_bar.half_h()
 		if hh == "NaN":
 			return "NaN"
-		if vh is None:
-			vh = self.add_mem_bar.get_vh()
+		if th is None:
+			th = self.add_mem_bar.get_th()
+		L *= self.px_per_m
 		hh *= self.px_per_m
-		if vh:
-			x1 = x - hh
-			y1 = y
-			x2 = x + hh
-			y2 = y - L_px
-		else:
-			x1 = x
-			y1 = y - hh
-			x2 = x + L_px
-			y2 = y + hh
-		return (x1, y1, x2, y2)
+		th *= math.pi / 180
+		uv_ax = np.array((math.cos(th), -math.sin(th)))
+		uv_prp = np.array((uv_ax[1], -uv_ax[0]))
+		s0 = np.array((x,y))
+		
+		s0N = s0 + uv_prp*hh
+		s0S = s0 - uv_prp*hh
+		s1N = s0N + uv_ax*L
+		s1S = s0S + uv_ax*L
+		
+		return (*s0N, *s1N, *s1S, *s0S)
 	
 	#Mode: 0=None, 1=mem, 2=sup
 	def set_add_mode(self, mode):
 		if mode == self.add_mode:
 			return
-		if mode == 1:
+		elif mode == 1:
 			if not self.add_mem_bar.has_float_vals():
 				return
-		if mode == 3:
+		elif mode == 2:
+			if self.add_sup_bar.get_th() is None:
+				return
+		elif mode == 3:
 			if not self.add_load_bar.has_float_vals():
 				return
 		self.canv.delete(self.floating)

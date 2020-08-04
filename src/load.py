@@ -48,7 +48,8 @@ class Distr_Load(Load):
 	#Dist btw arrows in px
 	ad_px = 25
 	ltype = 1
-	def __init__(self, tag, xc0, yc0, axd0, xc1, yc1, axd1, isv):
+	#Note: th is the angle (deg) of the axis of the member
+	def __init__(self, tag, xc0, yc0, axd0, xc1, yc1, axd1, th):
 		super().__init__(tag, xc0, yc0)
 		self.xc0 = xc0
 		self.yc0 = yc0
@@ -56,7 +57,7 @@ class Distr_Load(Load):
 		self.xc1 = xc1
 		self.yc1 = yc1
 		self.axd1 = axd1
-		self.isv = isv
+		self.th = th
 		self.a_dist = self.ad_px / 360
 	def to_xml(self):
 		data = """

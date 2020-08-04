@@ -77,7 +77,7 @@ valid over the whole height, so the max and min values presented here may be ina
 			<place>
 				<x0>"""+str(self.x0)+"""</x0>
 				<y0>"""+str(self.y0)+"""</y0>
-				<vh>"""+self.VH_char()+"""</vh>
+				<th>"""+str(self.th)+"""</vh>
 			</place>
 			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->"""
 		for sup in self.supports:
@@ -147,16 +147,14 @@ valid over the whole height, so the max and min values presented here may be ina
 		return self.mass * grav
 	
 	#Define the position in the xy plane. Units are meters.
-	#vh True = vertical. vh False = horizontal.
-	def place(self, x, y, vh):
+	#th is in degrees
+	def place(self, x, y, th):
+		self.th = th
+		th *= math.pi / 180
 		self.x0 = x
 		self.y0 = y
-		if vh:
-			self.x1 = x
-			self.y1 = y+self.length
-		else:
-			self.x1 = x+self.length
-			self.y1 = y
+		v_ax = self.length*np.array((math.cos(th), math.sin(th)))
+		(self.x1, self.y1) = np.array((x,y)) + v_ax
 		self.placed = True
 	
 	def get_pos(self):
@@ -164,27 +162,14 @@ valid over the whole height, so the max and min values presented here may be ina
 			return (self.x0, self.y0, self.x1, self.y1)
 		return None
 	
-	def is_vert(self):
-		if self.placed:
-			if self.x1 == self.x0:
-				return True
-			else:
-				return False
-		return None
-	
-	def VH_char(self):
-		if self.is_vert():
-			return "V"
-		else:
-			return "H"
-	
 	def half_h(self):
 		y1_dom = self.xsection.y1_domain()
 		assert y1_dom[0] == -y1_dom[1]
 		return abs(y1_dom[0])
 	
 	def v_axis(self):
-		return np.array([self.x1-self.x0, self.y1-self.y0])
+		assert self.placed
+		return np.array((self.x1-self.x0, self.y1-self.y0))
 	
 	#Unit vector along the axis
 	def uv_axis(self):
@@ -193,7 +178,7 @@ valid over the whole height, so the max and min values presented here may be ina
 	
 	#Find the intersection point of two members, if it exists.
 	#If axd0 is already known, it can be supplied as axd.
-	#Returns: ((xc, yc), axd0, axd1)
+	#Returns: ((xc, yc), axd0, axd1) or None
 	def intersection(self, mem, axd=None):
 		uv0 = np.array([self.uv_axis()]).transpose()
 		uv1 = np.array([mem.uv_axis()]).transpose()
@@ -213,6 +198,9 @@ valid over the whole height, so the max and min values presented here may be ina
 		intsx = s00 + uv0*N[0]
 		return ((intsx[0,0], intsx[1,0]), N[0,0], N[1,0])
 	
+	#Checks if there is a Load, Support, or Joint attached to this member
+	#at or close to the given axial distance.
+	#Returns: ((xc, yc), axd, lsj) or None
 	def lsj_at(self, axd, snap_dist):
 		assert self.placed
 		for p in self.loads:
@@ -241,39 +229,32 @@ valid over the whole height, so the max and min values presented here may be ina
 				return ((xc, yc), j.ax_dist, j)
 		return None
 	
-	#side: 0 or 1 (start or end)
-	#direction: 0,1,2,3 --> Up, Left, Down, Right (Pointing away from member)
-	def sup_dir(self, side):
-		# (vert/horiz, side) --> dir
-		dir_switch = {
-			(True, 0) : 2,
-			(True, 1) : 0,
-			(False, 0) : 1,
-			(False, 1) : 3
-		}
-		return dir_switch[(self.is_vert(), side)]
-	
 	#Return a tuple representing the constraints on the member in each direction.
 	#It is in this order: (axial, perpindicular, th)
+	#I'm not sure if this will work correctly with the new angles.
 	def constraints(self):
 		c = np.array((0,0,0))
 		for s in self.supports:
-			c += s.constraints()
-		if self.is_vert():
-			ca = c[1]
-			cp = c[0]
-		else:
-			ca = c[0]
-			cp = c[1]
-		return (ca, cp, c[2])
+			sc = s.constraints()
+			if m_u.eps_round(math.sqrt(sc[0]**2+sc[1]**2)) == 1:
+				del_th = s.th - self.th
+				#The eps_round does .999999999999999 --> 1
+				c[0] += abs(m_u.eps_round(math.cos(math.radians(del_th))))
+				c[1] += abs(m_u.eps_round(math.sin(math.radians(del_th))))
+				print("WARNING: member.py 257")
+			elif sc[0] == 1 and sc[1] == 1:
+				c[0] += 1
+				c[1] += 1
+			c[2] += sc[2]
+		return c
 	
 	#Returns the degrees of freedom of the member (axial, perpindicular, th)
 	def d_of_f(self):
 		c = list(self.constraints())
 		#2 perp. sup   ~~=   1 perp. and 1 moment
 		if c[1] > 1:
-			c[1] -= 1
-			c[2] += 1
+			c[2] += c[1] - 1
+			c[1] = 1
 		#2 Axial do not create a moment, since they're on the same axis!
 		d = np.array((1,1,1)) - c
 		return d
@@ -343,11 +324,17 @@ valid over the whole height, so the max and min values presented here may be ina
 		for (R, sj) in reactions:
 			i = 0
 			xym = sj.constraints()
-			if xym[0]:
+			if xym[0] == 1:
 				P.append(Load(None, R[i], 0, sj.axd(self)))
 				i += 1
-			if xym[1]:
+			if xym[1] == 1:
 				P.append(Load(None, 0, R[i], sj.axd(self)))
+				i += 1
+			if (0 < xym[0] < 1) and (0 < xym[1] < 1):
+				#Support at an angle
+				assert eps_round(math.sqrt(xym[0]**2+xym[1]**1)) == 1
+				#Fx=R*cos(th); Fy=R*sin(th) -- One unknown
+				P.append(Load(None, R[i]*xym[0], R[i]*xym[1], sj.axd(self)))
 				i += 1
 			if xym[2]:
 				P.append(Moment(None, mz=R[i], ax_dist=sj.axd(self)))
@@ -407,14 +394,19 @@ valid over the whole height, so the max and min values presented here may be ina
 			sj_axd = sj.axd(self)
 		sj_con = sj.constraints() #Format: (x:0/1,y:0/1,th:0/1)
 		#print(359, sj_con, self, sj)
-		if sj_con[0]:
+		if sj_con[0] == 1:
 			v0 = np.array([[1.], [0.], [0.]])
 			v0[2, 0] = -sj_axd*uv_ax[1] #F_x influences M
 			mat = np.concatenate((mat, v0), axis=1)
-		if sj_con[1]:
+		if sj_con[1] == 1:
 			v1 = np.array([[0.], [1.], [0.]])
 			v1[2, 0] = sj_axd*uv_ax[0] #F_y influences M
 			mat = np.concatenate((mat, v1), axis=1)
+		if (0 < sj_con[0] < 1) and (0 < sj_con[1] < 1):
+			#Support at an angle
+			assert eps_round(math.sqrt(sj_con[0]**2+sj_con[1]**1)) == 1
+			#Fx=R*cos(th); Fy=R*sin(th) -- One unknown
+			v = np.array([[sj_con[0]], [sj_con[1]], [0.]])
 		if sj_con[2]:
 			v2 = np.array([[0.], [0.], [1.]])
 			mat = np.concatenate((mat, v2), axis=1)
@@ -566,7 +558,7 @@ valid over the whole height, so the max and min values presented here may be ina
 			SOL = np.linalg.solve(M_A, M_B)
 		except np.linalg.LinAlgError:
 			return self.rep_err[3]
-		return sigfig_iter(SOL, 6) #eps_round(SOL)
+		return sigfig_iter(SOL, 6) 
 	
 	#Do mohr's circle transformations on an element with sigma_x and tau_xy (assumes no sig_y)
 	#Return two vectors, each in polar and cartesian: smvp, smvc, tmvp, tmvc

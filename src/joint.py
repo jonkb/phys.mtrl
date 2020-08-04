@@ -46,12 +46,12 @@ class Pin(Joint, sup.Pin):
 		canv.create_oval(x-ro, y-ro, x+ro, y+ro, width=2, tags=self.tag)
 
 class Slot(Joint, sup.Slot):
-	def __init__(self, tag, isv, m0, m1, axd0=None, axd1=None):
+	def __init__(self, tag, m0, m1, axd0=None, axd1=None, th=0):
 		Joint.__init__(self, m0, m1, axd0, axd1)
-		sup.Slot.__init__(self, tag, isv)
+		sup.Slot.__init__(self, tag, th=th)
 
 class Thrust(Joint, sup.Thrust):
-	def __init__(self, tag, isv, m0, m1, axd0=None, axd1=None):
+	def __init__(self, tag, m0, m1, axd0=None, axd1=None, th=0):
 		Joint.__init__(self, m0, m1, axd0, axd1)
-		sup.Thrust.__init__(self, tag, isv)
+		sup.Thrust.__init__(self, tag, th=th)
 	

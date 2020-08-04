@@ -8,8 +8,10 @@ from region import *
 from support import *
 from load import *
 
+
 ftypes = [('All Files', '*.*'), ('XML Files', '*.xml')]
 save_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../data")
+
 def save(lab):
 	data = """<?xml version="1.0" encoding="UTF-8"?>
 <!-- This is a lab file created with phys.mtrl -->
@@ -25,6 +27,7 @@ def save(lab):
 		return
 	file.write(data)
 	file.close()
+
 def open(lab):
 	file = tk.filedialog.askopenfile(mode="r", 
 		initialdir=save_dir, defaultextension=".xml")

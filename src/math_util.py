@@ -15,11 +15,15 @@ def sigfig(x, n=default_sigfig):
 	return np.round(x*10**round_dec) *10**-round_dec
 #Takes an iterable and rounds those elements that are very close to int
 #Use for a list, not for an np.array
-def eps_round(A):
+def eps_round_iter(A):
 	for i,e in enumerate(A):
 		if (abs(e)+eps/2) % 1 < eps:
 			A[i] = round(e)
 	return A
+def eps_round(n):
+	if (abs(n)+eps/2) % 1 < eps:
+		n = round(n)
+	return n
 #Use for a list, not for an np.array
 def sigfig_iter(A, n=default_sigfig):
 	for i,e in enumerate(A):
@@ -234,6 +238,18 @@ def max2d_grad(f, x, y, xdom, ydom):
 	xy_min = critpts[np.where(critvals == f_min)[0][0]]
 	return (f_max, xy_max[0], xy_max[1]), (f_min, xy_min[0], xy_min[1])
 
+#Accepts any number of points and rotates them the given angle
+#th is in degrees
+#To be used in graphics, so it's inverted.
+def rot_pts(th, *pts, origin=(0,0)):
+	#The negative is placed here since down is positive in graphics world.
+	thr = - math.radians(th)
+	rot = np.array([[math.cos(thr), -math.sin(thr)], [math.sin(thr), math.cos(thr)]])
+	rotated = []
+	for pt in pts:
+		npt = np.vstack(pt) - np.vstack(origin)
+		rotated.append(np.dot(rot, npt) + np.vstack(origin))
+	return np.array(rotated)
 
 
 
@@ -273,17 +289,14 @@ def test_solve_pw():
 		sym.solve(sym.Eq(sym.diff(f),0), x)
 	except NotImplementedError:
 		print(211)
-	
-	#IDEA: first strip Piecewise of anything outside of the domain of interest
-	#Piecewise((x, x < L and x > 0), (0, True)) --> f = x (on (0,L))
-	#I think all the boundaries should be considered anyway
-	
-	#Another problem is when an interval is constant "solve cannot represent interval solutions"
+
+#IDEA: first strip Piecewise of anything outside of the domain of interest
+#Piecewise((x, x < L and x > 0), (0, True)) --> f = x (on (0,L))
+#I think all the boundaries should be considered anyway
+
+#Another problem is when an interval is constant "solve cannot represent interval solutions"
 
 #test_solve_pw()
-
-
-
 
 
 

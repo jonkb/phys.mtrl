@@ -19,7 +19,7 @@ class Add_mem:
 		#First label
 		tb_lbl = tk.Label(self.tb_frm, text="Add New\nMember")
 		tb_lbl.grid(row=0, column=0, rowspan=2)
-
+		
 		#Choose material label
 		matl_lbl = tk.Label(self.tb_frm, text="Material:")
 		matl_lbl.grid(row=0, column=1)
@@ -29,8 +29,8 @@ class Add_mem:
 		matl_option = tk.OptionMenu(self.tb_frm, self.matl, *Materials.materials)
 		matl_option.config(width=12)
 		matl_option.grid(row=1, column=1)
-
-		#Choose material label
+		
+		#Choose xsection label
 		xsec_lbl = tk.Label(self.tb_frm, text="Cross Section Type:")
 		xsec_lbl.grid(row=0, column=2)
 		#Choose xsection pulldown
@@ -40,7 +40,7 @@ class Add_mem:
 		xsec_option = tk.OptionMenu(self.tb_frm, self.xsec, *Region.regions)
 		xsec_option.config(width=12)
 		xsec_option.grid(row=1, column=2)
-
+		
 		#Frame that adjusts itself to the chosen xsection to have the needed parameters
 		self.xparam_frm = tk.Frame(self.tb_frm)
 		self.xparam_frm.config(borderwidth=2, relief=tk.SUNKEN)
@@ -48,7 +48,7 @@ class Add_mem:
 		self.xparam_frm.grid_rowconfigure(1,weight=1)
 		self.xparam_entries = []
 		self.update_xparam()
-
+		
 		#Length label
 		L_lbl = tk.Label(self.tb_frm, text="Length (m):")
 		L_lbl.grid(row=0, column=4)
@@ -56,22 +56,20 @@ class Add_mem:
 		self.L_entry = tk.Entry(self.tb_frm)
 		self.L_entry.config(width=num_e_wid)
 		self.L_entry.grid(row=1, column=4)
-
-		#Radio buttons for vert/horiz
-		self.vh = tk.IntVar(self.tb_frm)
-		self.vh.set(1)
-		v_btn = tk.Radiobutton(self.tb_frm, variable=self.vh, value=1)
-		v_btn.config(indicatoron=0, text="Vertical")
-		v_btn.grid(row=0, column=5, sticky=tk.W+tk.E)
-		h_btn = tk.Radiobutton(self.tb_frm, variable=self.vh, value=0)
-		h_btn.config(indicatoron=0, text="Horizontal")
-		h_btn.grid(row=1, column=5, sticky=tk.W+tk.E)
-
+		
+		#Angle label
+		th_lbl = tk.Label(self.tb_frm, text="Angle (\u00B0):")
+		th_lbl.grid(row=0, column=5)
+		#Angle entry
+		self.th_entry = tk.Entry(self.tb_frm)
+		self.th_entry.config(width=num_e_wid)
+		self.th_entry.grid(row=1, column=5)
+		
 		#Button to add the new member
 		self.add_btn = tk.Button(self.tb_frm, text="Add")
 		#self.add_btn.config(command=self.toggle_add)
 		self.add_btn.grid(row=0, column=6, padx=2, pady=2, ipadx=8, rowspan=2, sticky=tk.N+tk.S)
-
+	
 	def update_xparam(self, *args):
 		region = self.xsec.get()
 		self.xparam_entries.clear()
@@ -126,32 +124,42 @@ class Add_mem:
 			ri_entry = tk.Entry(self.xparam_frm, width=num_e_wid)
 			ri_entry.grid(row=1, column=1)
 			self.xparam_entries.append(ri_entry)
+	
 	#Return half of the height of the beam being added (in m)
 	def half_h(self):
 		xsec = self.xsec.get()
 		return Region.half_h(xsec, self.get_xparams())
+	
+	#Return the parameters for the cross section
 	def get_xparams(self):
 		params = []
 		for param in self.xparam_entries:
-			params.append(param.get())
+			params.append(float(param.get()))
 		return params
+	
 	def get_L(self):
-		return self.L_entry.get()
+		return float(self.L_entry.get())
+	
 	def get_matl(self):
 		return self.matl.get()
+	
 	def get_xsec(self):
 		return self.xsec.get()
-	def get_vh(self):
-		return self.vh.get()
+	
+	def get_th(self):
+		return float(self.th_entry.get())
+	
 	#Return true if all fields have numbers. Also returns false if any dim<=0
 	def has_float_vals(self):
 		try:
-			if float(self.get_L()) <= 0:
-				return false
-			for v in self.get_xparams():
-				if float(v) <= 0:
-					return false
-		except ValueError:#Flash fields red here?
+			if float(self.L_entry.get()) <= 0:
+				return False
+			for v in self.xparam_entries:
+				if float(v.get()) <= 0:
+					return False
+			float(self.th_entry.get())
+		except ValueError:
+			#Flash fields red here?
 			return False
 		else:
 			return True
@@ -189,6 +197,17 @@ class Add_sup:
 			s_btn.grid(row=0, column=next_col, rowspan=2)
 			next_col += 1
 		
+		#Angle label
+		th_lbl = tk.Label(self.tb_frm, text="Angle (\u00B0):")
+		th_lbl.grid(row=0, column=next_col)
+		#Angle entry
+		self.th_entry = tk.Entry(self.tb_frm)
+		self.th_entry.config(width=num_e_wid)
+		self.th_entry.grid(row=1, column=next_col)
+		next_col += 1
+		#TO DO: Add option to snap to axis angle of member
+		# - Angle: [ --Auto-- ] : darkened out - not accepting input
+		
 		#Button to add the new support
 		self.add_btn = tk.Button(self.tb_frm, text="Add")
 		#self.add_btn.config(command=self.toggle_add)
@@ -196,6 +215,11 @@ class Add_sup:
 	
 	def get_sup_type(self):
 		return self.sup_type.get()
+	
+	def get_th(self):
+		try: th = float(self.th_entry.get())
+		except ValueError: return None
+		return th
 	
 	def is_jt(self):
 		return self.sp_jt.get()
