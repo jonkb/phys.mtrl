@@ -26,12 +26,7 @@ Here is a summary of some of the currently implemented features.
 - Euler Buckling: Reports if the column is stable according to the Euler Buckling theory
 
 ## Possible Future Improvements
-- Make it so you can click anywhere on the member to select it, not just near the axis. This matters for exceptionally wide members.
-- Finish the Euler Buckling evaluation. Currently it only works for fixed-free columns with one load exactly at the end.
-- Rework the system to allow members to be placed at angles instead of just horizontal and vertical.
 - Allow members to be moved after being placed.
-- Allow forces and supprts to be deleted after being placed.
-- Add joints to connect members together.
 - Use equations for elongation to deal with statically indeterminate members.
 - Add torque.
 - Add an option for snap to grid when placing everything.
@@ -39,8 +34,6 @@ Here is a summary of some of the currently implemented features.
 	- Upload some database of materials and material properties
 - Fix the mohr\_transform function so it works fine with symbolic functions, then use that to find the max and min symbolically in the sig\_tau report.
 - Make it so that the max2d\_grad function works better with piecewise.
-- Find a better way to represent the principal stresses when they're only known along the neutral axis, like for a circular cross section (sig\_tau report).
-- Nicer support appearance, and supports that can be placed anywhere along the axis.
 - Add keyboard shortcuts
 
 ## LICENSE

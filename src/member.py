@@ -84,7 +84,8 @@ valid over the whole height, so the max and min values presented here may be ina
 			data += """
 			<sup type="{}">
 				<axd>{}</axd>
-			</sup>""".format(sup.stype, sup.ax_dist)
+				<th>{}</th>
+			</sup>""".format(sup.stype, sup.ax_dist, sup.th)
 		data += """
 			<!-- Joint Types are the same as Sup Types -->"""
 		#I think m1 can be discovered instead of stored.
@@ -93,7 +94,8 @@ valid over the whole height, so the max and min values presented here may be ina
 			data += """
 			<jt type="{}">
 				<axd>{}</axd>
-			</jt>""".format(jt.stype, jt.axd(self))
+				<th>{}</th>
+			</jt>""".format(jt.stype, jt.axd(self), jt.th)
 		data += """
 			<!-- Ld Type= 0:Point, 1:Distributed -->"""
 		for p in self.loads:
@@ -250,7 +252,7 @@ valid over the whole height, so the max and min values presented here may be ina
 				c[0] += 1
 				c[1] += 1
 			c[2] += sc[2]
-		return c
+		return tuple(c)
 	
 	#Returns the degrees of freedom of the member (axial, perpindicular, th)
 	def d_of_f(self):
@@ -647,49 +649,6 @@ valid over the whole height, so the max and min values presented here may be ina
 		rep_text += "\n    | ultimate stress \u03C3_y = "+str(self.material["sig_u"]/1e6)+" MPa"
 		return rep_text
 	
-	#TO DO: FIX THIS
-	def axial_loads(self):
-		sup_axp = self.sup_axp()
-		if isinstance(sup_axp, str):
-			return sup_axp
-		assert sup_axp is True
-		isv = self.is_vert()
-		if isv == None:
-			return self.rep_err[2] #"Not Placed"
-		for i,s in enumerate(self.sup):
-			if s != None:
-				#Check which support has an axial restraint
-				if s.constraints()[isv]: #0-->x, 1-->y
-					fixed_end = i
-		loads = self.my_loads_pt()
-		#Sort starting at the free end
-		if fixed_end == 0:
-			loads.sort(key=lambda p:-p.ax_dist)
-			uv_2free = self.uv_axis()
-		elif fixed_end == 1:
-			loads.sort(key=lambda p:p.ax_dist)
-			uv_2free = -self.uv_axis()
-		#seg: [[xmin,xmax],internal P]
-		p_segments = []
-		p_internal = 0
-		prev_d = 0
-		for p in loads:
-			#The axial component of the load
-			p_ax = np.dot(p.get_comp(), uv_2free)
-			#d_2free = dist to free end
-			if fixed_end == 0:
-				d_2free = self.length - p.ax_dist
-			if fixed_end == 1:
-				d_2free = p.ax_dist
-			#Don't define a segment smaller than eps (Happens @ ends)
-			if abs(prev_d - d_2free) > eps:
-				p_segments.append( ((prev_d, d_2free), p_internal) )
-			p_internal += p_ax
-			prev_d = d_2free #Is this in the right place?
-		if self.length - prev_d > eps:
-			p_segments.append( ((prev_d, self.length), p_internal) )
-		return p_segments
-	
 	#Return internal axial loads as a function of 'd'.
 	#Convention: tension is positive.
 	def axial_loads_sym(self):
@@ -732,76 +691,54 @@ valid over the whole height, so the max and min values presented here may be ina
 			return V
 		tau = -V * self.xsection.Q_div_Ib(h)
 		return (tau, self.xsection.Q_domain())
-	
-	def axial_stress(self):
-		p_segments = self.axial_loads()
-		if isinstance(p_segments, str):
-		#if p_segments in self.rep_err:
-			return p_segments
-		s_segments = []
-		xA = self.xarea
-		#max_s = ((0,0),0,0)
-		#min_s = ((0,0),0,0)
-		for ps in p_segments:
-			domain,p = ps
-			sig = p/xA
-			ss = (domain, p, sig)
-			#if sig > max_s[1]:
-			#	max_s = ss
-			#if sig < min_s[1]:
-			#	min_s = ss
-			s_segments.append(ss)
-		return s_segments# (p_segments, s_segments, min_s, max_s)
-	
-	def axial_strain(self):
-		s_segments = self.axial_stress()
-		if isinstance(s_segments, str):
-		#if s_segments in self.rep_err:
-			return s_segments
-		eps_segments = []
-		for s in s_segments:
-			domain, p, sig = s
-			eps = sig / self.E
-			eps_segments.append( (domain, p, sig, eps) )
-		return eps_segments
-	
-	#Old, non-sym function
+		
+	#Report of only the stress and strain due to axial loads
 	def axial_stress_rep(self):
-		axeps = self.axial_strain()
-		if isinstance(axeps, str):
-		#if axeps in self.rep_err:
-			return axeps
-		max_s = ((0,0), 0, 0, 0)
-		min_s = ((0,0), 0, 0, 0)
-		for seg in axeps:
-			#domain, p, sig, eps = seg
-			if seg[1] > max_s[1]:
-				max_s = seg
-			if seg[1] < min_s[1]:
-				min_s = seg
-		rep_text = "Measuring distance 'x' (in m) from the free end of the member,"
-		for seg in axeps:
-			domain, p, sig, eps = seg
-			rep_text += "\nfor x \u03F5 "+coords_str(domain[0],domain[1])+", "
-			rep_text += "tension = "+N_to_kN_str(p)+ ", "
-			rep_text += "\u03C3 = "+Pa_to_MPa_str(sig)+ ", "
-			rep_text += "\u03B5 = "+str(sigfig(eps,4))
-		if max_s[1] > 0:
-			rep_text += "\nMax Tensile \u03C3 = "+Pa_to_MPa_str(max_s[2])
-			rep_text += " @ x \u03F5 "+coords_str(max_s[0][0],max_s[0][1])+", "
-			typer = round(max_s[2] / self.material["sig_y"] * 100, 2)
-			tuper = round(max_s[2] / self.material["sig_u"] * 100, 2)
+		P = self.axial_loads_sym()
+		if isinstance(P, str):
+			return P
+		
+		d = sym.symbols("d")
+		(Pmax, dPmax), (Pmin, dPmin) = max1d(P, d, (0, self.length))
+		
+		rep_text = "'d' is measured (in m) from end \"zero\" of the member."
+		if Pmax > 0:
+			rep_text += "\nMax tension is at "+m_str(dPmax)
+			rep_text += "\nMax tension = "+N_to_kN_str(Pmax)
+			Smax = Pmax/self.xarea
+			rep_text += "\nMax tensile stress \u03C3 = "+Pa_to_MPa_str(Smax)
+			typer = round(Smax / self.material["sig_y"] * 100, 3)
+			tuper = round(Smax / self.material["sig_u"] * 100, 3)
 			rep_text += "\nWhich is "+str(typer)+"% of the yield stress and "
 			rep_text += str(tuper)+"% of the ultimate stress."
-		if min_s[1] < 0:
-			rep_text += "\nMax Compressive \u03C3 = "+Pa_to_MPa_str(-min_s[2])
-			rep_text += " @ x \u03F5 "+coords_str(min_s[0][0],min_s[0][1])+", "
-			cyper = round(-min_s[2] / self.material["sig_y"] * 100, 2)
-			cuper = round(-min_s[2] / self.material["sig_u"] * 100, 2)
+			rep_text += "\nMax tensile strain \u03B5 = "+str(sigfig(Smax/self.E))
+		if Pmin < 0:
+			rep_text += "\nMax compression is at "+m_str(dPmin)
+			rep_text += "\nMax compression = "+N_to_kN_str(-Pmin)
+			Smin = Pmin/self.xarea
+			rep_text += "\nMax compressive stress \u03C3 = "+Pa_to_MPa_str(-Smin)
+			cyper = round(-Smin / self.material["sig_y"] * 100, 3)
+			cuper = round(-Smin / self.material["sig_u"] * 100, 3)
 			rep_text += "\nWhich is "+str(cyper)+"% of the yield stress and "
 			rep_text += str(cuper)+"% of the ultimate stress."
+			rep_text += "\nMax compressive strain \u03B5 = "+str(sigfig(-Smin/self.E))
 			rep_text += "\nThis evaluation does not consider buckling."
-		return rep_text
+		
+		#Make plot for P(d)
+		Pf = sym.lambdify(d, P)
+		if P.is_constant():
+			Pf = lambda d: 0*d + float(P)
+	
+		dax = np.linspace(0, self.length, self.d_resolution)
+		Pax = Pf(dax)
+		
+		fig, sp = plt.subplots()
+		sp.plot(dax, Pax, color="red")
+		sp.grid(True)
+		sp.set_title("Axial Load P (kN)")
+		sp.set(xlabel="Axial Distance d (m)")
+		
+		return (rep_text, fig)
 	
 	def buckling_rep(self):
 		sup_com = self.sup_axp()
@@ -887,7 +824,7 @@ valid over the whole height, so the max and min values presented here may be ina
 		d = sym.symbols("d")
 		Vf = sym.lambdify(d, V/1000)
 		Mf = sym.lambdify(d, M/1000)
-		dax = np.linspace(0, self.length, self.d_resolution);
+		dax = np.linspace(0, self.length, self.d_resolution)
 		Vax = Vf(dax)
 		Max = Mf(dax)
 		try:
@@ -943,9 +880,9 @@ valid over the whole height, so the max and min values presented here may be ina
 		tauf = sym.lambdify((d,h), tau, "numpy")
 		#Fix this for zero / constant functions. See VM_rep assertions
 		#This way it returns an array of the same size if arrays are passed
-		if isinstance(sig, sym.Integer):
+		if sig.is_constant():
 			sigf = lambda d,h: 0*d + float(sig)
-		if isinstance(tau, sym.Integer):
+		if tau.is_constant():
 			tauf = lambda d,h: 0*d + float(tau)
 		
 		#TEMP

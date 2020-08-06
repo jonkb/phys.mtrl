@@ -28,10 +28,12 @@
 			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->
 			<sup type="1">
 				<axd>0</axd>
+				<th>0</th>
 			</sup>
 			<!-- Joint Types are the same as Sup Types -->
 			<jt type="1">
 				<axd>0.5766059658773172</axd>
+				<th>0</th>
 			</jt>
 			<!-- Ld Type= 0:Point, 1:Distributed -->
 		</mem>
@@ -52,10 +54,12 @@
 			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->
 			<sup type="1">
 				<axd>0</axd>
+				<th>0</th>
 			</sup>
 			<!-- Joint Types are the same as Sup Types -->
 			<jt type="1">
 				<axd>0.6722222222222223</axd>
+				<th>0</th>
 			</jt>
 			<!-- Ld Type= 0:Point, 1:Distributed -->
 		</mem>

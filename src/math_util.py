@@ -9,10 +9,17 @@ grav = 9.81 #m/s^2
 
 #round x to n significant figures
 def sigfig(x, n=default_sigfig):
-	x_log10 = np.log10(abs(x))
-	x_log10 = np.nan_to_num(x_log10, nan=0, posinf=0, neginf=0)
-	round_dec = np.floor(-x_log10+n)
-	return np.round(x*10**round_dec) *10**-round_dec
+	if isinstance(x, np.ndarray):
+		#There seems to be a bug here that causes things like 1.234999999999999
+		x_log10 = np.log10(abs(x))	
+		x_log10 = np.nan_to_num(x_log10, nan=0, posinf=0, neginf=0)
+		round_dec = np.floor(-x_log10+n)
+		return np.round(x*10.**round_dec) * 10.**-round_dec
+	else:
+		if eps_round(x) == 0:
+			return 0
+		round_dec = int(-math.log10(abs(x))+n)
+		return round(x, round_dec)
 #Takes an iterable and rounds those elements that are very close to int
 #Use for a list, not for an np.array
 def eps_round_iter(A):
@@ -38,6 +45,8 @@ def Nm_to_kNm_str(Nm, n=default_sigfig):
 def Pa_to_MPa_str(P, n=default_sigfig):
 	M = P/1e6
 	return str(sigfig(M, n))+"MPa"
+def m_str(m, n=default_sigfig):
+	return str(sigfig(m, n))+"m"
 def coords_str(x,y, n=default_sigfig):
 	return "("+str(sigfig(x,n))+","+str(sigfig(y,n))+")"
 

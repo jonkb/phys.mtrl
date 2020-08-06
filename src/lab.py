@@ -449,8 +449,8 @@ class Lab:
 	
 	def place_support(self, mem, stype, xp=None, yp=None, axd=0, th=0):
 		if xp is None or yp is None:
-			x0, y0, x1, y1 = mem.get_pos()
-			xp, yp = self.coords_to_px((x0, y0) + mem.uv_axis()*axd)
+			xc, yc = mem.get_s0() + mem.uv_axis()*axd
+			xp, yp = self.coords_to_px(xc, yc)
 		stag = "sup"+str(self.tag_n)+'_m'+str(mem.img_ref)
 		self.tag_n += 1
 		if stype == 0:
@@ -477,7 +477,7 @@ class Lab:
 			self.place_joint(m0, m1, jtype, xp, yp, axd0, axd1, th)
 			self.set_add_mode(0)
 	
-	def load_joint(self, m, jtype, axd):
+	def load_joint(self, m, jtype, axd, th):
 		for m1 in self.members:
 			#print(475, m1, m, jtype, axd)
 			if m1 is m: continue
@@ -498,7 +498,7 @@ class Lab:
 				break
 		else:
 			#TO DO: load th!!!
-			self.place_joint(m, m1, jtype, xp, yp, axd0, axd1)
+			self.place_joint(m, m1, jtype, xp, yp, axd0, axd1, th)
 	
 	def place_joint(self, m0, m1, jtype, xp=None, yp=None, axd0=None, axd1=None, th=0):
 		if xp is None or yp is None:
@@ -536,8 +536,7 @@ class Lab:
 	
 	def place_load(self, mem, Px, Py, axd, xp=None, yp=None):
 		if xp is None or yp is None:
-			x0, y0, *_ = mem.get_pos()
-			xc, yc = np.array((x0, y0)) + axd*mem.uv_axis()
+			xc, yc = mem.get_s0 + axd*mem.uv_axis()
 			xp, yp = self.coords_to_px(xc, yc)
 		ltag = "ld_"+str(self.tag_n)
 		self.tag_n += 1

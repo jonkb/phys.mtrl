@@ -56,7 +56,7 @@ def open(lab):
 		mem_place = mem.find("place")
 		x0 = float(mem_place.find("x0").text)
 		y0 = float(mem_place.find("y0").text)
-		VH = mem_place.find("vh").text
+		th = float(mem_place.find("th").text)
 		L = float(mem_def.find("length").text)
 		matl = getattr(Materials, mem_def.find("material").text)
 		xsec = mem_def.find("xsec")
@@ -65,16 +65,17 @@ def open(lab):
 		regions = Region.reg_dict()
 		xsection = regions[xsec_reg](**xs_param)
 		m = Member(matl, xsection, L)
-		lab.place_member(m, xc=x0, yc=y0, vh=VH)
+		lab.place_member(m, xc=x0, yc=y0, th=th)
 		for sup in mem.findall("sup"):
 			stype = int(sup.attrib["type"])
 			axd = float(sup.find("axd").text)
-			side = 0 if axd == 0 else 1 #PATCH. Fix this inside lab.
-			lab.place_support(m, side, stype)
+			th = float(sup.find("th").text)
+			lab.place_support(m, stype, axd=axd, th=th)
 		for jt in mem.findall("jt"):
 			jtype = int(jt.attrib["type"])
 			axd = float(jt.find("axd").text)
-			jts.append((m, jtype, axd)) #To add later, after all members are down.
+			th = float(sup.find("th").text)
+			jts.append((m, jtype, axd, th)) #To add later, after all members are down.
 		for ld in mem.findall("ld"):
 			is_distr = int(ld.attrib["type"])
 			if is_distr:
