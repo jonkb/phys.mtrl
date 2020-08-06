@@ -23,7 +23,7 @@
 			<place>
 				<x0>0.20277777777777778</x0>
 				<y0>1.0</y0>
-				<th>0.0</vh>
+				<th>0.0</th>
 			</place>
 			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->
 			<sup type="1">
@@ -47,7 +47,7 @@
 			<place>
 				<x0>0.19722222222222222</x0>
 				<y0>0.6638888888888889</y0>
-				<th>30.0</vh>
+				<th>30.0</th>
 			</place>
 			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->
 			<sup type="1">

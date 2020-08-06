@@ -77,7 +77,7 @@ valid over the whole height, so the max and min values presented here may be ina
 			<place>
 				<x0>"""+str(self.x0)+"""</x0>
 				<y0>"""+str(self.y0)+"""</y0>
-				<th>"""+str(self.th)+"""</vh>
+				<th>"""+str(self.th)+"""</th>
 			</place>
 			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->"""
 		for sup in self.supports:
@@ -162,6 +162,10 @@ valid over the whole height, so the max and min values presented here may be ina
 			return (self.x0, self.y0, self.x1, self.y1)
 		return None
 	
+	#Return an np.array of the coordinates of s0 of the member.
+	def get_s0(self):
+		return np.array((self.x0, self.y0))
+	
 	def half_h(self):
 		y1_dom = self.xsection.y1_domain()
 		assert y1_dom[0] == -y1_dom[1]
@@ -236,11 +240,11 @@ valid over the whole height, so the max and min values presented here may be ina
 		c = np.array((0,0,0))
 		for s in self.supports:
 			sc = s.constraints()
-			if m_u.eps_round(math.sqrt(sc[0]**2+sc[1]**2)) == 1:
+			if eps_round(math.sqrt(sc[0]**2+sc[1]**2)) == 1:
 				del_th = s.th - self.th
 				#The eps_round does .999999999999999 --> 1
-				c[0] += abs(m_u.eps_round(math.cos(math.radians(del_th))))
-				c[1] += abs(m_u.eps_round(math.sin(math.radians(del_th))))
+				c[0] += abs(eps_round(math.cos(math.radians(del_th))))
+				c[1] += abs(eps_round(math.sin(math.radians(del_th))))
 				print("WARNING: member.py 257")
 			elif sc[0] == 1 and sc[1] == 1:
 				c[0] += 1
@@ -294,7 +298,7 @@ valid over the whole height, so the max and min values presented here may be ina
 	#Return a distributed load representing the weight of the member
 	def weight_dl(self):
 		q = grav*self.material["rho"]*self.xarea
-		wdl = Distr_Load(None, 0, -q, 0, 0, -q, self.length, self.is_vert())
+		wdl = Distr_Load(None, 0, -q, 0, 0, -q, self.length, self.th)
 		return wdl
 	
 	#Return a copy of acting loads. Include weight if we're counting weight.
@@ -303,6 +307,17 @@ valid over the whole height, so the max and min values presented here may be ina
 		if self.has_weight:
 			loads_c.append(self.weight_dl())
 		return loads_c
+	
+	#Return my_loads() after converting Distr_Loads to equivalent point loads.
+	def my_loads_pt(self):
+		loads = self.my_loads()
+		ptlds = []
+		for ld in loads:
+			if isinstance(ld, Distr_Load):
+				ptlds += ld.pt_equiv()
+			else:
+				ptlds.append(ld)
+		return ptlds
 	
 	#Returns two functions (of 'd') representing the sum of all distributed loads.
 	def sum_my_dl(self):
@@ -486,7 +501,7 @@ valid over the whole height, so the max and min values presented here may be ina
 			s_py = 0
 			s_m = 0
 			uv_ax = m.uv_axis()
-			for p in m.my_loads():
+			for p in m.my_loads_pt():
 				px,py = p.get_comp()
 				s_px += px
 				s_py += py
@@ -545,7 +560,7 @@ valid over the whole height, so the max and min values presented here may be ina
 		s_px = 0
 		s_py = 0
 		s_m = 0
-		for p in self.my_loads():
+		for p in self.my_loads_pt():
 			px,py = p.get_comp()
 			s_px += px
 			s_py += py
@@ -646,7 +661,7 @@ valid over the whole height, so the max and min values presented here may be ina
 				#Check which support has an axial restraint
 				if s.constraints()[isv]: #0-->x, 1-->y
 					fixed_end = i
-		loads = self.my_loads()
+		loads = self.my_loads_pt()
 		#Sort starting at the free end
 		if fixed_end == 0:
 			loads.sort(key=lambda p:-p.ax_dist)

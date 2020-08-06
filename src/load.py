@@ -72,22 +72,51 @@ class Distr_Load(Load):
 			self.axd0, self.xc1, self.yc1, self.axd1)
 		return data
 	def pt_equiv(self):
+		ptlds = []
 		L = self.axd1 - self.axd0
-		Px = self.xc0*L + (self.xc1-self.xc0)*L/2
-		Py = self.yc0*L + (self.yc1-self.yc0)*L/2
-		if self.isv:
-			if Px == 0:
-				axd = L/2 # axd Doesn't matter, since the force is alligned with mem axis
+		#TO DO: Check to see if this all works when it's backwards so L<0
+		assert L != 0
+		if L < 0:
+			print("WARNING: load.py 80: Not sure if this works backwards yet.")
+		
+		#break x-component into loads
+		if self.xc0 != 0 or self.xc1 != 0:
+			if np.sign(self.xc0) == -np.sign(self.xc1):
+				#Must be 2 loads, since the sign flipped. Otherwise the moment will be lost.
+				#axdi: axd of inflection point
+				axdi = self.axd0 + L*self.xc0/(self.xc0-self.xc1)
+				p0 = self.xc0*(axdi-self.axd0)/2
+				axdp0 = self.axd0 + (axdi-self.axd0)/3
+				ptlds.append(Load(self.tag, p0, 0, axdp0))
+				p1 = self.xc1*(self.axd1-axdi)/2
+				axdp1 = self.axd1 - (self.axd1-axdi)/3
+				ptlds.append(Load(self.tag, p1, 0, axdp1))
 			else:
-				axd = ( self.xc0*L**2/2 + (self.xc1-self.xc0)*L**2/3 ) / Px
-		else:
-			if Py == 0:
-				axd = L/2
+				p = (self.xc0+self.xc1)/2*L
+				axdp = self.axd0 + (self.xc0/2*L**2 + (self.xc1-self.xc0)/3*L**2)/p
+				ptlds.append(Load(self.tag, p, 0, axdp))
+		
+		#break y-component into loads
+		if self.yc0 != 0 or self.yc1 != 0:
+			if np.sign(self.yc0) == -np.sign(self.yc1):
+				#print(102, self.axd0, self.axd1, L, self.yc0, self.yc1)
+				axdi = self.axd0 + L*self.yc0/(self.yc0-self.yc1)
+				p0 = self.yc0*(axdi-self.axd0)/2
+				axdp0 = self.axd0 + (axdi-self.axd0)/3
+				ptlds.append(Load(self.tag, 0, p0, axdp0))
+				p1 = self.yc1*(self.axd1-axdi)/2
+				axdp1 = self.axd1 - (self.axd1-axdi)/3
+				ptlds.append(Load(self.tag, 0, p1, axdp1))
 			else:
-				axd = ( self.yc0*L**2/2 + (self.yc1-self.yc0)*L**2/3 ) / Py
-		ptl = Load(self.tag, Px, Py, self.axd0 + axd)
-		return ptl
+				p = (self.yc0+self.yc1)/2*L
+				axdp = self.axd0 + (self.yc0/2*L**2 + (self.yc1-self.yc0)/3*L**2)/p
+				ptlds.append(Load(self.tag, 0, p, axdp))
+				
+		return ptlds
+	
 	def get_comp(self):
+		print("WARNING load.py 117")
+		return "WARNING: Not sure what you mean"
 		ptl = self.pt_equiv()
 		return ptl.get_comp()
 	@property
@@ -122,16 +151,14 @@ class Distr_Load(Load):
 				lab.canv.create_oval(px - self.ball_rad, py - self.ball_rad, px + self.ball_rad, 
 					py + self.ball_rad, fill="red", outline="red", tags=self.tag)
 				continue
-			if self.isv:
-				ax = px
-				ay = py - lab.px_per_m*(axd-self.axd0)
-			else:
-				ax = px + lab.px_per_m*(axd-self.axd0)
-				ay = py
+			#ax, ay is the location of the arrowhead tip
+			ax = px + lab.px_per_m*(axd-self.axd0)*math.cos(math.radians(self.th))
+			ay = py - lab.px_per_m*(axd-self.axd0)*math.sin(math.radians(self.th))
+			#print(152, ax, ay, axd)
 			lab.canv.create_line(ax-pxc,ay-pyc,ax,ay, width=2, fill="red", tags=self.tag)
-			ux = pxc/Ll #Unit vector
-			uy = pyc/Ll
 			ah_l = self.ah_width*3
+			ux = pxc/Ll #Unit vector along arrow
+			uy = pyc/Ll
 			Trx = ax - ah_l*ux + self.ah_width/2*uy
 			Try = ay - ah_l*uy - self.ah_width/2*ux
 			Tlx = ax - ah_l*ux - self.ah_width/2*uy
@@ -142,12 +169,8 @@ class Distr_Load(Load):
 		q1xc, q1yc = lab.kN_to_px(self.xc1/1000, self.yc1/1000)
 		q0ax = px - q0xc
 		q0ay = py - q0yc
-		if self.isv:
-			q1ax = px - q1xc
-			q1ay = py - Ld*lab.px_per_m - q1yc
-		else:
-			q1ax = px + Ld*lab.px_per_m - q1xc
-			q1ay = py - q1yc
+		q1ax = px - q1xc + Ld*lab.px_per_m*math.cos(math.radians(self.th))
+		q1ay = py - q1yc - Ld*lab.px_per_m*math.sin(math.radians(self.th))
 		lab.canv.create_line(q0ax, q0ay, q1ax, q1ay, width=2, fill="red", tags=self.tag)
 	#Return two sympy functions for the load at a given axial d (Qx(d), Qy(d))
 	def to_symf(self):
@@ -165,3 +188,4 @@ class Moment(Load):
 		self.my = my
 		self.mz = mz
 	#To Do: draw function (depends on if is in plane(mx,y) or out)
+	#To Do: interface for placing applied Moments

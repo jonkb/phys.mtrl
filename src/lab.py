@@ -561,10 +561,8 @@ class Lab:
 			else:
 				(q0x, q0y), (q1x, q1y) = self.add_load_bar.get_P()
 				axd0 = self.dlq0_temp.ax_dist
-				if mem.is_vert():
-					yp += (ax_dist - axd0)*self.px_per_m
-				else:
-					xp -= (ax_dist - axd0)*self.px_per_m
+				xc, yc = mem.get_s0() + axd0*mem.uv_axis()
+				xp, yp = self.coords_to_px(xc, yc)
 				self.place_distr_load(mem, q0x, q0y, axd0, q1x, q1y, ax_dist, xp, yp)
 				self.canv.delete(self.dlq0_temp.tag)
 				self.dlq0_temp = None
@@ -572,14 +570,13 @@ class Lab:
 	
 	def place_distr_load(self, mem, q0x, q0y, axd0, q1x, q1y, axd1, xp=None, yp=None):
 		if xp is None or yp is None:
-			x0, y0, *_ = mem.get_pos()
-			xc, yc = np.array((x0, y0)) + axd0*mem.uv_axis()
+			xc, yc = mem.get_s0() + axd0*mem.uv_axis()
 			xp, yp = self.coords_to_px(xc, yc)
-		isv = mem.is_vert()
+		th = mem.th
 		dltag = "dl_"+str(self.tag_n)
 		self.tag_n += 1
 		#+str(mem.img_ref)+"_d"+str(self.dlq0_temp.ax_dist)+"-"+str(ax_dist)
-		dl = Distr_Load(dltag, q0x, q0y, axd0, q1x, q1y, axd1, isv)
+		dl = Distr_Load(dltag, q0x, q0y, axd0, q1x, q1y, axd1, th)
 		mem.loads.append(dl)
 		dl.draw(self, xp, yp)
 	

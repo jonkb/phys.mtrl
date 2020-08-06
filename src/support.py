@@ -79,28 +79,21 @@ class Slot(Support):
 			m_u.eps_round(math.sin(math.radians(self.th))), 0)
 	
 	def draw_track(self, canv, x, y):
-		if self.isv:
-			canv.create_arc(x-self.R, y-3*self.R, x+self.R, y-self.R, extent=180, start=0, 
-				width=2, style="arc", tags=self.tag)
-			canv.create_arc(x-self.R, y+self.R, x+self.R, y+3*self.R, extent=180, start=180, 
-				width=2, style="arc", tags=self.tag)
-			canv.create_line(x-self.R, y-2*self.R, x-self.R, y+2*self.R, width=2, tags=self.tag)
-			canv.create_line(x+self.R, y-2*self.R, x+self.R, y+2*self.R, width=2, tags=self.tag)
-		else:
-			#Fill - Maybe add a stipple pattern, though that's not supported for ovals...
-			#canv.create_arc(x-3*self.R, y-self.R, x-self.R, y+self.R, extent=180, start=90, 
-			#	outline="", fill="white", tags=self.tag)
-			#canv.create_arc(x+self.R, y-self.R, x+3*self.R, y+self.R, extent=180, start=-90, 
-			#	outline="", fill="white", tags=self.tag)
-			#canv.create_rectangle(x-2*self.R, y-self.R, x+2*self.R, y+self.R, 
-			#	outline="", fill="white", tags=self.tag)
-			#Outline
-			canv.create_arc(x-3*self.R, y-self.R, x-self.R, y+self.R, extent=180, start=90, 
-				width=2, style="arc", tags=self.tag)
-			canv.create_arc(x+self.R, y-self.R, x+3*self.R, y+self.R, extent=180, start=-90, 
-				width=2, style="arc", tags=self.tag)
-			canv.create_line(x-2*self.R, y-self.R, x+2*self.R, y-self.R, width=2, tags=self.tag)
-			canv.create_line(x-2*self.R, y+self.R, x+2*self.R, y+self.R, width=2, tags=self.tag)
+		Rsinth = self.R*math.sin(math.radians(self.th))
+		Rcosth = self.R*math.cos(math.radians(self.th))
+		so0x = x - 2*Rsinth
+		so0y = y - 2*Rcosth
+		so1x = x + 2*Rsinth
+		so1y = y + 2*Rcosth
+		canv.create_arc(so0x-self.R, so0y-self.R, so0x+self.R, so0y+self.R, extent=180, 
+			start=self.th, width=2, style="arc", tags=self.tag)
+		canv.create_arc(so1x-self.R, so1y-self.R, so1x+self.R, so1y+self.R, extent=180, 
+			start=180+self.th, width=2, style="arc", tags=self.tag)
+		canv.create_line(so0x+Rcosth, so0y-Rsinth, so1x+Rcosth, so1y-Rsinth, 
+			width=2, tags=self.tag)
+		canv.create_line(so0x-Rcosth, so0y+Rsinth, so1x-Rcosth, so1y+Rsinth, 
+			width=2, tags=self.tag)
+	
 	def draw(self, canv, x, y):
 		self.draw_track(canv, x, y)
 		#Pin
@@ -119,13 +112,12 @@ class Thrust(Slot):
 	def draw(self, canv, x, y):
 		self.draw_track(canv, x, y)
 		#Pins
-		if self.isv:
-			canv.create_oval(x-self.R+self.gap, y-2*self.R+self.gap, x+self.R-self.gap, 
-				y-self.gap, fill="black", tags=self.tag)
-			canv.create_oval(x-self.R+self.gap, y+self.gap, x+self.R-self.gap, 
-				y+2*self.R-self.gap, fill="black", tags=self.tag)
-		else:
-			canv.create_oval(x-2*self.R+self.gap, y-self.R+self.gap, x-self.gap, 
-				y+self.R-self.gap, fill="black", tags=self.tag)
-			canv.create_oval(x+self.gap, y-self.R+self.gap, x+2*self.R-self.gap, 
-				y+self.R-self.gap, fill="black", tags=self.tag)
+		Rsinth = self.R*math.sin(math.radians(self.th))
+		Rcosth = self.R*math.cos(math.radians(self.th))
+		p0x = x - Rsinth
+		p0y = y - Rcosth
+		p1x = x + Rsinth
+		p1y = y + Rcosth
+		Rpin = self.R - self.gap
+		canv.create_oval(p0x-Rpin, p0y-Rpin, p0x+Rpin, p0y+Rpin, fill="black", tags=self.tag)
+		canv.create_oval(p1x-Rpin, p1y-Rpin, p1x+Rpin, p1y+Rpin, fill="black", tags=self.tag)
