@@ -20,6 +20,7 @@ def sigfig(x, n=default_sigfig):
 			return 0
 		round_dec = int(-math.log10(abs(x))+n)
 		return round(x, round_dec)
+
 #Takes an iterable and rounds those elements that are very close to int
 #Use for a list, not for an np.array
 def eps_round_iter(A):
@@ -27,28 +28,39 @@ def eps_round_iter(A):
 		if (abs(e)+eps/2) % 1 < eps:
 			A[i] = round(e)
 	return A
+
 def eps_round(n):
 	if (abs(n)+eps/2) % 1 < eps:
 		n = round(n)
 	return n
+
+#Check if two numbers are equal, allowing for small errors
+def eps_eq(a, b):
+	return abs(a - b) < eps
+
 #Use for a list, not for an np.array
 def sigfig_iter(A, n=default_sigfig):
 	for i,e in enumerate(A):
 		A[i] = sigfig(e,n)
 	return A
+
 def N_to_kN_str(N, n=default_sigfig):
-	k = N/1e3
-	return str(sigfig(k, n))+"kN"
+	k = float(N/1e3)
+	return str(sigfig(k, n)) + "kN"
+
 def Nm_to_kNm_str(Nm, n=default_sigfig):
-	km = Nm/1e3
+	km = float(Nm/1e3)
 	return str(sigfig(km, n))+"kN-m"
+
 def Pa_to_MPa_str(P, n=default_sigfig):
-	M = P/1e6
+	M = float(P/1e6)
 	return str(sigfig(M, n))+"MPa"
+
 def m_str(m, n=default_sigfig):
-	return str(sigfig(m, n))+"m"
+	return str(sigfig(float(m), n))+"m"
+
 def coords_str(x,y, n=default_sigfig):
-	return "("+str(sigfig(x,n))+","+str(sigfig(y,n))+")"
+	return "("+str(sigfig(float(x),n))+","+str(sigfig(float(y),n))+")"
 
 #Returns the limits of the subdomains of an expression that may contain piecewise
 def pw_sdls(f, x):
@@ -69,6 +81,7 @@ def pw_sdls(f, x):
 			rec_search(arg)
 	rec_search(f)
 	return lims
+
 #Returns the roots of a piecewise expression
 def pw_roots(f, x):
 	roots = []
@@ -102,9 +115,14 @@ def pw_roots(f, x):
 	else:
 		roots = sym.solve(f, x)
 	return roots
-#Return a simplified version of the piecewise function, restricted to the given domain
-def pw_strip(f, dom):
-	pass
+
+#Return a simplified version of the function, restricted to the given domain
+#dom = (xmin, xmax)
+def f_restrict(f, x, dom, lims=True):
+	condition = (x>=dom[0]) & (x<=dom[1]) if lims else (x>dom[0]) & (x<dom[1])
+	domf = sym.Piecewise((1, condition))
+	return (f*domf).simplify()
+
 #Returns the discontinuities in the function along the interval
 #Supports everything that sym.singularities supports as well as Piecewise
 def discontinuities(f, x, dom=None):
@@ -262,6 +280,8 @@ def rot_pts(th, *pts, origin=(0,0)):
 
 
 
+#TESTING:
+
 def test_maxmin():
 	x = sym.symbols('x')
 	f = sym.sin(x)
@@ -302,6 +322,7 @@ def test_solve_pw():
 #IDEA: first strip Piecewise of anything outside of the domain of interest
 #Piecewise((x, x < L and x > 0), (0, True)) --> f = x (on (0,L))
 #I think all the boundaries should be considered anyway
+#	--> Use f_restrict()
 
 #Another problem is when an interval is constant "solve cannot represent interval solutions"
 

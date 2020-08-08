@@ -15,6 +15,10 @@ class Support:
 		self.ax_dist = ax_dist
 		self.th = th
 	
+	def __str__(self):
+		return "{} support ({}) @axd={}".format(type(self).__name__, 
+			self.tag, m_u.m_str(self.ax_dist))
+	
 	#The *args is used by Joints; they care which member is asking.
 	def axd(self, *args):
 		return self.ax_dist
@@ -31,6 +35,9 @@ class Fixed(Support):
 	stype = 0
 	def __init__(self, tag, ax_dist=0, th=0):
 		super().__init__(tag, ax_dist, th)
+	
+	#def __str__(self):
+	#	return "Fixed Support ({}) @axd={}".format(self.tag, self.ax_dist)
 	
 	def constraints(self):
 		return (1,1,1)
@@ -57,8 +64,13 @@ class Pin(Support):
 	stype = 1
 	def __init__(self, tag, ax_dist=0, th=0):
 		super().__init__(tag, ax_dist, th)
+	
+	#def __str__(self):
+	#	return "Pin Support ({}) @axd={}".format(self.tag, self.ax_dist)
+	
 	def constraints(self):
 		return (1,1,0)
+	
 	def draw(self, canv, x, y):
 		pts = [(x,y), (x-self.img_w,y-self.img_w/2), (x-self.img_w,y+self.img_w/2)]
 		rotated = m_u.rot_pts(self.th, *pts, origin=(x,y)).flatten()
@@ -70,11 +82,15 @@ class Slot(Support):
 	def __init__(self, tag, ax_dist=0, th=0):
 		super().__init__(tag, ax_dist, th)
 	
+	#def __str__(self):
+	#	return "Slot Support ({}) @axd={}".format(self.tag, self.ax_dist)
+	
 	@property
 	def stype(self):
 		return 2
 	
 	def constraints(self):
+		#abs() ? Or something else?
 		return (m_u.eps_round(math.cos(math.radians(self.th))), 
 			m_u.eps_round(math.sin(math.radians(self.th))), 0)
 	
@@ -103,12 +119,18 @@ class Slot(Support):
 class Thrust(Slot):
 	def __init__(self, tag, ax_dist=0, th=0):
 		super().__init__(tag, ax_dist, th)
+	
+	#def __str__(self):
+	#	return "Thrust Support ({}) @axd={}".format(self.tag, self.ax_dist)
+	
 	@property
 	def stype(self):
 		return 3
+	
 	def constraints(self):
 		scon = super().constraints()
 		return (scon[0], scon[1], 1)
+	
 	def draw(self, canv, x, y):
 		self.draw_track(canv, x, y)
 		#Pins

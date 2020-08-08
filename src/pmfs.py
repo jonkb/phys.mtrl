@@ -74,7 +74,7 @@ def open(lab):
 		for jt in mem.findall("jt"):
 			jtype = int(jt.attrib["type"])
 			axd = float(jt.find("axd").text)
-			th = float(sup.find("th").text)
+			th = float(jt.find("th").text)
 			jts.append((m, jtype, axd, th)) #To add later, after all members are down.
 		for ld in mem.findall("ld"):
 			is_distr = int(ld.attrib["type"])

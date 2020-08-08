@@ -22,10 +22,13 @@
 			<place>
 				<x0>0.6027777777777777</x0>
 				<y0>0.20277777777777778</y0>
-				<vh>V</vh>
+				<th>90</th>
 			</place>
 			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->
-			<sup type="0" end="0"/>
+			<sup type="0">
+				<axd>0</axd>
+				<th>90</th>
+			</sup>
 			<!-- Ld Type= 0:Point, 1:Distributed -->
 			<ld type="0">
 				<xc>1000.0</xc>
@@ -45,10 +48,13 @@
 			<place>
 				<x0>1.4</x0>
 				<y0>0.2</y0>
-				<vh>V</vh>
+				<th>90</th>
 			</place>
 			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->
-			<sup type="0" end="0"/>
+			<sup type="0">
+				<axd>0</axd>
+				<th>90</th>
+			</sup>
 			<!-- Ld Type= 0:Point, 1:Distributed -->
 			<ld type="0">
 				<xc>1000.0</xc>
@@ -67,10 +73,13 @@
 			<place>
 				<x0>1.0027777777777778</x0>
 				<y0>0.20277777777777778</y0>
-				<vh>V</vh>
+				<th>90</th>
 			</place>
 			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->
-			<sup type="0" end="0"/>
+			<sup type="0">
+				<axd>0</axd>
+				<th>90</th>
+			</sup>
 			<!-- Ld Type= 0:Point, 1:Distributed -->
 			<ld type="0">
 				<xc>1000.0</xc>

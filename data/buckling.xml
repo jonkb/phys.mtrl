@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- This is a lab file created with phys.mtrl -->
+<!-- https://github.com/jonkb/phys.mtrl -->
+
+<lab version="0.2.0">
+	<options>
+		<c_wd>755</c_wd>
+		<c_ht>518</c_ht>
+		<px_per_m>360</px_per_m>
+		<subdivision>5</subdivision>
+		<px_per_kN>20.0</px_per_kN>
+	</options>
+	<members>
+		<mem>
+			<def>
+				<material>steel</material>
+				<xsec region="circle">
+					<radius>0.02</radius>
+				</xsec>
+				<length>0.7</length>
+			</def>
+			<place>
+				<x0>0.3111111111111111</x0>
+				<y0>0.6111111111111112</y0>
+				<th>30.0</th>
+			</place>
+			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->
+			<sup type="0">
+				<axd>0.0</axd>
+				<th>30.0</th>
+			</sup>
+			<!-- Joint Types are the same as Sup Types -->
+			<!-- Ld Type= 0:Point, 1:Distributed -->
+			<ld type="0">
+				<xc>-3464.101615137755</xc>
+				<yc>-2000.0</yc>
+				<axd>0.7</axd>
+			</ld>
+		</mem>
+		<mem>
+			<def>
+				<material>steel</material>
+				<xsec region="circle">
+					<radius>0.02</radius>
+				</xsec>
+				<length>0.7</length>
+			</def>
+			<place>
+				<x0>0.35555555555555557</x0>
+				<y0>0.28055555555555556</y0>
+				<th>20.0</th>
+			</place>
+			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->
+			<sup type="0">
+				<axd>0.0</axd>
+				<th>20.0</th>
+			</sup>
+			<!-- Joint Types are the same as Sup Types -->
+			<!-- Ld Type= 0:Point, 1:Distributed -->
+			<ld type="0">
+				<xc>-3758.7704831436336</xc>
+				<yc>-1368.0805733026748</yc>
+				<axd>0.7</axd>
+			</ld>
+		</mem>
+		<mem>
+			<def>
+				<material>steel</material>
+				<xsec region="circle">
+					<radius>0.02</radius>
+				</xsec>
+				<length>0.7</length>
+			</def>
+			<place>
+				<x0>1.175</x0>
+				<y0>0.24444444444444444</y0>
+				<th>45.0</th>
+			</place>
+			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->
+			<sup type="1">
+				<axd>0</axd>
+				<th>45.0</th>
+			</sup>
+			<sup type="2">
+				<axd>0.7</axd>
+				<th>-45.0</th>
+			</sup>
+			<!-- Joint Types are the same as Sup Types -->
+			<!-- Ld Type= 0:Point, 1:Distributed -->
+			<ld type="0">
+				<xc>-2828.42712474619</xc>
+				<yc>-2828.42712474619</yc>
+				<axd>0.7</axd>
+			</ld>
+		</mem>
+		<mem>
+			<def>
+				<material>steel</material>
+				<xsec region="circle">
+					<radius>0.02</radius>
+				</xsec>
+				<length>0.7</length>
+			</def>
+			<place>
+				<x0>1.1388888888888888</x0>
+				<y0>0.7416666666666667</y0>
+				<th>45.0</th>
+			</place>
+			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->
+			<sup type="2">
+				<axd>0.7</axd>
+				<th>135.0</th>
+			</sup>
+			<sup type="1">
+				<axd>0</axd>
+				<th>45.0</th>
+			</sup>
+			<!-- Joint Types are the same as Sup Types -->
+			<!-- Ld Type= 0:Point, 1:Distributed -->
+			<ld type="0">
+				<xc>-2828.42712474619</xc>
+				<yc>-2828.42712474619</yc>
+				<axd>0.7</axd>
+			</ld>
+		</mem>
+	</members>
+</lab>

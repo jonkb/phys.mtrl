@@ -14,14 +14,22 @@ class Joint:
 			(_, axd0, axd1) = intsx
 		self.axd0 = axd0
 		self.axd1 = axd1
+	
+	def __str__(self):
+		assert self.tag is not None
+		return "{} joint ({}) @axd0={}".format(type(self).__name__, 
+			self.tag, sup.m_u.m_str(self.axd0))
+	
 	def other_mem(self, m):
 		return self.m0 if m is self.m1 else self.m1
+		
 	def axd(self, m):
 		if m is self.m0:
 			return self.axd0
 		if m is self.m1:
 			return self.axd1
 		return None
+		
 	def jtype(self):
 		return self.stype
 
@@ -30,7 +38,7 @@ class Fixed(Joint, sup.Fixed):
 		Joint.__init__(self, m0, m1, axd0, axd1)
 		sup.Fixed.__init__(self, tag)
 	def draw(self, canv, x, y):
-		r = self.img_w * 0.75
+		r = self.img_w * 0.5
 		canv.create_rectangle(x-r, y-r, x+r, y+r, tags=self.tag)
 		canv.create_line(x-r, y-r, x+r, y+r, tags=self.tag)
 		canv.create_line(x-r, y+r, x+r, y-r, tags=self.tag)

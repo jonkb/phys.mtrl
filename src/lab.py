@@ -12,6 +12,7 @@ import joint
 from load import *
 from tk_wig import Txt_wig, Tk_rt
 import pmfs
+import math_util as m_u
 
 
 class Lab:
@@ -235,7 +236,7 @@ class Lab:
 	
 	#Returns: ((xp0,yp0), (m0, m0_axd), (m1, m1_axd))
 	def snap_to_intsx(self, xp, yp):
-		#Include another case here for if they are in the same axis.
+		#To Do: Include another case here for if they are in the same axis.
 		#This could be doable, esp. after adding the snap grid.
 		#Then m.intersection() will probably return None.
 		((xp0,yp0), m0, m0_axd) = self.snap_to_mem_axis(xp, yp)
@@ -244,7 +245,10 @@ class Lab:
 		((xp1,yp1), m1, m1_axd) = self.snap_to_mem_axis(xp0, yp0, exclude=m0)
 		if m1 is None:
 			return ((xp0,yp0), (m0, m0_axd), (None, None))
-		((xc, yc), axd0, axd1) = m0.intersection(m1)
+		intsx = m0.intersection(m1)
+		if intsx is None:
+			return ((xp0,yp0), (m0, m0_axd), (None, None))
+		((xc, yc), axd0, axd1) = intsx
 		(xp, yp) = self.coords_to_px(xc,yc)
 		return ((xp, yp), (m0, axd0), (m1, axd1))
 	
@@ -277,6 +281,9 @@ class Lab:
 				self.canv.move(s.tag, newx-m.oldx, newy-m.oldy)
 			for l in m.loads:
 				self.canv.move(l.tag, newx-m.oldx, newy-m.oldy)
+			for j in m.joints:
+				if j.m0 is m: #Only move the joint once
+					self.canv.move(j.tag, newx-m.oldx, newy-m.oldy)
 		self.redraw_grid()
 	
 	def redraw_grid(self):
@@ -486,18 +493,17 @@ class Lab:
 			((xc, yc), axd0, axd1) = intsx
 			break
 		else:
-			return "481: Not a valid intersection of members."
+			raise Exception("481: Not a valid intersection of members.")
 		(xp, yp) = self.coords_to_px(xc, yc)
 		#Check if the joint object already exists
 		for j in m1.joints:
-			if j.other_mem(m1) is m and j.axd(m1) == axd1:
-				assert j.axd(m) == axd0
+			if j.other_mem(m1) is m and m_u.eps_eq(j.axd(m1), axd1):
+				assert m_u.eps_eq(j.axd(m), axd0)
 				if not (j in m.joints):
 					print(491, j) #I don't think this should ever happen
 					m.joints.append(j)
 				break
 		else:
-			#TO DO: load th!!!
 			self.place_joint(m, m1, jtype, xp, yp, axd0, axd1, th)
 	
 	def place_joint(self, m0, m1, jtype, xp=None, yp=None, axd0=None, axd1=None, th=0):
@@ -507,7 +513,7 @@ class Lab:
 				return "Error: No intersection"
 			((xc, yc), axd0, axd1) = intsx
 			(xp, yp) = self.coords_to_px(xc, yc)
-		jtag = "jt"+str(self.tag_n)+'_m0'+str(m0.img_ref)+'_m1'+str(m1.img_ref)
+		jtag = "jt"+str(self.tag_n)+'_m'+str(m0.img_ref)+'_m'+str(m1.img_ref)
 		self.tag_n += 1
 		if jtype == 0:
 			jt = joint.Fixed(jtag, m0, m1, axd0, axd1)
@@ -536,7 +542,7 @@ class Lab:
 	
 	def place_load(self, mem, Px, Py, axd, xp=None, yp=None):
 		if xp is None or yp is None:
-			xc, yc = mem.get_s0 + axd*mem.uv_axis()
+			xc, yc = mem.get_s0() + axd*mem.uv_axis()
 			xp, yp = self.coords_to_px(xc, yc)
 		ltag = "ld_"+str(self.tag_n)
 		self.tag_n += 1
@@ -596,7 +602,7 @@ class Lab:
 		(xp,yp), lsj = self.snap_to_lsj(x,y)
 		if lsj != None:
 			cb = self.sel_lsj_cb
-			self.sel_mem_cb = None
+			self.sel_lsj_cb = None
 			self.canv.delete(self.sel_txt)
 			cb(lsj)
 	
@@ -650,6 +656,7 @@ class Lab:
 			self.canv.delete(s.tag)
 		for j in mem.joints:
 			self.canv.delete(j.tag)
+			j.other_mem(mem).joints.remove(j)
 		self.canv.delete(mem.img_ref)
 		self.members.remove(mem)
 	
@@ -757,7 +764,7 @@ is not attached to any of the members in the lab."
 	
 	def popup_report(self, mem, rtype):
 		popup = Tk_rt(mem.eval_names[rtype]+" Report")
-		loading_lbl = tk.Label(popup, text="LOADING", padx=48, pady=24)
+		loading_lbl = tk.Label(popup, text="CALCULATING", padx=48, pady=24)
 		loading_lbl.pack()
 		def add_report():
 			report = mem.gen_report(rtype)

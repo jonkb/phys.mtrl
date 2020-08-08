@@ -9,7 +9,7 @@ from math_util import *
 
 
 
-#WARNING: reactions() and axial_loads() are broken under the new support system!!!
+#WARNING: reactions() and axial_loads() are broken under the new system!!!
 
 
 
@@ -29,12 +29,14 @@ at the neutral axis, so the max and min values presented here may be inaccurate.
 valid over the whole height, so the max and min values presented here may be inaccurate.\n"]
 	
 	#Names of each Evaluation Report
+	#Match this to the dictionary in __init__
 	eval_names = {
 		0: "Mass Properties",
-		1: "Axial Stress and Strain",
-		2: "Shear and Moment",
-		3: "Axial and Shear Stress",
-		4: "Euler Buckling"
+		1: "Static Equilibrium",
+		2: "Axial Stress and Strain",
+		3: "Shear and Moment",
+		4: "Axial and Shear Stress",
+		5: "Euler Buckling"
 	}
 	
 	def __init__(self, material, xsection, length):
@@ -51,10 +53,11 @@ valid over the whole height, so the max and min values presented here may be ina
 		
 		self.eval_reports = {
 			0: self.mass_prop_rep,
-			1: self.axial_stress_rep,
-			2: self.VM_rep,
-			3: self.sig_tau_rep,
-			4: self.buckling_rep
+			1: self.STEQ_rep,
+			2: self.axial_stress_rep,
+			3: self.VM_rep,
+			4: self.sig_tau_rep,
+			5: self.buckling_rep
 		}
 	
 	def __repr__(self):
@@ -79,7 +82,7 @@ valid over the whole height, so the max and min values presented here may be ina
 				<y0>"""+str(self.y0)+"""</y0>
 				<th>"""+str(self.th)+"""</th>
 			</place>
-			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->"""
+			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot, 3: Thrust -->"""
 		for sup in self.supports:
 			data += """
 			<sup type="{}">
@@ -148,6 +151,15 @@ valid over the whole height, so the max and min values presented here may be ina
 	def weight(self):
 		return self.mass * grav
 	
+	#Return a string representation of the given support or joint,
+	#as it relates to this member.
+	def sj_str(self, sj):
+		s = type(sj).__name__
+		s += " joint" if isinstance(sj, jt.Joint) else " support"
+		s += " ("+sj.tag+")"
+		s += " @axd="+m_str(sj.axd(self))
+		return s
+	
 	#Define the position in the xy plane. Units are meters.
 	#th is in degrees
 	def place(self, x, y, th):
@@ -201,7 +213,9 @@ valid over the whole height, so the max and min values presented here may be ina
 		#print(209, N)
 		if N[0,0] < 0 or N[0,0] > self.length: return None
 		if N[1,0] < 0 or N[1,0] > mem.length: return None
-		intsx = s00 + uv0*N[0]
+		intsx = s00 + uv0*N[0,0]
+		if axd is not None and not eps_eq(N[0,0], axd):
+			return None
 		return ((intsx[0,0], intsx[1,0]), N[0,0], N[1,0])
 	
 	#Checks if there is a Load, Support, or Joint attached to this member
@@ -238,6 +252,7 @@ valid over the whole height, so the max and min values presented here may be ina
 	#Return a tuple representing the constraints on the member in each direction.
 	#It is in this order: (axial, perpindicular, th)
 	#I'm not sure if this will work correctly with the new angles.
+	#Correction: It does not work with joints!
 	def constraints(self):
 		c = np.array((0,0,0))
 		for s in self.supports:
@@ -252,6 +267,7 @@ valid over the whole height, so the max and min values presented here may be ina
 				c[0] += 1
 				c[1] += 1
 			c[2] += sc[2]
+		print(269, c)
 		return tuple(c)
 	
 	#Returns the degrees of freedom of the member (axial, perpindicular, th)
@@ -334,6 +350,7 @@ valid over the whole height, so the max and min values presented here may be ina
 	
 	#Takes my_loads() and sums on the reactions at supports and joints
 	def my_P_and_R(self):
+		#print(337)
 		P = self.my_loads()
 		reactions = self.static_eq()
 		if isinstance(reactions, str):
@@ -347,9 +364,9 @@ valid over the whole height, so the max and min values presented here may be ina
 			if xym[1] == 1:
 				P.append(Load(None, 0, R[i], sj.axd(self)))
 				i += 1
-			if (0 < xym[0] < 1) and (0 < xym[1] < 1):
+			if (0 < abs(xym[0]) < 1) and (0 < abs(xym[1]) < 1):
 				#Support at an angle
-				assert eps_round(math.sqrt(xym[0]**2+xym[1]**1)) == 1
+				assert eps_round(math.sqrt(xym[0]**2+xym[1]**2)) == 1
 				#Fx=R*cos(th); Fy=R*sin(th) -- One unknown
 				P.append(Load(None, R[i]*xym[0], R[i]*xym[1], sj.axd(self)))
 				i += 1
@@ -411,6 +428,7 @@ valid over the whole height, so the max and min values presented here may be ina
 			sj_axd = sj.axd(self)
 		sj_con = sj.constraints() #Format: (x:0/1,y:0/1,th:0/1)
 		#print(359, sj_con, self, sj)
+		#To Do: See if these next two are just special cases of the third
 		if sj_con[0] == 1:
 			v0 = np.array([[1.], [0.], [0.]])
 			v0[2, 0] = -sj_axd*uv_ax[1] #F_x influences M
@@ -419,11 +437,13 @@ valid over the whole height, so the max and min values presented here may be ina
 			v1 = np.array([[0.], [1.], [0.]])
 			v1[2, 0] = sj_axd*uv_ax[0] #F_y influences M
 			mat = np.concatenate((mat, v1), axis=1)
-		if (0 < sj_con[0] < 1) and (0 < sj_con[1] < 1):
+		if (0 < abs(sj_con[0]) < 1) and (0 < abs(sj_con[1]) < 1):
 			#Support at an angle
-			assert eps_round(math.sqrt(sj_con[0]**2+sj_con[1]**1)) == 1
+			assert eps_round(math.sqrt(sj_con[0]**2+sj_con[1]**2)) == 1
 			#Fx=R*cos(th); Fy=R*sin(th) -- One unknown
 			v = np.array([[sj_con[0]], [sj_con[1]], [0.]])
+			v[2, 0] = -sj_axd*uv_ax[1]*sj_con[0] + sj_axd*uv_ax[0]*sj_con[1]
+			mat = np.concatenate((mat, v), axis=1)
 		if sj_con[2]:
 			v2 = np.array([[0.], [0.], [1.]])
 			mat = np.concatenate((mat, v2), axis=1)
@@ -431,11 +451,17 @@ valid over the whole height, so the max and min values presented here may be ina
 	
 	#Returns the matrices for the static equilibrium equations related to all supports 
 	#and joints attached to the member and all other connected members.
-	#	neg_joints: joints to negate (equal and opposite). Also indicates that we already
-	#		have the positive version, so it's an end condition for the recursion.
+	#	neg_joints: joints to negate (equal and opposite), since we already
+	#		have the positive version.
+	#	done_joints: joints that have already been done, positive and negative.
 	#	returns: [([SE], m, sj), ([SE], m, sj), ...]
-	def steq_mats(self, neg_joints=[]):
+	def steq_mats(self, neg_joints=None, done_joints=None):
+		if neg_joints is None:
+			neg_joints = []
+		if done_joints is None:
+			done_joints = []
 		mats = []
+		#To Do: if this works, remove the list of [js]
 		connected = [] #Format: [[m1, [j1,j2]], [m2, j3], ...]
 		for s in self.supports:
 			mats.append((self.steq_mat(s), self, s))
@@ -443,43 +469,55 @@ valid over the whole height, so the max and min values presented here may be ina
 			jmat = self.steq_mat(j)
 			if j in neg_joints:
 				mats.append((-jmat, self, j))
-			else:
+				done_joints.append(j)
+				neg_joints.remove(j)
+			elif j not in done_joints:
+				#First time we're seeing this joint
 				mats.append((jmat, self, j))
-				#Add other member and joint to connected
+				neg_joints.append(j)
 				other_m = j.other_mem(self)
-				appended = False
+				#If other_m is already in the list of connected members, then
+				#append j to js. Otherwise, add other_m and j.
 				for (m, js) in connected:
 					if other_m is m:
 						js.append(j)
-						appended = True
 						break
-				if not appended:
+				else:
 					connected.append([other_m, [j]])
 		for (m, js) in connected:
 			#Recursive call
-			mats.extend(m.steq_mats(neg_joints=js))
+			mats.extend(m.steq_mats(neg_joints, done_joints))
 		return mats
 	
 	#Run the calculations for finding reaction forces with static equilibrium
 	#The system must be statically determinate
+	#Returns: [(reactions, sj), (reactions, sj), ...]
 	def static_eq(self):
 		SE_mats = self.steq_mats()
+		#print(469, len(SE_mats))
 		mems = []
 		sjs = []
+		sj_cols = []
+		#i = 0
 		for SEm in SE_mats:
+			#print(i); i+=1;
 			m = SEm[1]
+			#print(473, len(mems), m)
 			sj = SEm[2]
 			if m not in mems:
 				mems.append(m)
 			if sj not in sjs:
 				sjs.append(sj)
+				sj_cols.append(SEm[0].shape[1])
 		eqs = 3*len(mems) #sum_x, sum_y, sum_th
-		sj_cols = [sum(sj.constraints()) for sj in sjs]
 		unknowns = sum(sj_cols)
 		if eqs > unknowns:
+			print(511, eqs, unknowns, SE_mats)
 			return self.rep_err[0]
 		if eqs < unknowns:
+			print(514, eqs, unknowns, SE_mats)
 			return self.rep_err[1]
+		#print(518, eqs, unknowns)
 		STEQ = np.zeros((eqs, unknowns))
 		for SEm in SE_mats:
 			SE = SEm[0]
@@ -490,7 +528,6 @@ valid over the whole height, so the max and min values presented here may be ina
 			col = sum(sj_cols[:sji])
 			rows, cols = SE.shape
 			STEQ[row:row+rows, col:col+cols] = SE
-		#print(399, eqs, unknowns)
 		#print(440, SE_mats)
 		#print(401, sj_cols)
 		#print(442, STEQ)
@@ -513,6 +550,7 @@ valid over the whole height, so the max and min values presented here may be ina
 		try:
 			SOL = np.linalg.solve(STEQ, M_B)
 		except np.linalg.LinAlgError:
+			print(552, STEQ, M_B)
 			return self.rep_err[3]
 		
 		#print(458, sigfig(SOL))
@@ -524,58 +562,6 @@ valid over the whole height, so the max and min values presented here may be ina
 			if sj in self.supports or sj in self.joints:
 				result.append((R, sj))
 		return result
-	
-	#OLD
-	#Do the statics to calculate the reaction forces with two supports
-	#Returns a np.array([s0x, s0y, s0m, s1x, s1y, s1m])
-	def reactions(self):
-		is_sdet = self.is_stdet()
-		if isinstance(is_sdet, str):
-			return is_sdet
-		assert is_sdet is True
-		isv = self.is_vert()
-		if isv == None:
-			return self.rep_err[2] # "Not Placed"
-		#3 Statics equations (left hand only) - sum_x, sum_y, sum_m_0
-		st_eq = np.array([[1,0,0,1,0,0], [0,1,0,0,1,0], [0,0,1,0,self.length,1]])
-		if isv:
-			st_eq[2][3] = -self.length
-			st_eq[2][4] = 0
-		#3 Support equations, saying which support constraints are zero
-		sp_eq = np.array([[0,0,0,0,0,0], [0,0,0,0,0,0], [0,0,0,0,0,0]])
-		
-		#They can't both be none, because that would have been underconstrained
-		assert self.sup[0] != None or self.sup[1] != None, "141. DoF was calculated wrong."
-		if self.sup[0] == None:
-			sp_eq = np.array([[1,0,0,0,0,0], [0,1,0,0,0,0], [0,0,1,0,0,0]])
-		elif self.sup[1] == None:
-			sp_eq = np.array([[0,0,0,1,0,0], [0,0,0,0,1,0], [0,0,0,0,0,1]])
-		else:
-			n = 0
-			sp_c = np.concatenate( (self.sup[0].constraints(), self.sup[1].constraints()) )
-			for i, c_i in enumerate(sp_c):
-				if c_i == 0:
-					assert n < 3, "151. DoF was calculated wrong."
-					sp_eq[n][i] = 1
-					n += 1
-		M_A = np.concatenate( (st_eq,sp_eq) )
-		s_px = 0
-		s_py = 0
-		s_m = 0
-		for p in self.my_loads_pt():
-			px,py = p.get_comp()
-			s_px += px
-			s_py += py
-			if isv:
-				s_m += -px * p.ax_dist
-			else:
-				s_m += py * p.ax_dist
-		M_B = [-s_px, -s_py, -s_m, 0, 0, 0]
-		try:
-			SOL = np.linalg.solve(M_A, M_B)
-		except np.linalg.LinAlgError:
-			return self.rep_err[3]
-		return sigfig_iter(SOL, 6) 
 	
 	#Do mohr's circle transformations on an element with sigma_x and tau_xy (assumes no sig_y)
 	#Return two vectors, each in polar and cartesian: smvp, smvc, tmvp, tmvc
@@ -635,6 +621,36 @@ valid over the whole height, so the max and min values presented here may be ina
 	def gen_report(self, type):
 		return self.eval_reports[type]()
 	
+	#Static Equilibrium Report
+	#Lists the reaction forces at each support and joint along the member
+	def STEQ_rep(self):
+		STEQ = self.static_eq()
+		if isinstance(STEQ, str):
+			return STEQ
+		rep_text = "Reactions at supports and joints: "
+		for (R, sj) in STEQ:
+			#The order is important here, since (Joint << Support)
+			rep_text += "\n" + self.sj_str(sj) + ": "
+			xym = sj.constraints()
+			i = 0
+			if xym[0] == 1:
+				rep_text += "\n\tR_x=" + N_to_kN_str(R[i])
+				i += 1
+			if xym[1] == 1:
+				rep_text += "\n\tR_y=" + N_to_kN_str(R[i])
+				i += 1
+			if (0 < abs(xym[0]) < 1) and (0 < abs(xym[1]) < 1):
+				#Support at an angle
+				assert eps_round(math.sqrt(xym[0]**2+xym[1]**2)) == 1
+				rep_text += "\n\tR=" + N_to_kN_str(R[i])
+				th = math.degrees(math.atan2(xym[1], xym[0]))
+				rep_text += " @"+str(sigfig(th))+"\u00B0"
+				i += 1
+			if xym[2]:
+				rep_text += "\n\tR_M=" + Nm_to_kNm_str(R[i])
+		return rep_text
+	
+	#Mass Properties Report
 	def mass_prop_rep(self):
 		rep_text = "cross sectional area A = "+str(sigfig(self.xarea))+" m^2"
 		rep_text += "\n    | second moment of area about horizontal axis I_x = "+str(sigfig(self.xIx))+" m^4"
@@ -691,13 +707,12 @@ valid over the whole height, so the max and min values presented here may be ina
 			return V
 		tau = -V * self.xsection.Q_div_Ib(h)
 		return (tau, self.xsection.Q_domain())
-		
+	
 	#Report of only the stress and strain due to axial loads
 	def axial_stress_rep(self):
 		P = self.axial_loads_sym()
 		if isinstance(P, str):
 			return P
-		
 		d = sym.symbols("d")
 		(Pmax, dPmax), (Pmin, dPmin) = max1d(P, d, (0, self.length))
 		
@@ -725,88 +740,121 @@ valid over the whole height, so the max and min values presented here may be ina
 			rep_text += "\nThis evaluation does not consider buckling."
 		
 		#Make plot for P(d)
-		Pf = sym.lambdify(d, P)
-		if P.is_constant():
+		Pf = sym.lambdify(d, P / 1e3)
+		if P.is_number:
+			#print(738, P)
+			#print(739, float(P))
 			Pf = lambda d: 0*d + float(P)
-	
+		
 		dax = np.linspace(0, self.length, self.d_resolution)
 		Pax = Pf(dax)
 		
-		fig, sp = plt.subplots()
+		fig, sp = plt.subplots(figsize=(7,3))
 		sp.plot(dax, Pax, color="red")
 		sp.grid(True)
 		sp.set_title("Axial Load P (kN)")
 		sp.set(xlabel="Axial Distance d (m)")
-		
+		plt.subplots_adjust(*self.plot_margins, wspace=.09)
 		return (rep_text, fig)
 	
+	#Euler Buckling Report
+	#To Do: Fix it so it deals with st. overconstrained columns like Fixed-Slot(ax)
 	def buckling_rep(self):
-		sup_com = self.sup_axp()
-		if isinstance(sup_com, str):
-			return sup_com
-		assert sup_com is True
-		
-		CON = self.constraints()
+		STEQ = self.static_eq()
+		if isinstance(STEQ, str):
+			return STEQ
+		P = self.axial_loads_sym()
+		if isinstance(P, str):
+			return P
 		Pcr = math.pi**2 * self.E * self.xImin / self.length**2
-		#if CON == (1,2,0): #Pin-Sx
-		#	pass
-		#if CON == (1,1,2): #Fixed-M or Ty-Tx
-		#	pass
-		if CON == (1,1,1): #Fixed-Free or Pin-M or Sy-Tx or Ty-Sx
-			Pcr /= 4
-		elif CON == (1,2,1): #Fixed-Sx or Pin-Tx
-			Pcr *= 2.046 #From book - table on columns
-		elif CON == (1,2,2): #Fixed-Tx
-			Pcr *= 4
+		d = sym.symbols("d")
 		
-		p_seg = self.axial_loads()
-		if isinstance(p_seg, str):
-			return p_seg
-		if len(p_seg) > 1:
-			rep_text = "Sorry, I'm not exactly sure how to deal with buckling "
-			rep_text += "\nin a column with multiple loads or distributed loads."
-			#I could give it a shot later, but I think it includes messing with the
-			#differential equation and solving it generically instead of using the 4[/10] cases.
-			return rep_text
-		Pmax = -p_seg[0][1]
-		if Pmax <= 0:
-			rep_text = "There is no compressive load on this member, so it will not buckle."
-			return rep_text
-		Pper = round(Pmax / Pcr * 100, 2)
-		rep_text = "The load applied to this member P = " + N_to_kN_str(Pmax)
-		rep_text += "\nThis is " + str(Pper) + "% of the critical load Pcr = " + N_to_kN_str(Pcr)
-		if Pmax < Pcr:
-			rep_text += "\nSo the member is stable"
-		if Pmax >= Pcr:
-			rep_text += "\nSo the member is unstable"
-		return rep_text
-	
-	#OLD VERSION
-	def old_buckling_rep(self):
-		p_seg = self.axial_loads()
-		if isinstance(p_seg, str):
-		#if p_seg in self.rep_err:
-			return p_seg
-		if len(p_seg) > 1:
-			rep_text = "Sorry, I'm not exactly sure how to deal with "
-			rep_text += "\nbuckling in a column with multiple loads."
-			#I could give it a shot, though.
-			return rep_text
-		#I need to check the supports to find out the end conditions
-		rep_text = "Sorry, this is super basic right now."
-		rep_text += "\nI can only deal with fixed-free columns."
-		Pmax = -p_seg[0][1]
-		if Pmax <= 0:
-			rep_text += "\nThere is no compressive load on this member, so it will not buckle."
-			return rep_text
-		Pcr = math.pi**2 * self.E * self.xImin / (4 * self.length**2)
-		Pper = round(Pmax / Pcr * 100, 2)
-		rep_text += "\nThe load applied to this member P = " + N_to_kN_str(Pmax)
-		rep_text += "\nThis is " + str(Pper) + "% of the critical load Pcr = " + N_to_kN_str(Pcr)
-		if Pmax < Pcr:
-			rep_text += "\nSo the member is stable"
-		if Pmax >= Pcr:
-			rep_text += "\nSo the member is unstable"
+		STEQ.sort(key=lambda r_sj: r_sj[1].axd(self))
+		#Make a list of intervals along the member between each support or joint
+		intervals = []
+		last_axd = 0
+		last_sj = None
+		for r_sj in STEQ:
+			sj = r_sj[1]
+			sj_axd = sj.axd(self)
+			if last_axd < sj_axd:
+				intervals.append(((last_axd, last_sj), (sj_axd, sj)))
+			last_axd = sj_axd
+			last_sj = sj
+		if last_axd < self.length:
+			intervals.append(((last_axd, last_sj), (self.length, None)))
+		rep_text = "Measuring distance 'x' (in m) from end 'zero' of the member,"
+		for sdint in intervals:
+			(axd0, sj0), (axd1, sj1) = sdint
+			rep_text += "\nfor x \u03F5 "+coords_str(axd0, axd1)
+			P_sub = f_restrict(P, d, (axd0, axd1), lims=False)
+			#print(782, P_sub)
+			#Check that P_sub is constant
+			#(2 steps since sym.is_constant() is flawed with Piecewise)
+			if len(pw_sdls(P_sub, d)) <= 2 and P_sub.is_constant():
+				d_test = (axd0 + axd1) / 2 #avg of the limits --> in the middle
+				Pc = -float(P_sub.subs(d, d_test))
+				if Pc <= 0:
+					rep_text += ", there is no compressive load."
+				else:
+					rep_text += ", the compressive load Pc="+N_to_kN_str(Pc)
+					c0 = (0,0,0) if sj0 is None else sj0.constraints()
+					c1 = (0,0,0) if sj1 is None else sj1.constraints()
+					#print(798, c0, c1)
+					if isinstance(sj0, jt.Joint) or isinstance(sj1, jt.Joint):
+						rep_text += "\n\tWarning: this Euler Buckling analysis may be inaccurate for"
+						rep_text += " complex structures, since it was designed for simple columns."
+					#How many perpindicular constraints? How many moment constraints?
+					c = [0,0,0]
+					if eps_round(math.sqrt(c0[0]**2+c0[1]**2)) == 1:
+						del_th = sj0.th - self.th
+						print(811, del_th, sj0.th, self.th, c)
+						c[0] += abs(eps_round(math.cos(math.radians(del_th))))
+						c[1] += abs(eps_round(math.sin(math.radians(del_th))))
+					elif c0[0] == 1 and c0[1] == 1:
+						c[0] += 1
+						c[1] += 1
+					c[2] += c0[2]
+					if eps_round(math.sqrt(c1[0]**2+c1[1]**2)) == 1:
+						del_th = sj1.th - self.th
+						print(820, del_th, sj1.th, self.th, c)
+						c[0] += abs(eps_round(math.cos(math.radians(del_th))))
+						c[1] += abs(eps_round(math.sin(math.radians(del_th))))
+					elif c1[0] == 1 and c1[1] == 1:
+						c[0] += 1
+						c[1] += 1
+					c[2] += c1[2]
+					assert c[0] == 1, "Something confusing is happening. c=({}, {}, {})".format(
+						c[0], c[1], c[2])
+					Pcr_i = Pcr
+					if c[1] == 1 and c[2] == 1: #Fixed-Free or Pin-M or Sy-Tx or Ty-Sx
+						Pcr_i /= 4
+					elif c[1] == 2 and c[2] == 1: #Fixed-Sx or Pin-Tx
+						Pcr_i *= 2.046 #From book - table on columns
+					elif c[1] == 2 and c[2] == 2: #Fixed-Tx
+						Pcr_i *= 4
+					elif c[1] == 2 and c[2] == 0: #Pin-Sx
+						pass #Pcr_i *= 1
+					elif c[1] == 1 and cp[2] == 2: #Fixed-M or Ty-Tx
+						pass #Pcr_i *= 1
+					else:
+						Pcr_i = None
+					if Pcr_i is None:
+						rep_text += "\n\tI don't understand the supports for this column."
+					else:
+						Pper = round(Pc / Pcr_i * 100, 3)
+						rep_text += "\n\tThis is " + str(Pper) + "% of the critical load Pcr="
+						rep_text += N_to_kN_str(Pcr_i)
+						if Pc < Pcr_i:
+							rep_text += "\n\tSo the member is stable in this interval."
+						if Pc >= Pcr_i:
+							rep_text += "\n\tSo the member is unstable in this interval."
+			else:
+				rep_text += ", the axial load is not constant."
+				rep_text += " Sorry, I don't know how to deal with buckling when"
+				rep_text += " the axial load is not constant."
+				#I could give it a shot later, but I think it includes messing with the
+				#differential equation and solving it generically instead of using the 4[/10] cases.
 		return rep_text
 	
 	#Report on shear and moment
@@ -814,9 +862,11 @@ valid over the whole height, so the max and min values presented here may be ina
 	def VM_rep(self):
 		rep_text = "'d' is measured (in m) from end \"zero\" (W or S) of the member."
 		rep_text += "\nFor internal tension and stresses, see \"Axial and Shear Stress\""
+		#print(797)
 		V = self.shear_symf()
 		if V in self.rep_err:
 			return V
+		#print(801)
 		M = self.moment_symf()
 		if M in self.rep_err:
 			return M
@@ -880,9 +930,9 @@ valid over the whole height, so the max and min values presented here may be ina
 		tauf = sym.lambdify((d,h), tau, "numpy")
 		#Fix this for zero / constant functions. See VM_rep assertions
 		#This way it returns an array of the same size if arrays are passed
-		if sig.is_constant():
+		if sig.is_number:
 			sigf = lambda d,h: 0*d + float(sig)
-		if tau.is_constant():
+		if tau.is_number:
 			tauf = lambda d,h: 0*d + float(tau)
 		
 		#TEMP
@@ -1106,3 +1156,18 @@ class Materials:
 		"sig_y": 47.0e6, #Compressive, perpindicular to grain
 		"sig_u": 5.5e6 #Tensile
 	}
+
+
+
+def steq_test():
+	import support as sup
+	matl = None
+	xsec = None
+	m0 = Member(matl, xsec, 1.0)
+	m0.place(1, 1, 0)
+	m1 = Member(matl, xsec, 1.0)
+	m1.place(1.25,1.25, -45)
+	s0 = sup.Fixed(None, 0, 0)
+	m0.supports.append(s0)
+	
+#steq_test()

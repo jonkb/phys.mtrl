@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- This is a lab file created with phys.mtrl -->
+<!-- https://github.com/jonkb/phys.mtrl -->
+
+<lab version="0.2.0">
+	<options>
+		<c_wd>756</c_wd>
+		<c_ht>468</c_ht>
+		<px_per_m>360</px_per_m>
+		<subdivision>5</subdivision>
+		<px_per_kN>20.0</px_per_kN>
+	</options>
+	<members>
+		<mem>
+			<def>
+				<material>steel</material>
+				<xsec region="rectangle">
+					<base>0.04</base>
+					<height>0.04</height>
+				</xsec>
+				<length>1.0</length>
+			</def>
+			<place>
+				<x0>0.6</x0>
+				<y0>0.6055555555555555</y0>
+				<th>0.0</th>
+			</place>
+			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->
+			<sup type="1">
+				<axd>0.0</axd>
+				<th>0.0</th>
+			</sup>
+			<sup type="2">
+				<axd>1.0</axd>
+				<th>90.0</th>
+			</sup>
+			<!-- Joint Types are the same as Sup Types -->
+			<jt type="1">
+				<axd>0.017526114102107002</axd>
+				<th>0</th>
+			</jt>
+			<jt type="1">
+				<axd>0.4864256907056998</axd>
+				<th>0</th>
+			</jt>
+			<jt type="1">
+				<axd>0.9769183303423374</axd>
+				<th>0</th>
+			</jt>
+			<jt type="1">
+				<axd>0.5124002822642716</axd>
+				<th>0</th>
+			</jt>
+			<!-- Ld Type= 0:Point, 1:Distributed -->
+			<ld type="1">
+				<xc0>0.0</xc0>
+				<yc0>-4000.0</yc0>
+				<axd0>0.23611111111111116</axd0>
+				<xc1>0.0</xc1>
+				<yc1>-5000.0</yc1>
+				<axd1>0.7333333333333333</axd1>
+			</ld>
+		</mem>
+		<mem>
+			<def>
+				<material>steel</material>
+				<xsec region="rectangle">
+					<base>0.04</base>
+					<height>0.04</height>
+				</xsec>
+				<length>0.5</length>
+			</def>
+			<place>
+				<x0>0.6111111111111112</x0>
+				<y0>0.5944444444444444</y0>
+				<th>60.0</th>
+			</place>
+			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->
+			<!-- Joint Types are the same as Sup Types -->
+			<jt type="1">
+				<axd>0.01283000598199164</axd>
+				<th>0</th>
+			</jt>
+			<jt type="1">
+				<axd>0.4817295825855845</axd>
+				<th>0</th>
+			</jt>
+			<!-- Ld Type= 0:Point, 1:Distributed -->
+		</mem>
+		<mem>
+			<def>
+				<material>steel</material>
+				<xsec region="rectangle">
+					<base>0.04</base>
+					<height>0.04</height>
+				</xsec>
+				<length>0.5</length>
+			</def>
+			<place>
+				<x0>1.0944444444444446</x0>
+				<y0>0.5916666666666667</y0>
+				<th>120.0</th>
+			</place>
+			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->
+			<!-- Joint Types are the same as Sup Types -->
+			<jt type="1">
+				<axd>0.016037507477489547</axd>
+				<th>0</th>
+			</jt>
+			<jt type="1">
+				<axd>0.48493708408108244</axd>
+				<th>0</th>
+			</jt>
+			<jt type="1">
+				<axd>0.4682952183426965</axd>
+				<th>0</th>
+			</jt>
+			<!-- Ld Type= 0:Point, 1:Distributed -->
+		</mem>
+		<mem>
+			<def>
+				<material>steel</material>
+				<xsec region="rectangle">
+					<base>0.04</base>
+					<height>0.04</height>
+				</xsec>
+				<length>0.5</length>
+			</def>
+			<place>
+				<x0>1.5833333333333333</x0>
+				<y0>0.5944444444444444</y0>
+				<th>120.0</th>
+			</place>
+			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->
+			<!-- Joint Types are the same as Sup Types -->
+			<jt type="1">
+				<axd>0.01283000598199164</axd>
+				<th>0</th>
+			</jt>
+			<jt type="1">
+				<axd>0.4773480540600577</axd>
+				<th>0</th>
+			</jt>
+			<!-- Ld Type= 0:Point, 1:Distributed -->
+		</mem>
+		<mem>
+			<def>
+				<material>steel</material>
+				<xsec region="rectangle">
+					<base>0.04</base>
+					<height>0.04</height>
+				</xsec>
+				<length>0.5</length>
+			</def>
+			<place>
+				<x0>1.1027777777777779</x0>
+				<y0>0.5888888888888889</y0>
+				<th>60.0</th>
+			</place>
+			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->
+			<!-- Joint Types are the same as Sup Types -->
+			<jt type="1">
+				<axd>0.01924500897298746</axd>
+				<th>0</th>
+			</jt>
+			<jt type="1">
+				<axd>0.4837630570510535</axd>
+				<th>0</th>
+			</jt>
+			<jt type="1">
+				<axd>0.4715027198381944</axd>
+				<th>0</th>
+			</jt>
+			<!-- Ld Type= 0:Point, 1:Distributed -->
+		</mem>
+		<mem>
+			<def>
+				<material>steel</material>
+				<xsec region="rectangle">
+					<base>0.04</base>
+					<height>0.04</height>
+				</xsec>
+				<length>0.5</length>
+			</def>
+			<place>
+				<x0>0.8444444444444444</x0>
+				<y0>0.9972222222222222</y0>
+				<th>0.0</th>
+			</place>
+			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot(x), 3: Slot(y) -->
+			<!-- Joint Types are the same as Sup Types -->
+			<jt type="1">
+				<axd>0.49408469325243054</axd>
+				<th>0</th>
+			</jt>
+			<jt type="1">
+				<axd>0.015852390828651943</axd>
+				<th>0</th>
+			</jt>
+			<!-- Ld Type= 0:Point, 1:Distributed -->
+		</mem>
+	</members>
+</lab>
