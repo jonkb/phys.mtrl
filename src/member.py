@@ -465,8 +465,7 @@ valid over the whole height, so the max and min values presented here may be ina
 		if done_joints is None:
 			done_joints = []
 		mats = []
-		#To Do: if this works, remove the list of [js]
-		connected = [] #Format: [[m1, [j1,j2]], [m2, j3], ...]
+		connected = [] #Format: [m1, m2, ...]
 		for s in self.supports:
 			mats.append((self.steq_mat(s), self, s))
 		for j in self.joints:
@@ -480,15 +479,10 @@ valid over the whole height, so the max and min values presented here may be ina
 				mats.append((jmat, self, j))
 				neg_joints.append(j)
 				other_m = j.other_mem(self)
-				#If other_m is already in the list of connected members, then
-				#append j to js. Otherwise, add other_m and j.
-				for (m, js) in connected:
-					if other_m is m:
-						js.append(j)
-						break
-				else:
-					connected.append([other_m, [j]])
-		for (m, js) in connected:
+				#If other_m is not already in the list of connected members, add it.
+				if other_m not in connected:
+					connected.append(other_m)
+		for m in connected:
 			#Recursive call
 			mats.extend(m.steq_mats(neg_joints, done_joints))
 		return mats
