@@ -781,11 +781,13 @@ class Lab:
 		popup = Tk_rt(mem.eval_names[rtype]+" Report")
 		loading_lbl = tk.Label(popup, text="CALCULATING", padx=48, pady=24)
 		loading_lbl.pack()
+		cleanup_popup = None
 		def add_report():
 			report = mem.gen_report(rtype)
 			loading_lbl.destroy()
 			mem_lbl = tk.Label(popup, text=str(mem))
 			mem_lbl.pack()
+			cleanup = lambda : None
 			if isinstance(report, str):
 				#This can be either a text-only report or an error message
 				rep_lbl = Txt_wig(popup, report)
@@ -795,6 +797,9 @@ class Lab:
 				Txt_wig(popup, rep_text).packslf()
 				figcanv = FigureCanvasTkAgg(fig, popup)
 				figcanv.get_tk_widget().pack(fill=tk.BOTH, expand=1)
+				def cleanup():
+					fig.clear()
+					plt.close(fig)
 			elif isinstance(report, list):
 				tk.Label(popup, text="Choose which report to show:").pack()
 				rep_names = []
@@ -823,13 +828,21 @@ class Lab:
 					rep_widgets[popup.current_rep][0].packslf()
 					rep_widgets[popup.current_rep][1].pack(fill=tk.BOTH, expand=1)
 				rep_option.trace("w", switch_rep)
+				def cleanup():
+					for rep in report:
+						f = rep[2]
+						f.clear()
+						plt.close(f)
 			else:
 				tk.Label(popup, text="Error: unknown report data", justify=tk.LEFT).pack()
+			nonlocal cleanup_popup
+			cleanup_popup = cleanup
 		
 		#Flash blue
 		self.canv.itemconfig(mem.img_ref, outline="blue")
 		mem.popups += 1
 		def del_pop():
+			cleanup_popup()
 			mem.popups -= 1
 			#This way, if you have multiple reports on the same member, it stays blue when closing one
 			if mem.popups <= 0:
