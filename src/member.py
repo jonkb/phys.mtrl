@@ -255,24 +255,28 @@ valid over the whole height, so the max and min values presented here may be ina
 	#Correction: It does not work with joints!
 	def constraints(self):
 		c = np.array((0,0,0))
+		axp_sup = []
 		for s in self.supports:
 			sc = s.constraints()
 			if eps_round(math.sqrt(sc[0]**2+sc[1]**2)) == 1:
 				del_th = s.th - self.th
+				if eps_round(del_th) == 0:
+					axp_sup.append(s)
 				#The eps_round does .999999999999999 --> 1
 				c[0] += abs(eps_round(math.cos(math.radians(del_th))))
 				c[1] += abs(eps_round(math.sin(math.radians(del_th))))
 				print("WARNING: member.py 257")
 			elif sc[0] == 1 and sc[1] == 1:
+				axp_sup.append(s)
 				c[0] += 1
 				c[1] += 1
 			c[2] += sc[2]
-		print(269, c)
-		return tuple(c)
+		#print(269, c)
+		return tuple(c), axp_sup
 	
 	#Returns the degrees of freedom of the member (axial, perpindicular, th)
 	def d_of_f(self):
-		c = list(self.constraints())
+		c, _ = list(self.constraints())
 		#2 perp. sup   ~~=   1 perp. and 1 moment
 		if c[1] > 1:
 			c[2] += c[1] - 1
@@ -297,7 +301,7 @@ valid over the whole height, so the max and min values presented here may be ina
 	# 1. Must be constrained in translation and rotation
 	# 2. Must have precisely one constraint in axial direction
 	def sup_axp(self):
-		CON = self.constraints()
+		CON, _ = self.constraints()
 		#More compact, less descriptive:
 		#if CON[0] == 1 and CON[1] > 0: #Ax = 1, Prp constraint
 		#	if CON[2] > 0 or CON[1] == 2: #Moment constraint
@@ -762,11 +766,15 @@ valid over the whole height, so the max and min values presented here may be ina
 	def buckling_rep(self):
 		STEQ = self.static_eq()
 		if isinstance(STEQ, str):
-			return STEQ
+			#Maybe instead I could make a version of static_eq() that finds the axial reactions
+			#even if it's not all statically determinate.
+			rep_text = "Using a simpler analysis of compressive load, since"
+			rep_text += " the member is not statically determinate."
+			rep_text += " This method will not work correctly with joints.\n"
+			return rep_text + self.old_buckling_rep()
 		P = self.axial_loads_sym()
 		if isinstance(P, str):
 			return P
-		Pcr = math.pi**2 * self.E * self.xImin / self.length**2
 		d = sym.symbols("d")
 		
 		STEQ.sort(key=lambda r_sj: r_sj[1].axd(self))
@@ -794,6 +802,8 @@ valid over the whole height, so the max and min values presented here may be ina
 			if len(pw_sdls(P_sub, d)) <= 2 and P_sub.is_constant():
 				d_test = (axd0 + axd1) / 2 #avg of the limits --> in the middle
 				Pc = -float(P_sub.subs(d, d_test))
+				interval_len = abs(axd1 - axd0)
+				Pcr = math.pi**2 * self.E * self.xImin / interval_len**2
 				if Pc <= 0:
 					rep_text += ", there is no compressive load."
 				else:
@@ -824,19 +834,22 @@ valid over the whole height, so the max and min values presented here may be ina
 						c[0] += 1
 						c[1] += 1
 					c[2] += c1[2]
-					assert c[0] == 1, "Something confusing is happening. c=({}, {}, {})".format(
-						c[0], c[1], c[2])
+					#assert c[0] == 1, "Something confusing is happening. c=({}, {}, {})".format(
+					#	c[0], c[1], c[2])
 					Pcr_i = Pcr
 					if c[1] == 1 and c[2] == 1: #Fixed-Free or Pin-M or Sy-Tx or Ty-Sx
 						Pcr_i /= 4
+						sup_label = "Fixed-Free (or Slot-Thrust)"
 					elif c[1] == 2 and c[2] == 1: #Fixed-Sx or Pin-Tx
 						Pcr_i *= 2.046 #From book - table on columns
+						sup_label = "Fixed-Pin (Fixed-Slot(axial)) (or Pin-Thrust(axial))"
 					elif c[1] == 2 and c[2] == 2: #Fixed-Tx
 						Pcr_i *= 4
+						sup_label = "Fixed-Fixed (Fixed-Thrust(axial))"
 					elif c[1] == 2 and c[2] == 0: #Pin-Sx
-						pass #Pcr_i *= 1
+						sup_label = "Pin-Pin (Pin-Slot(axial))"
 					elif c[1] == 1 and cp[2] == 2: #Fixed-M or Ty-Tx
-						pass #Pcr_i *= 1
+						sup_label = "Thrust-Thrust"
 					else:
 						Pcr_i = None
 					if Pcr_i is None:
@@ -849,6 +862,7 @@ valid over the whole height, so the max and min values presented here may be ina
 							rep_text += "\n\tSo the member is stable in this interval."
 						if Pc >= Pcr_i:
 							rep_text += "\n\tSo the member is unstable in this interval."
+						rep_text += "\n\tThe detected support combination was " + sup_label
 			else:
 				rep_text += ", the axial load is not constant."
 				rep_text += " Sorry, I don't know how to deal with buckling when"
@@ -856,6 +870,69 @@ valid over the whole height, so the max and min values presented here may be ina
 				#I could give it a shot later, but I think it includes messing with the
 				#differential equation and solving it generically instead of using the 4[/10] cases.
 		return rep_text
+	
+	#Old version of the Euler Buckling Report that deals with overconstrained columns
+	#(not overconstrained in the axial direction) but not with Joints
+	def old_buckling_rep(self):
+		sup_problem_msg = "I'm not sure how to deal with this combination of supports."
+		multiple_loads_msg = "I don't know how to deal with multiple loads in a column."
+		load_axd_problem_msg = "I don't know how to deal with a load in the middle of a column."
+		sup_com = self.sup_axp()
+		if isinstance(sup_com, str):
+			return sup_com
+		assert sup_com is True
+		
+		CON, axps = self.constraints()
+		assert len(axps) == 1
+		fixed_sup = axps[0]
+		Pcr = math.pi**2 * self.E * self.xImin / self.length**2
+		if CON == (1,2,0): #Pin-Sx
+			sup_label = "Pin-Pin (Pin-Slot(axial))"
+		elif CON == (1,1,2): #Fixed-M or Ty-Tx
+			sup_label = "Thrust-Thrust"
+		elif CON == (1,1,1): #Fixed-Free or Pin-M or Sy-Tx or Ty-Sx
+			Pcr /= 4
+			sup_label = "Fixed-Free (or Slot-Thrust)"
+		elif CON == (1,2,1): #Fixed-Sx or Pin-Tx
+			Pcr *= 2.046 #From book - table on columns
+			sup_label = "Fixed-Pin (Fixed-Slot(axial)) (or Pin-Thrust(axial))"
+		elif CON == (1,2,2): #Fixed-Tx
+			Pcr *= 4
+			sup_label = "Fixed-Fixed (Fixed-Thrust(axial))"
+		else:
+			return sup_problem_msg
+		
+		axd_f = fixed_sup.ax_dist
+		uvax = self.uv_axis()
+		loads = self.my_loads()
+		if len(loads) != 1:
+			return multiple_loads_msg
+		p = loads[0]
+		if axd_f == 0:
+			if not eps_eq(p.ax_dist, self.length):
+				return load_axd_problem_msg
+			axpc = np.dot(p.get_comp(), -uvax)
+		elif axd_f == self.length:
+			if not eps_eq(p.ax_dist, 0):
+				return load_axd_problem_msg
+			axpc = np.dot(p.get_comp(), uvax)
+		else:
+			#segments = [[0, axd_f, None], [self.length, axd_f, None]]
+			return load_axd_problem_msg
+		
+		if axpc <= 0:
+			return "There is no compressive load."
+		else:
+			Pper = round(axpc / Pcr * 100, 3)
+			rep_text = "The compressive load Pc="+N_to_kN_str(axpc)
+			rep_text += "\n\tThis is " + str(Pper) + "% of the critical load Pcr="
+			rep_text += N_to_kN_str(Pcr)
+			if axpc < Pcr:
+				rep_text += "\n\tSo the member is stable."
+			if axpc >= Pcr:
+				rep_text += "\n\tSo the member is unstable."
+			rep_text += "\n\tThe detected support combination was " + sup_label
+			return rep_text
 	
 	#Report on shear and moment
 	#Returns text and a pyplot figure

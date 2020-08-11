@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- This is a lab file created with phys.mtrl -->
+<!-- https://github.com/jonkb/phys.mtrl -->
+
+<lab version="0.2.0">
+	<options>
+		<c_wd>756</c_wd>
+		<c_ht>468</c_ht>
+		<px_per_m>360</px_per_m>
+		<subdivision>5</subdivision>
+		<px_per_kN>20.0</px_per_kN>
+	</options>
+	<members>
+		<mem>
+			<def>
+				<material>steel</material>
+				<xsec region="circle">
+					<radius>0.02</radius>
+				</xsec>
+				<length>1.0</length>
+			</def>
+			<place>
+				<x0>0.44166666666666665</x0>
+				<y0>0.30833333333333335</y0>
+				<th>30.0</th>
+			</place>
+			<!-- Sup Type= 0:Fixed, 1:Pin, 2: Slot, 3: Thrust -->
+			<sup type="0">
+				<axd>0</axd>
+				<th>30.0</th>
+			</sup>
+			<sup type="2">
+				<axd>1.0</axd>
+				<th>120.0</th>
+			</sup>
+			<!-- Joint Types are the same as Sup Types -->
+			<!-- Ld Type= 0:Point, 1:Distributed -->
+			<ld type="0">
+				<xc>-3464.0</xc>
+				<yc>-2000.0</yc>
+				<axd>1.0</axd>
+			</ld>
+		</mem>
+	</members>
+</lab>
