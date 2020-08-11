@@ -22,36 +22,44 @@ class Tk_rt(tk.Tk):
 class PM_Menu(tk.Menu):
 	def __init__(self, root, mlab):
 		super().__init__(root)
+		#File Menu
 		filemenu = tk.Menu(self, tearoff=0)
 		filemenu.add_command(label="Open Lab", command=mlab.open)
 		filemenu.add_command(label="Save Lab", command=mlab.save)
 		self.add_cascade(label="File", menu=filemenu)
+		#View Menu
 		viewmenu = tk.Menu(self, tearoff=0)
+		viewmenu.add_command(label="Set Scale", command=mlab.edit_scale)
 		viewmenu.add_command(label="Show All Toolbars", command=mlab.show_allt)
 		viewmenu.add_command(label="Hide All Toolbars", command=mlab.hide_allt)
 		show_mem = tk.IntVar()
 		show_mem.set(True)
-		mlab.show_mem = show_mem
+		mlab.options.show_mem = show_mem
 		viewmenu.add_checkbutton(label="Add Member Toolbar", 
 			variable=show_mem, command=mlab.toggle_smem)
 		show_sup = tk.IntVar()
 		show_sup.set(True)
-		mlab.show_sup = show_sup
+		mlab.options.show_sup = show_sup
 		viewmenu.add_checkbutton(label="Add Support Toolbar", 
 			variable=show_sup, command=mlab.toggle_ssup)
 		show_ld = tk.IntVar()
 		show_ld.set(True)
-		mlab.show_ld = show_ld
+		mlab.options.show_ld = show_ld
 		viewmenu.add_checkbutton(label="Add Load Toolbar", 
 			variable=show_ld, command=mlab.toggle_sld)
 		self.add_cascade(label="View", menu=viewmenu)
+		#Options Menu
 		optmenu = tk.Menu(self, tearoff=0)
 		mem_wtls = tk.IntVar()
 		mem_wtls.set(True)
-		mlab.mem_wtls = mem_wtls
+		mlab.options.mem_wtls = mem_wtls
 		optmenu.add_checkbutton(label="Weightless Members", 
 			variable=mem_wtls, command=mlab.toggle_wtls)
-		optmenu.add_command(label="Set Scale", command=mlab.edit_scale)
+		sup_endsnap = tk.IntVar()
+		sup_endsnap.set(True)
+		mlab.options.sup_endsnap = sup_endsnap
+		optmenu.add_checkbutton(label="Snap Supports to Member Ends", 
+			variable=sup_endsnap)#, command=mlab.toggle_endsnap)
 		self.add_cascade(label="Options", menu=optmenu)
 		evalmenu = tk.Menu(self, tearoff=0)
 		for i, evnm in Member.eval_names.items():

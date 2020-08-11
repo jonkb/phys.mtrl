@@ -64,6 +64,7 @@ class Add_mem:
 		self.th_entry = tk.Entry(self.tb_frm)
 		self.th_entry.config(width=num_e_wid)
 		self.th_entry.grid(row=1, column=5)
+		self.th_entry.insert(0, "0")
 		
 		#Button to add the new member
 		self.add_btn = tk.Button(self.tb_frm, text="Add")
@@ -204,6 +205,7 @@ class Add_sup:
 		self.th_entry = tk.Entry(self.tb_frm)
 		self.th_entry.config(width=num_e_wid)
 		self.th_entry.grid(row=1, column=next_col)
+		self.th_entry.insert(0, "0")
 		next_col += 1
 		#TO DO: Add option to snap to axis angle of member
 		# - Angle: [ --Auto-- ] : darkened out - not accepting input

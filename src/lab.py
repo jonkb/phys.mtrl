@@ -25,8 +25,7 @@ class Lab:
 		self.c_wd = 756
 		self.c_ht = 468
 		
-		#TEMP
-		#self.main_frm = main_frm
+		self.options = PM_Options()
 		
 		add_mem_bar.add_btn.config(command=self.toggle_mem_mode)
 		self.add_mem_bar = add_mem_bar
@@ -86,25 +85,31 @@ class Lab:
 	
 	def wtls(self):
 		try:
-			return self.mem_wtls.get()
+			return self.options.mem_wtls.get()
 		except AttributeError:# Was not set
+			return True
+	
+	def endsnap(self):
+		try:
+			return self.options.sup_endsnap.get()
+		except AttributeError:
 			return True
 	
 	def smem(self):
 		try:
-			return self.show_mem.get()
+			return self.options.show_mem.get()
 		except AttributeError:# Was not set
 			return True
 	
 	def ssup(self):
 		try:
-			return self.show_sup.get()
+			return self.options.show_sup.get()
 		except AttributeError:# Was not set
 			return True
 	
 	def sld(self):
 		try:
-			return self.show_ld.get()
+			return self.options.show_ld.get()
 		except AttributeError:# Was not set
 			return True
 	
@@ -142,7 +147,7 @@ class Lab:
 		self.popups = []
 	
 	#Snap x,y (in px) to the ends of existing members
-	#OLD
+	#Returns ((xp, yp), closest_mem, side)
 	def snap_to_mem_ends(self, xp, yp):
 		xc, yc = self.px_to_coords(xp,yp)
 		side = 0
@@ -165,6 +170,8 @@ class Lab:
 		#closest_r_px = closest_r * self.px_per_m
 		return ((xp, yp), closest, side)#((xp, yp), closest_r_px, side, closest)
 	
+	#Snap xp,yp to the axis of existing members
+	#Returns ((xp,yp), closest_mem, closest_axd)
 	def snap_to_mem_axis(self, xp, yp, exclude=None):
 		xc, yc = self.px_to_coords(xp,yp)
 		closest_r = self.snap_dist / self.px_per_m
@@ -204,6 +211,8 @@ class Lab:
 					xp,yp = self.coords_to_px(*pf)
 		return ((xp,yp), closest, closest_axd)
 	
+	#Snap xp,yp to the image of an existing member
+	#Returns ((xp,yp), closest_mem)
 	def snap_to_mem(self, xp, yp):
 		xc, yc = self.px_to_coords(xp,yp)
 		closest_r = self.snap_dist / self.px_per_m
@@ -339,8 +348,9 @@ class Lab:
 			else:
 				if self.add_sup_bar.is_jt():
 					(x,y),*_ = self.snap_to_intsx(x,y)
-				else: #CHANGE LATER ?
-					(x,y),*_ = self.snap_to_mem_axis(x,y)
+				else:
+					snapfun = self.snap_to_mem_ends if self.endsnap() else self.snap_to_mem_axis
+					(x,y),*_ = snapfun(x,y)
 		elif self.add_mode == 3:
 			if self.floating == None:
 				if not self.add_load_bar.has_float_vals():
@@ -445,7 +455,11 @@ class Lab:
 	def add_support(self, event):
 		x = event.x
 		y = event.y
-		(xp,yp), mem, axd = self.snap_to_mem_axis(x,y)
+		if self.endsnap():
+			(xp,yp), mem, side = self.snap_to_mem_ends(x,y)
+			axd = mem.length if side else 0
+		else:
+			(xp,yp), mem, axd = self.snap_to_mem_axis(x,y)
 		if mem != None:
 			stype = self.add_sup_bar.get_sup_type()
 			th = self.add_sup_bar.get_th()
@@ -676,8 +690,9 @@ class Lab:
 				m.joints.remove(lsj)
 				break
 		else:
-			return "664: Somehow the selected Load, Support, or Joint\
-is not attached to any of the members in the lab."
+			s = "664: Somehow the selected Load, Support, or Joint"
+			s += "is not attached to any of the members in the lab."
+			return s
 	
 	def clear_all(self):
 		mem_copy = self.members.copy()
@@ -697,7 +712,7 @@ is not attached to any of the members in the lab."
 	def toggle_wtls(self):
 		for m in self.members:
 			m.has_weight = not self.wtls()
-	
+		
 	def toggle_smem(self):
 		if self.smem():
 			self.add_mem_bar.tb_frm.pack(side=tk.TOP, fill=tk.X)
@@ -719,24 +734,24 @@ is not attached to any of the members in the lab."
 	def show_allt(self):
 		if not self.smem():
 			self.add_mem_bar.tb_frm.pack(side=tk.TOP, fill=tk.X)
-			self.show_mem.set(True)
+			self.options.show_mem.set(True)
 		if not self.ssup():
 			self.add_sup_bar.tb_frm.pack(side=tk.TOP, fill=tk.X)
-			self.show_sup.set(True)
+			self.options.show_sup.set(True)
 		if not self.sld():
 			self.add_load_bar.tb_frm.pack(side=tk.TOP, fill=tk.X)
-			self.show_ld.set(True)
+			self.options.show_ld.set(True)
 	
 	def hide_allt(self):
 		if self.smem():
 			self.add_mem_bar.tb_frm.pack_forget()
-			self.show_mem.set(False)
+			self.options.show_mem.set(False)
 		if self.ssup():
 			self.add_sup_bar.tb_frm.pack_forget()
-			self.show_sup.set(False)
+			self.options.show_sup.set(False)
 		if self.sld():
 			self.add_load_bar.tb_frm.pack_forget()
-			self.show_ld.set(False)
+			self.options.show_ld.set(False)
 	
 	def eval_report(self, rtype):
 		self.set_sel_mem_cb(lambda m: self.popup_report(m,rtype))
@@ -889,3 +904,16 @@ is not attached to any of the members in the lab."
 		for w in self.popups:
 			w.destroy()
 		plt.close("all")
+
+#Options for Phys.Mtrl
+class PM_Options:
+	def __init__(self):
+		#Set by the Menus:
+		#show_mem; show_sup; show_ld
+		#mem_wtls; sup_endsnap
+		#These are to be replaced with Tk variables
+		self.show_mem = None
+		self.show_sup = None
+		self.show_ld = None
+		self.mem_wtls = None
+		self.sup_endsnap = None
