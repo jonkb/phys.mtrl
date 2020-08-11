@@ -219,8 +219,12 @@ class Add_sup:
 		return self.sup_type.get()
 	
 	def get_th(self):
-		try: th = float(self.th_entry.get())
-		except ValueError: return None
+		if self.th_entry["state"] == "disabled":
+			return "[auto]"
+		try: 
+			th = float(self.th_entry.get())
+		except ValueError: 
+			return None
 		return th
 	
 	def is_jt(self):
@@ -231,6 +235,18 @@ class Add_sup:
 	
 	def setjt(self):
 		self.tb_lbl.config(text=self.add_jt_txt)
+	
+	#Turn on or off auto angle mode
+	#	onoff - boolean to say if it should be turned on or off
+	def auto_th(self, onoff):
+		if onoff:
+			self.th_entry.delete(0, "end")
+			self.th_entry.insert(0, "[auto]")
+			self.th_entry.config(state="disabled")
+		else:
+			self.th_entry.config(state="normal")
+			self.th_entry.delete(0, "end")
+			self.th_entry.insert(0, "0")
 
 #Add load toolbar
 class Add_load:

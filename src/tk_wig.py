@@ -24,8 +24,8 @@ class PM_Menu(tk.Menu):
 		super().__init__(root)
 		#File Menu
 		filemenu = tk.Menu(self, tearoff=0)
-		filemenu.add_command(label="Open Lab", command=mlab.open)
-		filemenu.add_command(label="Save Lab", command=mlab.save)
+		filemenu.add_command(label="Open Lab", command=mlab.open_lab)
+		filemenu.add_command(label="Save Lab", command=mlab.save_lab)
 		self.add_cascade(label="File", menu=filemenu)
 		#View Menu
 		viewmenu = tk.Menu(self, tearoff=0)
@@ -59,8 +59,15 @@ class PM_Menu(tk.Menu):
 		sup_endsnap.set(True)
 		mlab.options.sup_endsnap = sup_endsnap
 		optmenu.add_checkbutton(label="Snap Supports to Member Ends", 
-			variable=sup_endsnap)#, command=mlab.toggle_endsnap)
+			variable=sup_endsnap)
 		self.add_cascade(label="Options", menu=optmenu)
+		sup_thsnap = tk.IntVar()
+		sup_thsnap.set(True)
+		mlab.options.sup_thsnap = sup_thsnap
+		mlab.toggle_thsnap() #Set it to True, to start out with
+		optmenu.add_checkbutton(label="Auto Support Angle", 
+			variable=sup_thsnap, command=mlab.toggle_thsnap)
+		#Evaluation Menu
 		evalmenu = tk.Menu(self, tearoff=0)
 		for i, evnm in Member.eval_names.items():
 			evalmenu.add_command(label=evnm, command=lambda ri=i: mlab.eval_report(ri))

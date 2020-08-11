@@ -83,42 +83,6 @@ class Lab:
 		Pyp = -yc*self.px_per_kN
 		return (Pxp, Pyp)
 	
-	def wtls(self):
-		try:
-			return self.options.mem_wtls.get()
-		except AttributeError:# Was not set
-			return True
-	
-	def endsnap(self):
-		try:
-			return self.options.sup_endsnap.get()
-		except AttributeError:
-			return True
-	
-	def smem(self):
-		try:
-			return self.options.show_mem.get()
-		except AttributeError:# Was not set
-			return True
-	
-	def ssup(self):
-		try:
-			return self.options.show_sup.get()
-		except AttributeError:# Was not set
-			return True
-	
-	def sld(self):
-		try:
-			return self.options.show_ld.get()
-		except AttributeError:# Was not set
-			return True
-	
-	def save(self):
-		pmfs.save(self)
-	
-	def open(self):
-		pmfs.open(self)
-	
 	def reset_lab(self):
 		self.c_wd = 756
 		#Remember that when c_wd = 800 pixels, this corrosponds to x=[0,799]
@@ -349,7 +313,7 @@ class Lab:
 				if self.add_sup_bar.is_jt():
 					(x,y),*_ = self.snap_to_intsx(x,y)
 				else:
-					snapfun = self.snap_to_mem_ends if self.endsnap() else self.snap_to_mem_axis
+					snapfun = self.snap_to_mem_ends if self.options.endsnap() else self.snap_to_mem_axis
 					(x,y),*_ = snapfun(x,y)
 		elif self.add_mode == 3:
 			if self.floating == None:
@@ -429,7 +393,7 @@ class Lab:
 			ri = float(self.add_mem_bar.get_xparams()[1])/1000
 			xsec = Annulus(ro, ri)
 		m = Member(matl, xsec, L)
-		if not self.wtls():
+		if not self.options.wtls():
 			m.has_weight = True
 		self.place_member(m, xp=x, yp=y, th=self.add_mem_bar.get_th())
 		self.set_add_mode(0)
@@ -443,7 +407,7 @@ class Lab:
 			xp, yp = self.coords_to_px(xc, yc)
 		else:
 			return "Error: Must provide xp&yp or xc&yc"
-		if not self.wtls():
+		if not self.options.wtls():
 			mem.has_weight = True
 		rgb = mem.material["color"]
 		mem.place(xc, yc, th)
@@ -455,14 +419,25 @@ class Lab:
 	def add_support(self, event):
 		x = event.x
 		y = event.y
-		if self.endsnap():
+		if self.options.endsnap():
 			(xp,yp), mem, side = self.snap_to_mem_ends(x,y)
 			axd = mem.length if side else 0
 		else:
 			(xp,yp), mem, axd = self.snap_to_mem_axis(x,y)
 		if mem != None:
 			stype = self.add_sup_bar.get_sup_type()
-			th = self.add_sup_bar.get_th()
+			if self.options.thsnap():
+				#Automatically set the support angle
+				th = mem.th
+				if stype >= 2:
+					#Slot or Thrust
+					#default to parallel to axis
+					th += 90
+				elif axd > mem.length /2:
+					#Fixed and slot should face away from the middle of the beam
+					th += 180
+			else:
+				th = self.add_sup_bar.get_th()
 			if th is None:
 				return
 			self.place_support(mem, stype, xp, yp, axd, th)
@@ -494,7 +469,8 @@ class Lab:
 		((xp, yp), (m0, axd0), (m1, axd1)) = self.snap_to_intsx(x, y)
 		if not (m0 is None or m1 is None):
 			jtype = self.add_sup_bar.get_sup_type()
-			th = self.add_sup_bar.get_th()
+			#This angle only matters for Slot & Thrust anyway
+			th = m0.th if self.options.thsnap() else self.add_sup_bar.get_th()
 			self.place_joint(m0, m1, jtype, xp, yp, axd0, axd1, th)
 			self.set_add_mode(0)
 	
@@ -694,11 +670,6 @@ class Lab:
 			s += "is not attached to any of the members in the lab."
 			return s
 	
-	def clear_all(self):
-		mem_copy = self.members.copy()
-		for m in mem_copy:
-			self.del_mem(m)
-	
 	def toggle_mem_mode(self):
 		self.set_add_mode(0) if self.add_mode==1 else self.set_add_mode(1)
 	
@@ -709,53 +680,137 @@ class Lab:
 		#print(354, self.add_mode)
 		self.set_add_mode(0) if self.add_mode==3 else self.set_add_mode(3)
 	
-	def toggle_wtls(self):
-		for m in self.members:
-			m.has_weight = not self.wtls()
+	#--Start of Menu Command functions
+	#		Meaning, these are the functions that are executed when the user
+	#		selects an option in the menu.
+	def save_lab(self):
+		pmfs.save(self)
+	
+	def open_lab(self):
+		pmfs.open(self)
+	
+	#Open window to edit px_per_m and px_per_kN
+	def edit_scale(self):
+		popup = Tk_rt("Edit Lab Scale")
+		popup.grid_columnconfigure(0, minsize=120)
+		popup.grid_columnconfigure(1, minsize=120)
+		popup.grid_rowconfigure(4, pad=16)
 		
+		ppm_lbl = tk.Label(popup, text="px per m: ")
+		ppm_lbl.grid(row=0, column=0, sticky=tk.E)
+		ppm_e = tk.Entry(popup, width=8)
+		ppm_e.grid(row=0, column=1, sticky=tk.W)
+		ppm_e.insert(0, self.px_per_m)
+		ppk_lbl = tk.Label(popup, text="px per kN: ")
+		ppk_lbl.grid(row=1, column=0, sticky=tk.E)
+		ppk_e = tk.Entry(popup, width=8)
+		ppk_e.grid(row=1, column=1, sticky=tk.W)
+		ppk_e.insert(0, self.px_per_kN)
+		sd_lbl = tk.Label(popup, text="grid lines per m: ")
+		sd_lbl.grid(row=2, column=0, sticky=tk.E)
+		sd_e = tk.Entry(popup, width=8)
+		sd_e.grid(row=2, column=1, sticky=tk.W)
+		sd_e.insert(0, self.subdivision)
+		
+		note = "Note: For now, since resizing with members on the canvas does not work "
+		note += "properly, hitting save will also remove any members from the screen."
+		note_lbl = tk.Label(popup, text=note, wraplength=300)
+		note_lbl.grid(row=3, column=0, columnspan=2)
+		
+		def set_scale():
+			try:
+				ppm = int(ppm_e.get())
+				self.px_per_m = ppm
+			except ValueError:
+				ppm_e.delete(0, tk.END)
+				ppm_e.insert(0, self.px_per_m)
+			try:
+				ppk = float(ppk_e.get())
+				self.px_per_kN = ppk
+			except ValueError:
+				ppk_e.delete(0, tk.END)
+				ppk_e.insert(0, self.px_per_kN)
+			try:
+				#Limit to Z or N
+				sd = int(sd_e.get())
+				self.subdivision = sd
+			except ValueError:
+				sd_e.delete(0, tk.END)
+				sd_e.insert(0, self.subdivision)
+			self.clear_all()
+			self.redraw()
+		save_btn = tk.Button(popup, text="Save", command=set_scale)
+		save_btn.grid(row=4, column=0, columnspan=2, ipadx= 16, ipady=2)
+		def del_pop():
+			self.popups.remove(popup)
+			popup.destroy()
+		popup.protocol("WM_DELETE_WINDOW", del_pop)
+		self.popups.append(popup)
+		popup.mainloop()
+	
+	def show_allt(self):
+		if not self.options.smem():
+			self.add_mem_bar.tb_frm.pack(side=tk.TOP, fill=tk.X)
+			self.options.show_mem.set(True)
+		if not self.options.ssup():
+			self.add_sup_bar.tb_frm.pack(side=tk.TOP, fill=tk.X)
+			self.options.show_sup.set(True)
+		if not self.options.sld():
+			self.add_load_bar.tb_frm.pack(side=tk.TOP, fill=tk.X)
+			self.options.show_ld.set(True)
+	
+	def hide_allt(self):
+		if self.options.smem():
+			self.add_mem_bar.tb_frm.pack_forget()
+			self.options.show_mem.set(False)
+		if self.options.ssup():
+			self.add_sup_bar.tb_frm.pack_forget()
+			self.options.show_sup.set(False)
+		if self.options.sld():
+			self.add_load_bar.tb_frm.pack_forget()
+			self.options.show_ld.set(False)
+	
 	def toggle_smem(self):
-		if self.smem():
+		if self.options.smem():
 			self.add_mem_bar.tb_frm.pack(side=tk.TOP, fill=tk.X)
 		else:
 			self.add_mem_bar.tb_frm.pack_forget()
 	
 	def toggle_ssup(self):
-		if self.ssup():
+		if self.options.ssup():
 			self.add_sup_bar.tb_frm.pack(side=tk.TOP, fill=tk.X)
 		else:
 			self.add_sup_bar.tb_frm.pack_forget()
 	
 	def toggle_sld(self):
-		if self.sld():
+		if self.options.sld():
 			self.add_load_bar.tb_frm.pack(side=tk.TOP, fill=tk.X)
 		else:
 			self.add_load_bar.tb_frm.pack_forget()
 	
-	def show_allt(self):
-		if not self.smem():
-			self.add_mem_bar.tb_frm.pack(side=tk.TOP, fill=tk.X)
-			self.options.show_mem.set(True)
-		if not self.ssup():
-			self.add_sup_bar.tb_frm.pack(side=tk.TOP, fill=tk.X)
-			self.options.show_sup.set(True)
-		if not self.sld():
-			self.add_load_bar.tb_frm.pack(side=tk.TOP, fill=tk.X)
-			self.options.show_ld.set(True)
+	def toggle_wtls(self):
+		for m in self.members:
+			m.has_weight = not self.options.wtls()
 	
-	def hide_allt(self):
-		if self.smem():
-			self.add_mem_bar.tb_frm.pack_forget()
-			self.options.show_mem.set(False)
-		if self.ssup():
-			self.add_sup_bar.tb_frm.pack_forget()
-			self.options.show_sup.set(False)
-		if self.sld():
-			self.add_load_bar.tb_frm.pack_forget()
-			self.options.show_ld.set(False)
+	def toggle_thsnap(self):
+		self.add_sup_bar.auto_th(self.options.thsnap())
 	
 	def eval_report(self, rtype):
 		self.set_sel_mem_cb(lambda m: self.popup_report(m,rtype))
 	
+	def clear_all(self):
+		mem_copy = self.members.copy()
+		for m in mem_copy:
+			self.del_mem(m)
+	
+	def del_mem_mode(self):
+		self.set_sel_mem_cb(lambda m: self.del_mem(m))
+	
+	def del_lsj_mode(self):
+		self.set_sel_lsj_cb(lambda lsj: self.del_lsj(lsj))
+	#--End of Menu Command functions
+	
+	#Set a function to be executed upon selecting a member.
 	#callback is a function that accepts a reference to a member
 	def set_sel_mem_cb(self, callback):
 		self.canv.delete(self.sel_txt)
@@ -764,6 +819,7 @@ class Lab:
 		self.sel_lsj_cb = None
 		self.sel_mem_cb = callback
 	
+	#Ditto selecting a Load, Support, or Joint.
 	def set_sel_lsj_cb(self, callback):
 		self.canv.delete(self.sel_txt)
 		self.sel_txt = self.canv.create_text(self.c_wd - 124, self.c_ht - 12, 
@@ -771,12 +827,7 @@ class Lab:
 		self.sel_mem_cb = None
 		self.sel_lsj_cb = callback
 	
-	def del_mem_mode(self):
-		self.set_sel_mem_cb(lambda m: self.del_mem(m))
-	
-	def del_lsj_mode(self):
-		self.set_sel_lsj_cb(lambda lsj: self.del_lsj(lsj))
-	
+	#Open a popup window for a report of the given type for the member mem
 	def popup_report(self, mem, rtype):
 		popup = Tk_rt(mem.eval_names[rtype]+" Report")
 		loading_lbl = tk.Label(popup, text="CALCULATING", padx=48, pady=24)
@@ -854,66 +905,9 @@ class Lab:
 		popup.after(200, add_report)
 		popup.mainloop()
 	
-	#Open window to edit px_per_m and px_per_kN
-	def edit_scale(self):
-		popup = Tk_rt("Edit Lab Scale")
-		popup.grid_columnconfigure(0, minsize=120)
-		popup.grid_columnconfigure(1, minsize=120)
-		popup.grid_rowconfigure(4, pad=16)
-		
-		ppm_lbl = tk.Label(popup, text="px per m: ")
-		ppm_lbl.grid(row=0, column=0, sticky=tk.E)
-		ppm_e = tk.Entry(popup, width=8)
-		ppm_e.grid(row=0, column=1, sticky=tk.W)
-		ppm_e.insert(0, self.px_per_m)
-		ppk_lbl = tk.Label(popup, text="px per kN: ")
-		ppk_lbl.grid(row=1, column=0, sticky=tk.E)
-		ppk_e = tk.Entry(popup, width=8)
-		ppk_e.grid(row=1, column=1, sticky=tk.W)
-		ppk_e.insert(0, self.px_per_kN)
-		sd_lbl = tk.Label(popup, text="grid lines per m: ")
-		sd_lbl.grid(row=2, column=0, sticky=tk.E)
-		sd_e = tk.Entry(popup, width=8)
-		sd_e.grid(row=2, column=1, sticky=tk.W)
-		sd_e.insert(0, self.subdivision)
-		
-		note = "Note: For now, since resizing with members on the canvas does not work "
-		note += "properly, hitting save will also remove any members from the screen."
-		note_lbl = tk.Label(popup, text=note, wraplength=300)
-		note_lbl.grid(row=3, column=0, columnspan=2)
-		
-		def set_scale():
-			try:
-				ppm = int(ppm_e.get())
-				self.px_per_m = ppm
-			except ValueError:
-				ppm_e.delete(0, tk.END)
-				ppm_e.insert(0, self.px_per_m)
-			try:
-				ppk = float(ppk_e.get())
-				self.px_per_kN = ppk
-			except ValueError:
-				ppk_e.delete(0, tk.END)
-				ppk_e.insert(0, self.px_per_kN)
-			try:
-				#Limit to Z or N
-				sd = int(sd_e.get())
-				self.subdivision = sd
-			except ValueError:
-				sd_e.delete(0, tk.END)
-				sd_e.insert(0, self.subdivision)
-			self.clear_all()
-			self.redraw()
-		save_btn = tk.Button(popup, text="Save", command=set_scale)
-		save_btn.grid(row=4, column=0, columnspan=2, ipadx= 16, ipady=2)
-		def del_pop():
-			self.popups.remove(popup)
-			popup.destroy()
-		popup.protocol("WM_DELETE_WINDOW", del_pop)
-		self.popups.append(popup)
-		popup.mainloop()
-	
+	#Cleanup windows and resources
 	def cleanup(self):
+		#Destroy any popups before exiting
 		for w in self.popups:
 			w.destroy()
 		plt.close("all")
@@ -930,3 +924,43 @@ class PM_Options:
 		self.show_ld = None
 		self.mem_wtls = None
 		self.sup_endsnap = None
+		self.sup_thsnap = None
+	
+	#Consolidate this with a master getter function?
+	#--Start of getter functions for options
+	def wtls(self):
+		try:
+			return self.mem_wtls.get()
+		except AttributeError:# Was not set
+			return True
+	
+	def endsnap(self):
+		try:
+			return self.sup_endsnap.get()
+		except AttributeError:
+			return True
+	
+	def thsnap(self):
+		try:
+			return self.sup_thsnap.get()
+		except AttributeError:
+			return True
+	
+	def smem(self):
+		try:
+			return self.show_mem.get()
+		except AttributeError:# Was not set
+			return True
+	
+	def ssup(self):
+		try:
+			return self.show_sup.get()
+		except AttributeError:# Was not set
+			return True
+	
+	def sld(self):
+		try:
+			return self.show_ld.get()
+		except AttributeError:# Was not set
+			return True
+	#--End of getter functions for options
