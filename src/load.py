@@ -5,10 +5,8 @@ import sympy as sym
 class Load:
 	ah_width = 6#px
 	ball_rad = ah_width*.65
-	load_types = {
-		0: "Point",
-		1: "Distributed"
-	}
+	load_types = ("Point", "Distributed", "Moment")
+	#Load Type for this class (0, 1, 2)
 	ltype = 0
 	def __init__(self, tag, xc, yc, ax_dist=0):
 		self.tag = tag
@@ -25,6 +23,7 @@ class Load:
 		return data
 	def get_comp(self):
 		return (self.xc,self.yc)
+	
 	#Draw a point load. All args in pixels. The tip is at the point specified by (px,py)
 	def draw(self, lab, px, py):
 		if self.xc == 0 and self.yc == 0:
@@ -34,14 +33,19 @@ class Load:
 		pxc, pyc = lab.kN_to_px(self.xc/1000, self.yc/1000)
 		lab.canv.create_line(px-pxc,py-pyc,px,py, width=2, fill="red", tags=self.tag)
 		L = math.sqrt(pxc**2+pyc**2)
-		ux = pxc/L
-		uy = pyc/L
-		Trx = px - self.ah_width*3*ux + self.ah_width/2*uy
-		Try = py - self.ah_width*3*uy - self.ah_width/2*ux
-		Tlx = px - self.ah_width*3*ux - self.ah_width/2*uy
-		Tly = py - self.ah_width*3*uy + self.ah_width/2*ux
-		T_points = [px,py, Trx,Try, Tlx,Tly]
+		T_points = self.arrow_head(px, py, pxc/L, pyc/L)
 		lab.canv.create_polygon(T_points, fill="red", outline="red", tags=self.tag)# width=1,
+	
+	#Given a point on the canvas and a unit vector, draw an arrow head pointing to (px,py)
+	#All units in pixels on the canvas, not points on the grid.
+	def arrow_head(self, px, py, ux, uy):
+		ah_l = self.ah_width*3
+		Trx = px - ah_l*ux + self.ah_width/2*uy
+		Try = py - ah_l*uy - self.ah_width/2*ux
+		Tlx = px - ah_l*ux - self.ah_width/2*uy
+		Tly = py - ah_l*uy + self.ah_width/2*ux
+		return [px,py, Trx,Try, Tlx,Tly]
+	
 
 #Quadrelateral distributed loads, defined by 2 q vectors @ axd0 & axd1
 class Distr_Load(Load):
@@ -71,6 +75,9 @@ class Distr_Load(Load):
 			</ld>""".format(self.ltype, self.xc0, self.yc0, 
 			self.axd0, self.xc1, self.yc1, self.axd1)
 		return data
+	
+	#Converts this distributed load into an equivalent list of point loads.
+	#It needs to be multiple point loads because distributed loads may cause moments.
 	def pt_equiv(self):
 		ptlds = []
 		L = self.axd1 - self.axd0
@@ -121,6 +128,7 @@ class Distr_Load(Load):
 		return ptl.get_comp()
 	@property
 	def ax_dist(self):
+		print(125, "WARNING, I dont' think this works.")
 		ptl = self.pt_equiv()
 		return ptl.ax_dist
 	#Set axd doesn't mean anything here
@@ -159,11 +167,7 @@ class Distr_Load(Load):
 			ah_l = self.ah_width*3
 			ux = pxc/Ll #Unit vector along arrow
 			uy = pyc/Ll
-			Trx = ax - ah_l*ux + self.ah_width/2*uy
-			Try = ay - ah_l*uy - self.ah_width/2*ux
-			Tlx = ax - ah_l*ux - self.ah_width/2*uy
-			Tly = ay - ah_l*uy + self.ah_width/2*ux
-			T_points = [ax,ay, Trx,Try, Tlx,Tly]
+			T_points = self.arrow_head(ax, ay, ux, uy)
 			lab.canv.create_polygon(T_points, fill="red", outline="red", tags=self.tag)
 		q0xc, q0yc = lab.kN_to_px(self.xc0/1000, self.yc0/1000)
 		q1xc, q1yc = lab.kN_to_px(self.xc1/1000, self.yc1/1000)
@@ -181,11 +185,60 @@ class Distr_Load(Load):
 		py = self.yc0 + (d-self.axd0)/Ld*(self.yc1-self.yc0)
 		return (px*chr_pls, py*chr_pls)
 
+#Applied moments
 class Moment(Load):
+	ltype = 2
+	#These next two control (together with lab.px_per_kN) the scaling of Z-Moments on the canvas.
+	#18kN --> 1m linear. 18kN-m --> 40px radius (by default)
+	large_kNm = 18
+	M_minscale = 0.5
+	arrow_offset = Load.ah_width*2.5#*3 is the arrow length
 	def __init__(self, tag, mx=0, my=0, mz=0, ax_dist=0):
-		super().__init__(tag, 0, 0, ax_dist)
+		#NOTE: this used to be (tag, 0, 0, ax_dist)
+		#Hopefully I didn't break anything
+		super().__init__(tag, mx, my, ax_dist)
 		self.mx = mx
 		self.my = my
 		self.mz = mz
+	def to_xml(self):
+		data = """
+			<ld type="{}">
+				<xc>{}</xc>
+				<yc>{}</yc>
+				<zc>{}</zc>
+				<axd>{}</axd>
+			</ld>""".format(self.ltype, self.mx, self.my, self.mz, self.ax_dist)
+		return data
+	def draw_z(self, lab, px, py):
+		if self.mz == 0:
+			return
+		r = (self.M_minscale + abs(self.mz/1000)/self.large_kNm) * lab.px_per_kN
+		if self.mz > 0:
+			lab.canv.create_arc(px-r, py-r, px+r, py+r, start=0, extent=270, style="arc",
+				width=2, outline="red", tags=self.tag)
+			T_points = self.arrow_head(px+self.arrow_offset, py+r, 1, 0)
+		else:
+			lab.canv.create_arc(px-r, py-r, px+r, py+r, start=90, extent=270, style="arc",
+				width=2, outline="red", tags=self.tag)
+			T_points = self.arrow_head(px+self.arrow_offset, py-r, 1, 0)
+		lab.canv.create_polygon(T_points, fill="red", outline="red", tags=self.tag)
+	def draw_xy(self, lab, px, py):
+		Load.draw(self, lab, px, py)
+		#Add second arrowhead
+		Mmag_xy = math.sqrt(self.mx**2 + self.my**2)
+		#Unit vector
+		ux = self.mx / Mmag_xy
+		uy = - self.my / Mmag_xy
+		#Arrow head location
+		h2x = px - ux * self.arrow_offset
+		h2y = py - uy * self.arrow_offset
+		T2_pts = self.arrow_head(h2x, h2y, ux, uy)
+		lab.canv.create_polygon(T2_pts, fill="red", outline="red", tags=self.tag)
+	def draw(self, *args):
+		if self.mz != 0:
+			self.draw_z(*args)
+		if self.mx != 0 or self.my != 0:
+			self.draw_xy(*args)
+	
 	#To Do: draw function (depends on if is in plane(mx,y) or out)
 	#To Do: interface for placing applied Moments

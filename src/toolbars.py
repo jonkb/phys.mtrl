@@ -1,12 +1,14 @@
 import tkinter as tk
 import math
 
+from load import Load
 from member import *
 from region import *
 from support import Support
 
 
-num_e_wid = 8
+num_e_wid = 8 #Standard width for a numerical tk.Entry widget.
+option_wid = 10 #Standard width for tk.OptionMenu pulldown. 
 
 #Toolbar to add a new member
 class Add_mem:
@@ -27,7 +29,7 @@ class Add_mem:
 		self.matl = tk.StringVar(self.tb_frm)
 		self.matl.set(Materials.materials[0])
 		matl_option = tk.OptionMenu(self.tb_frm, self.matl, *Materials.materials)
-		matl_option.config(width=12)
+		matl_option.config(width=option_wid)
 		matl_option.grid(row=1, column=1)
 		
 		#Choose xsection label
@@ -38,7 +40,7 @@ class Add_mem:
 		self.xsec.set(Region.regions[0])
 		self.xsec.trace("w", self.update_xparam)
 		xsec_option = tk.OptionMenu(self.tb_frm, self.xsec, *Region.regions)
-		xsec_option.config(width=12)
+		xsec_option.config(width=option_wid)
 		xsec_option.grid(row=1, column=2)
 		
 		#Frame that adjusts itself to the chosen xsection to have the needed parameters
@@ -250,14 +252,20 @@ class Add_sup:
 
 #Add load toolbar
 class Add_load:
+	#Text for Point loads.
 	xctext = "x-comp. (kN):"
 	yctext = "y-comp. (kN):"
 	rtext = "load (kN):"
 	thtext = "angle (deg):"
-	qxtext = "x-comp. (kN/m)" # Append q0 or q1 to the start for these four
-	qytext = "y-comp. (kN/m)"
-	qrtext = "mag (kN/m)"
-	qthtext = "angle (deg)"
+	#Text for Distr. loads. Append q0 or q1 to the start for these four
+	qxtext = "x-comp. (kN/m):" 
+	qytext = "y-comp. (kN/m):"
+	qrtext = "mag (kN/m):"
+	qthtext = "angle (deg):"
+	#Text for Moments.
+	mxtext = "x-comp. (kN-m):"
+	mytext = "y-comp. (kN-m):"
+	mztext = "z-comp. (kN-m):"
 	def __init__(self, main_frm):
 		self.tb_frm = tk.Frame(main_frm)
 		self.tb_frm.config(highlightcolor="grey", highlightbackground="grey", highlightthickness=1)
@@ -267,25 +275,26 @@ class Add_load:
 		tb_lbl = tk.Label(self.tb_frm, text="Add New\nLoad")
 		tb_lbl.grid(row=0, column=0, rowspan=2)
 		
-		#Choose point or distributed
-		self.pt_ds = tk.IntVar(self.tb_frm)
-		self.pt_ds.set(0)
-		pt_btn = tk.Radiobutton(self.tb_frm, variable=self.pt_ds, value=0, command=self.setpt)
-		pt_btn.config(indicatoron=0, text="Point")
-		pt_btn.grid(row=0, column=1, sticky=tk.W+tk.E)
-		ds_btn = tk.Radiobutton(self.tb_frm, variable=self.pt_ds, value=1, command=self.setds)
-		ds_btn.config(indicatoron=0, text="Distributed")
-		ds_btn.grid(row=1, column=1, sticky=tk.W+tk.E)
+		#Choose load type (point, distributed, or moment) label
+		ldtype_lbl = tk.Label(self.tb_frm, text="Load Type:")
+		ldtype_lbl.grid(row=0, column=1)
+		#Choose load type pulldown
+		self.ldtype = tk.StringVar(self.tb_frm)
+		self.ldtype.set(Load.load_types[0])
+		self.ldtype.trace("w", self.set_ldtype) #Trace "w" --> run function on select
+		ldtype_option = tk.OptionMenu(self.tb_frm, self.ldtype, *Load.load_types)
+		ldtype_option.config(width=option_wid)
+		ldtype_option.grid(row=1, column=1)
 		
 		#Choose components or r,theta
 		self.c_p = tk.IntVar(self.tb_frm)
 		self.c_p.set(0)
-		c_btn = tk.Radiobutton(self.tb_frm, variable=self.c_p, value=0, command=self.setcomp)
-		c_btn.config(indicatoron=0, text="Components")
-		c_btn.grid(row=0, column=2, sticky=tk.W+tk.E)
-		p_btn = tk.Radiobutton(self.tb_frm, variable=self.c_p, value=1, command=self.setpol)
-		p_btn.config(indicatoron=0, text="Polar")
-		p_btn.grid(row=1, column=2, sticky=tk.W+tk.E)
+		self.c_btn = tk.Radiobutton(self.tb_frm, variable=self.c_p, value=0, command=self.setcomp)
+		self.c_btn.config(indicatoron=0, text="Components")
+		self.c_btn.grid(row=0, column=2, sticky=tk.W+tk.E)
+		self.p_btn = tk.Radiobutton(self.tb_frm, variable=self.c_p, value=1, command=self.setpol)
+		self.p_btn.config(indicatoron=0, text="Polar")
+		self.p_btn.grid(row=1, column=2, sticky=tk.W+tk.E)
 		
 		#Frame that adjusts itself to have the needed fields
 		self.comp_frm = tk.Frame(self.tb_frm)
@@ -297,28 +306,50 @@ class Add_load:
 		#Button to add the new load
 		self.add_btn = tk.Button(self.tb_frm, text="Add")
 		self.add_btn.grid(row=0, column=5, padx=2, pady=2, ipadx=8, rowspan=2, sticky=tk.N+tk.S)
-		
+	
+	#Returns 0, 1, or 2, corrosponding to "Point", "Distributed", or "Moment"
+	def get_ldtype(self):
+		return Load.load_types.index(self.ldtype.get())
+	#OLD
 	def is_ds(self):
-		return self.pt_ds.get()
+		print(308, "GET RID OF THIS")
+		return self.get_ldtype() == 1
 	def setcomp(self):
-		if self.pt_ds.get() == 0: #Pt. load comp. labels
+		if self.get_ldtype() == 0: #Pt. load comp. labels
 			self.Pc1_lbl.config(text=self.xctext)
 			self.Pc2_lbl.config(text=self.yctext)
-		elif self.pt_ds.get() == 1: #Distr. load comp. labels
+		elif self.get_ldtype() == 1: #Distr. load comp. labels
 			self.Pc1_lbl.config(text="q0 "+self.qxtext)
 			self.Pc2_lbl.config(text="q0 "+self.qytext)
 			self.Pc3_lbl.config(text="q1 "+self.qxtext)
 			self.Pc4_lbl.config(text="q1 "+self.qytext)
 	def setpol(self):
-		if self.pt_ds.get() == 0: #Pt. load polar labels
+		if self.get_ldtype() == 0: #Pt. load polar labels
 			self.Pc1_lbl.config(text=self.rtext)
 			self.Pc2_lbl.config(text=self.thtext)
-		if self.pt_ds.get() == 1: #Distr. load polar labels
+		if self.get_ldtype() == 1: #Distr. load polar labels
 			self.Pc1_lbl.config(text="q0 "+self.rtext)
 			self.Pc2_lbl.config(text="q0 "+self.thtext)
 			self.Pc3_lbl.config(text="q1 "+self.qrtext)
 			self.Pc4_lbl.config(text="q1 "+self.qthtext)
+	#This function is called whenever Load Type is selected
+	def set_ldtype(self, *args):
+		ldtype = self.ldtype.get()
+		if ldtype == Load.load_types[0]: #Point
+			self.setpt()
+		elif ldtype == Load.load_types[1]: #Distr
+			self.setds()
+		elif ldtype == Load.load_types[2]: #Moment
+			self.setmt()
+		else:
+			#error
+			print(331, "Error, unknown load type selected")
+	
 	def setpt(self):
+		#Restore those radio buttons if they were hidden
+		self.c_btn.grid()
+		self.p_btn.grid()
+		
 		for widget in self.comp_frm.winfo_children():
 			widget.destroy()
 		#Load comp. 1 label
@@ -340,6 +371,10 @@ class Add_load:
 			self.setpol()
 	
 	def setds(self):
+		#Restore those radio buttons if they were hidden
+		self.c_btn.grid()
+		self.p_btn.grid()
+		
 		for widget in self.comp_frm.winfo_children():
 			widget.destroy()
 		#Q 0 comp. 1 label
@@ -375,6 +410,35 @@ class Add_load:
 		if self.c_p.get():
 			self.setpol()
 	
+	#Set up the interface for adding applied moments.
+	def setmt(self):
+		self.c_btn.grid_remove()
+		self.p_btn.grid_remove()
+		
+		for widget in self.comp_frm.winfo_children():
+			widget.destroy()
+		#Load comp. 1 label
+		self.Pc1_lbl = tk.Label(self.comp_frm, text=self.mxtext)
+		self.Pc1_lbl.grid(row=0, column=0)
+		#Load comp. 1  entry
+		self.Pc1_entry = tk.Entry(self.comp_frm)
+		self.Pc1_entry.config(width=num_e_wid)
+		self.Pc1_entry.grid(row=1, column=0)
+		#Load comp. 2  label
+		self.Pc2_lbl = tk.Label(self.comp_frm, text=self.mytext)
+		self.Pc2_lbl.grid(row=0, column=1)
+		#Load comp. 2  entry
+		self.Pc2_entry = tk.Entry(self.comp_frm)
+		self.Pc2_entry.config(width=num_e_wid)
+		self.Pc2_entry.grid(row=1, column=1)
+		#Load comp. 3  label
+		self.Pc3_lbl = tk.Label(self.comp_frm, text=self.mztext)
+		self.Pc3_lbl.grid(row=0, column=2)
+		#Load comp. 3  entry
+		self.Pc3_entry = tk.Entry(self.comp_frm)
+		self.Pc3_entry.config(width=num_e_wid)
+		self.Pc3_entry.grid(row=1, column=2)
+	
 	#Returns the components of the load in N
 	def get_P(self):
 		try:
@@ -382,12 +446,13 @@ class Add_load:
 			Pc2 = float(self.Pc2_entry.get())
 		except ValueError:
 			return ("NaN","NaN")
-		if self.pt_ds.get() == 0:
+		ldt = self.get_ldtype()
+		if ldt == 0:
 			if self.c_p.get() == 0: #"Components"
 				return (Pc1*1000, Pc2*1000)
 			if self.c_p.get() == 1: #"Polar"
 				return self.p_to_c(Pc1*1000, Pc2)
-		elif self.pt_ds.get() == 1:
+		elif ldt == 1:
 			try:
 				Pc3 = float(self.Pc3_entry.get())
 				Pc4 = float(self.Pc4_entry.get())
@@ -397,19 +462,30 @@ class Add_load:
 				return ( (Pc1*1000, Pc2*1000), (Pc3*1000, Pc4*1000) )
 			if self.c_p.get() == 1:
 				return ( self.p_to_c(Pc1*1000, Pc2), self.p_to_c(Pc3*1000, Pc4))
+		elif ldt == 2:
+			try:
+				Pc3 = float(self.Pc3_entry.get())
+			except ValueError:
+				return ("NaN","NaN", "NaN")
+			return (Pc1*1000, Pc2*1000, Pc3*1000)
+			
 	def mag(self):
-		if self.pt_ds.get() == 0:
+		ldt = self.get_ldtype()
+		if ldt == 0:
 			x,y = self.get_P()
 			if self.c_p.get() == 0:
 				return math.sqrt(x**2+y**2)
 			if self.c_p.get() == 1:
 				return x
-		if self.pt_ds.get() == 1:
+		elif ldt == 1:
 			(x0,y0), (x1,y1) = self.get_P()
 			if self.c_p.get() == 0:
 				return ( math.sqrt(x0**2+y0**2), math.sqrt(x1**2+y1**2) )
 			if self.c_p.get() == 1:
 				return ( x0, x1 )
+		elif ldt == 2:
+			x,y,z = self.get_P()
+			return math.sqrt(x**2 + y**2 + z**2)
 	#Polar to Coords. th in deg
 	@staticmethod
 	def p_to_c(r, th):
@@ -418,13 +494,14 @@ class Add_load:
 		return (x,y)
 	#Return true if all fields have numbers. Also returns false if mag==0
 	def has_float_vals(self):
-		#print(361)
 		try:
 			if self.mag() == 0:
 				return False
 			float(self.Pc1_entry.get())
 			float(self.Pc2_entry.get())
-			if self.pt_ds.get() == 1:
+			if self.get_ldtype() == 2:
+				float(self.Pc3_entry.get())
+			elif self.get_ldtype() == 1:
 				float(self.Pc3_entry.get())
 				float(self.Pc4_entry.get())
 		except ValueError:
