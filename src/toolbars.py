@@ -301,15 +301,21 @@ class Add_load:
 	def is_ds(self):
 		return self.pt_ds.get()
 	def setcomp(self):
-		self.Pc1_lbl.config(text=self.xctext)
-		self.Pc2_lbl.config(text=self.yctext)
-		if self.pt_ds.get() == 1:
-			self.Pc3_lbl.config(text="q0 "+self.qxtext)
-			self.Pc4_lbl.config(text="q0 "+self.qytext)
+		if self.pt_ds.get() == 0: #Pt. load comp. labels
+			self.Pc1_lbl.config(text=self.xctext)
+			self.Pc2_lbl.config(text=self.yctext)
+		elif self.pt_ds.get() == 1: #Distr. load comp. labels
+			self.Pc1_lbl.config(text="q0 "+self.qxtext)
+			self.Pc2_lbl.config(text="q0 "+self.qytext)
+			self.Pc3_lbl.config(text="q1 "+self.qxtext)
+			self.Pc4_lbl.config(text="q1 "+self.qytext)
 	def setpol(self):
-		self.Pc1_lbl.config(text=self.rtext)
-		self.Pc2_lbl.config(text=self.thtext)
-		if self.pt_ds.get() == 1:
+		if self.pt_ds.get() == 0: #Pt. load polar labels
+			self.Pc1_lbl.config(text=self.rtext)
+			self.Pc2_lbl.config(text=self.thtext)
+		if self.pt_ds.get() == 1: #Distr. load polar labels
+			self.Pc1_lbl.config(text="q0 "+self.rtext)
+			self.Pc2_lbl.config(text="q0 "+self.thtext)
 			self.Pc3_lbl.config(text="q1 "+self.qrtext)
 			self.Pc4_lbl.config(text="q1 "+self.qthtext)
 	def setpt(self):
@@ -329,6 +335,10 @@ class Add_load:
 		self.Pc2_entry = tk.Entry(self.comp_frm)
 		self.Pc2_entry.config(width=num_e_wid)
 		self.Pc2_entry.grid(row=1, column=1)
+		#If in polar mode, fix the labels.
+		if self.c_p.get():
+			self.setpol()
+	
 	def setds(self):
 		for widget in self.comp_frm.winfo_children():
 			widget.destroy()
@@ -361,6 +371,9 @@ class Add_load:
 		self.Pc4_entry = tk.Entry(self.comp_frm)
 		self.Pc4_entry.config(width=num_e_wid)
 		self.Pc4_entry.grid(row=1, column=3)
+		#If in polar mode, fix the labels.
+		if self.c_p.get():
+			self.setpol()
 	
 	#Returns the components of the load in N
 	def get_P(self):

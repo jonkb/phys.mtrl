@@ -35,7 +35,7 @@ Here is a summary of some of the currently implemented features.
 - Add applied torques.
 - Add an option for snap to grid when placing everything.
 - Add more options for cross section and material.
-	- Upload some database of materials and material properties
+	- Upload some database of materials and material properties.
 - Fix the mohr\_transform function so it works fine with symbolic functions, then use that to find the max and min symbolically in the sig\_tau report.
 - Make it so that the max2d\_grad function works better with piecewise.
 - Add keyboard shortcuts
