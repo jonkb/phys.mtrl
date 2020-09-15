@@ -322,15 +322,21 @@ class Lab:
 				self.floating_x = x
 				self.floating_y = y
 				fl_tag = "fl_load"
-				if self.add_load_bar.is_ds():
-					if self.dlq0_temp == None:
-						(xc, yc), *_ = self.add_load_bar.get_P()
-					else:
-						*_, (xc, yc) = self.add_load_bar.get_P()
+				ldtype = self.add_load_bar.get_ldtype()
+				if ldtype == 2: #Moment
+					mx, my, mz = self.add_load_bar.get_P()
+					mmt = Moment(fl_tag, mx, my, mz)
+					mmt.draw(self, x, y)
 				else:
-					xc, yc = self.add_load_bar.get_P()
-				load = Load(fl_tag, xc, yc)
-				load.draw(self, x, y)
+					if ldtype == 1: #Distr
+						if self.dlq0_temp == None:
+							(xc, yc), *_ = self.add_load_bar.get_P()
+						else:
+							*_, (xc, yc) = self.add_load_bar.get_P()
+					else: #Pt
+						xc, yc = self.add_load_bar.get_P()
+					load = Load(fl_tag, xc, yc)
+					load.draw(self, x, y)
 				self.floating = fl_tag
 				return
 			else:
@@ -353,7 +359,10 @@ class Lab:
 			else:
 				self.add_support(event)
 		elif self.add_mode == 3:
-			if self.add_load_bar.is_ds():
+			ldtype = self.add_load_bar.get_ldtype()
+			if ldtype == 2: #Moment
+				self.add_moment(event)
+			elif ldtype == 1: #Distr
 				self.add_distr_load(event)
 			else:
 				self.add_load(event)
@@ -444,6 +453,8 @@ class Lab:
 			self.set_add_mode(0)
 	
 	def place_support(self, mem, stype, xp=None, yp=None, axd=0, th=0):
+		#In all these, xp and yp are redundant
+		#When loading from file, they're not given
 		if xp is None or yp is None:
 			xc, yc = mem.get_s0() + mem.uv_axis()*axd
 			xp, yp = self.coords_to_px(xc, yc)
@@ -574,6 +585,25 @@ class Lab:
 		dl = Distr_Load(dltag, q0x, q0y, axd0, q1x, q1y, axd1, th)
 		mem.loads.append(dl)
 		dl.draw(self, xp, yp)
+	
+	def add_moment(self, event):
+		x = event.x
+		y = event.y
+		(xp,yp), mem, axd = self.snap_to_mem_axis(x,y)
+		if mem != None:
+			mx, my, mz = self.add_load_bar.get_P()
+			self.place_moment(mem, mx, my, mz, axd, xp, yp)
+			self.set_add_mode(0)
+	
+	def place_moment(self, mem, mx, my, mz, axd, xp=None, yp=None):
+		if xp is None or yp is None:
+			xc, yc = mem.get_s0() + axd*mem.uv_axis()
+			xp, yp = self.coords_to_px(xc, yc)
+		ltag = "ld_"+str(self.tag_n)
+		self.tag_n += 1
+		mt = Moment(ltag, mx, my, mz, axd)
+		mt.draw(self, xp, yp)
+		mem.loads.append(mt)
 	
 	def sel_mem(self, event):
 		x = event.x
