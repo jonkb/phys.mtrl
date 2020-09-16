@@ -77,8 +77,13 @@ def open(lab):
 			th = float(jt.find("th").text)
 			jts.append((m, jtype, axd, th)) #To add later, after all members are down.
 		for ld in mem.findall("ld"):
-			is_distr = int(ld.attrib["type"])
-			if is_distr:
+			ldtype = int(ld.attrib["type"])
+			if ldtype == 0:
+				Px = float(ld.find("xc").text)
+				Py = float(ld.find("yc").text)
+				axd = float(ld.find("axd").text)
+				lab.place_load(m, Px, Py, axd)
+			if ldtype == 1:
 				q0x = float(ld.find("xc0").text)
 				q0y = float(ld.find("yc0").text)
 				axd0 = float(ld.find("axd0").text)
@@ -86,11 +91,14 @@ def open(lab):
 				q1y = float(ld.find("yc1").text)
 				axd1 = float(ld.find("axd1").text)
 				lab.place_distr_load(m, q0x, q0y, axd0, q1x, q1y, axd1)
-			else:
-				Px = float(ld.find("xc").text)
-				Py = float(ld.find("yc").text)
+			if ldtype == 2:
+				mx = float(ld.find("xc").text)
+				my = float(ld.find("yc").text)
+				mz = float(ld.find("zc").text)
 				axd = float(ld.find("axd").text)
-				lab.place_load(m, Px, Py, axd)
+				lab.place_moment(m, mx, my, mz, axd)
+			else:
+				print("Unknown load type")
 	for jt in jts:
 		lab.load_joint(*jt)
 	print("Loaded Successfully")

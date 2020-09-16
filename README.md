@@ -32,7 +32,7 @@ Here is a summary of some of the currently implemented features.
 ## Possible Future Improvements
 - Allow members to be moved after being placed.
 - Use equations for elongation to deal with statically indeterminate members.
-- Add applied torques.
+- Add applied torques in x-y plane. (Requires redoing the statics system to work in 3D.)
 - Add an option for snap to grid when placing everything.
 - Add more options for cross section and material.
 	- Upload some database of materials and material properties.

@@ -17,7 +17,7 @@ import math_util as m_u
 
 class Lab:
 	#Constants
-	version = "0.2.0"
+	version = "0.2.1"
 	snap_dist = 15 #px
 	dash_len = 30
 	
