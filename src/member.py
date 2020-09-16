@@ -8,11 +8,6 @@ import joint as jt
 from math_util import *
 
 
-
-#WARNING: reactions() and axial_loads() are broken under the new system!!!
-
-
-
 #prismatic uniform members
 class Member:
 	d_resolution = 100
@@ -331,15 +326,29 @@ valid over the whole height, so the max and min values presented here may be ina
 		return loads_c
 	
 	#Return my_loads() after converting Distr_Loads to equivalent point loads.
+	#Also excludes applied moments.
 	def my_loads_pt(self):
 		loads = self.my_loads()
 		ptlds = []
 		for ld in loads:
 			if isinstance(ld, Distr_Load):
 				ptlds += ld.pt_equiv()
-			else:
+			elif not isinstance(ld, Moment):
 				ptlds.append(ld)
 		return ptlds
+	
+	#Return all applied moments on the member
+	#TEMP PATCH: sends a warning if any non-z moments are applied.
+	#Dealing with xy moments requires 3D statics, not 2D like I have here.
+	def my_moments(self):
+		mmts = []
+		for ld in self.loads:
+			if isinstance(ld, Moment):
+				if ld.mx != 0 or ld.my != 0:
+					print("WARNING 348: I can't deal with x or y moments yet.")
+				else:
+					mmts.append(ld)
+		return mmts
 	
 	#Returns two functions (of 'd') representing the sum of all distributed loads.
 	def sum_my_dl(self):
@@ -543,6 +552,9 @@ valid over the whole height, so the max and min values presented here may be ina
 				s_px += px
 				s_py += py
 				s_m += py*p.ax_dist*uv_ax[0] - px*p.ax_dist*uv_ax[1]
+			for m in m.my_moments():
+				#NOTE: dealing with mx or my requires more equations.
+				s_m += m.mz #NOTE: I'm not 100% sure if this is right
 			M_B[row:row+3, 0:1] = np.array([[-s_px], [-s_py], [-s_m]])
 		#print(418, M_B)
 		try:
@@ -616,8 +628,8 @@ valid over the whole height, so the max and min values presented here may be ina
 	
 	#Return report text (& any figures) for each type of evaluation
 	#Be sure to make this line up with the dictionary in Lab
-	def gen_report(self, type):
-		return self.eval_reports[type]()
+	def gen_report(self, eval_type):
+		return self.eval_reports[eval_type]()
 	
 	#Static Equilibrium Report
 	#Lists the reaction forces at each support and joint along the member

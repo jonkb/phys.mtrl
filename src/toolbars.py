@@ -266,6 +266,7 @@ class Add_load:
 	mxtext = "x-comp. (kN-m):"
 	mytext = "y-comp. (kN-m):"
 	mztext = "z-comp. (kN-m):"
+	allow_xy_moments = False
 	def __init__(self, main_frm):
 		self.tb_frm = tk.Frame(main_frm)
 		self.tb_frm.config(highlightcolor="grey", highlightbackground="grey", highlightthickness=1)
@@ -417,20 +418,29 @@ class Add_load:
 		
 		for widget in self.comp_frm.winfo_children():
 			widget.destroy()
-		#Load comp. 1 label
-		self.Pc1_lbl = tk.Label(self.comp_frm, text=self.mxtext)
-		self.Pc1_lbl.grid(row=0, column=0)
-		#Load comp. 1  entry
-		self.Pc1_entry = tk.Entry(self.comp_frm)
-		self.Pc1_entry.config(width=num_e_wid)
-		self.Pc1_entry.grid(row=1, column=0)
-		#Load comp. 2  label
-		self.Pc2_lbl = tk.Label(self.comp_frm, text=self.mytext)
-		self.Pc2_lbl.grid(row=0, column=1)
-		#Load comp. 2  entry
-		self.Pc2_entry = tk.Entry(self.comp_frm)
-		self.Pc2_entry.config(width=num_e_wid)
-		self.Pc2_entry.grid(row=1, column=1)
+		
+		#Turn on or off x and y moments
+		if self.allow_xy_moments:
+			#Load comp. 1 label
+			self.Pc1_lbl = tk.Label(self.comp_frm, text=self.mxtext)
+			self.Pc1_lbl.grid(row=0, column=0)
+			#Load comp. 1  entry
+			self.Pc1_entry = tk.Entry(self.comp_frm)
+			self.Pc1_entry.config(width=num_e_wid)
+			self.Pc1_entry.grid(row=1, column=0)
+			#Load comp. 2  label
+			self.Pc2_lbl = tk.Label(self.comp_frm, text=self.mytext)
+			self.Pc2_lbl.grid(row=0, column=1)
+			#Load comp. 2  entry
+			self.Pc2_entry = tk.Entry(self.comp_frm)
+			self.Pc2_entry.config(width=num_e_wid)
+			self.Pc2_entry.grid(row=1, column=1)
+		else:
+			#Still have the tk.Entry-s, but not interactively
+			self.Pc1_entry = tk.Entry(self.comp_frm)
+			self.Pc1_entry.insert(tk.END, "0")
+			self.Pc2_entry = tk.Entry(self.comp_frm)
+			self.Pc2_entry.insert(tk.END, "0")
 		#Load comp. 3  label
 		self.Pc3_lbl = tk.Label(self.comp_frm, text=self.mztext)
 		self.Pc3_lbl.grid(row=0, column=2)
@@ -468,7 +478,7 @@ class Add_load:
 			except ValueError:
 				return ("NaN","NaN", "NaN")
 			return (Pc1*1000, Pc2*1000, Pc3*1000)
-			
+	
 	def mag(self):
 		ldt = self.get_ldtype()
 		if ldt == 0:
