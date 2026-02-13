@@ -1,0 +1,8 @@
+# Requirements to be pip installed
+
+# tkinter -- installed by default
+# math -- installed by default
+# datetime -- installed by default
+numpy
+sympy
+

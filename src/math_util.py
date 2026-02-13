@@ -71,7 +71,8 @@ def pw_sdls(f, x):
 	def rec_search(expr):
 		nonlocal lims
 		if type(expr) == sym.Piecewise:
-			sdoms = expr._intervals(x)
+			# UPDATE: Newer SymPy returns (success, list)
+			_, sdoms = expr._intervals(x)
 			for sdom in sdoms:
 				if math.isfinite(sdom[0]):
 					lims = np.append(lims, float(sdom[0]))
@@ -179,9 +180,10 @@ def max1d(f, x, dom):
 	critpts = np.append(critpts, dom)
 	critvals = f_lam(critpts)
 	f_max = np.max(critvals)
-	x_max = critpts[np.where(critvals == f_max)[0][0]]
+	#x_max = critpts[np.where(critvals == f_max)[0][0]]
+	x_max = critpts[critvals == f_max]
 	f_min = np.min(critvals)
-	x_min = critpts[np.where(critvals == f_min)[0][0]]
+	x_min = critpts[critvals == f_min]
 	return (f_max, x_max), (f_min, x_min)
 
 #Calculates the max and min of a 2d function on the given domain
