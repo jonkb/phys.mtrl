@@ -7,13 +7,19 @@ from member import Member
 
 #Wrapper for tk.Tk() incorporating the title and icon already
 class Tk_rt(tk.Tk):
-	ico_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../img/phys.ico")
 	def __init__(self, title):
 		super().__init__()
 		self.title(title)
+		# Try to set the icon -- probably only works on Windows
+		img_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../img/")
+		ico_path = os.path.join(img_root, "phys.ico")
 		try:
-			self.iconbitmap(self.ico_path)
+			#self.iconbitmap(ico_path)
+			self.img = tk.PhotoImage(file=ico_path)
+			self.wm_iconphoto(True, self.img)
+			self.iconphoto(True, self.img)
 		except:
+			# Probably won't ever work on Ubuntu without creating a .desktop file
 			print("Error loading icon ("+ico_path+")")
 
 #Phys.Mtrl Menu bar
