@@ -22,9 +22,13 @@ class Lab:
 	dash_len = 30
 	
 	def __init__(self, main_frm, add_mem_bar, add_sup_bar, add_load_bar):
+		""" Initialize Lab
+		"""
+		# Default canvas dimensions
 		self.c_wd = 756
 		self.c_ht = 468
 		
+		# Initialize options, to be controlled by the menus
 		self.options = PM_Options()
 		
 		add_mem_bar.add_btn.config(command=self.toggle_mem_mode)
@@ -622,8 +626,13 @@ class Lab:
 		
 		return (*s0N, *s1N, *s1S, *s0S)
 	
-	#Mode: 0=None, 1=mem, 2=sup
 	def set_add_mode(self, mode):
+		""" Set add mode
+		The "add mode" refers to what kind of object is currently being added 
+			to the lab. That object will float with the mouse.
+		Modes: 0=None, 1=Member, 2=Support, 3=Load
+		"""
+		# Determine whether to do nothing
 		if mode == self.add_mode:
 			return
 		elif mode == 1:
@@ -635,8 +644,10 @@ class Lab:
 		elif mode == 3:
 			if not self.add_load_bar.has_float_vals():
 				return
+		# Clear current floating object
 		self.canv.delete(self.floating)
 		self.floating = None
+		# Set add mode to mode
 		self.add_mode = mode
 	
 	def del_mem(self, mem):
@@ -912,13 +923,17 @@ class Lab:
 			w.destroy()
 		plt.close("all")
 
-#Options for Phys.Mtrl
 class PM_Options:
+	""" Options for Phys.Mtrl
+	Each option is to be replaced with a Tk variable
+		See tk_wig.py > PM_Menu.__init__
+	"""
+
 	def __init__(self):
-		#Set by the Menus:
-		#show_mem; show_sup; show_ld
-		#mem_wtls; sup_endsnap
-		#These are to be replaced with Tk variables
+		""" Initialize options object
+		The options themselves will be Tk variables controlled by the menus
+		Options: show_mem; show_sup; show_ld; mem_wtls; sup_endsnap
+		"""
 		self.show_mem = None
 		self.show_sup = None
 		self.show_ld = None
