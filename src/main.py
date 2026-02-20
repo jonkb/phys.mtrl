@@ -1,3 +1,10 @@
+""" main.py
+Main script to run phys.mtrl
+
+Creates the Root window, the main frame, the toolbars, the menu, and the lab
+"""
+
+
 import tkinter as tk
 
 from lab import Lab

@@ -1,3 +1,11 @@
+""" tk_wig.py
+Custom Tkinter Widgets
+
+Tk_rt: Wrapper for tk.Tk
+PM_Menu: Phys.Mtrl Menu bar
+Txt_wig: Text widget used for displaying copyable text without receiving input
+"""
+
 import math
 import tkinter as tk
 from tkinter import font
@@ -5,10 +13,24 @@ import os
 
 from member import Member
 
+# Constants
+default_font_size = 11
+font_list = ["TkDefaultFont", "TkMenuFont", "TkTextFont"]
+
 #Wrapper for tk.Tk() incorporating the title and icon already
 class Tk_rt(tk.Tk):
 	def __init__(self, title):
 		super().__init__()
+
+		# Change default font sizes
+		for font_name in font_list:
+			font = tk.font.nametofont(font_name)
+			font.configure(size=default_font_size)
+		# Change scaling (wasn't working)
+		#print(10, root.tk.call('tk', 'scaling'))
+		#root.tk.call('tk', 'scaling', 2.0)
+		#print(12, root.tk.call('tk', 'scaling'))
+
 		self.title(title)
 		# Try to set the icon -- probably only works on Windows
 		img_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../img/")
@@ -88,7 +110,7 @@ class PM_Menu(tk.Menu):
 #You can't copy text from a Label, which is a problem
 class Txt_wig(tk.Text):
 	ft_fam = "Helvetica"#"MS Sans Serif"#"System"
-	ft_size = 11
+	ft_size = default_font_size
 	padw = 4
 	#rep_lbl = tk.Label(root, text=report, justify=tk.LEFT)
 	#tk.Text allows for copy / paste

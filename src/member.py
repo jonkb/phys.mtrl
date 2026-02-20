@@ -1,3 +1,16 @@
+""" member.py
+Define the Member class
+
+A Member object represents a structural element in the Lab
+
+The Materials are also defined as a class in this file. TODO: Replace with an
+	external database of material properties.
+
+WARNING: reactions() and axial_loads() are broken under the new system!!!
+	Not sure what this comment was actually about :/
+
+"""
+
 import math
 import numpy as np
 import sympy as sym
@@ -17,28 +30,27 @@ def material_dict(vname):
 	material_ix = materials_list.index(vname)
 	return dict(materials_df.loc[material_ix, :])
 
-
-#WARNING: reactions() and axial_loads() are broken under the new system!!!
-
-
-
 #prismatic uniform members
 class Member:
+	# Number of points in each direction to plot
 	d_resolution = 100
 	h_resolution = 50
+	# Number of points in each direction for quiver plots
 	dq_resolution = 50
 	hq_resolution = 25
-	#W, S, E, N
+	# Margins to be passed to subplots_adjust
+	#	(W, S, E, N)
 	plot_margins = (.11, .19, .95, .9)
 	implot_margins = (.11, .19, 1, .9)
+	# Error messages
 	rep_err = ["Underconstrained", "Overconstrained", "Not Placed", "No Solution Found"]
 	rep_wrng = ["Warning: because of the shape of the cross section, tau is only known \
 at the neutral axis, so the max and min values presented here may be inaccurate.\n",
 		"Warning: because of the shape of the cross section, the calculation for tau is not \
 valid over the whole height, so the max and min values presented here may be inaccurate.\n"]
-	
+
 	#Names of each Evaluation Report
-	#Match this to the dictionary in __init__
+	#	Match this to the dictionary in __init__
 	eval_names = {
 		0: "Mass Properties",
 		1: "Static Equilibrium",
@@ -47,11 +59,20 @@ valid over the whole height, so the max and min values presented here may be ina
 		4: "Axial and Shear Stress",
 		5: "Euler Buckling"
 	}
-	
+
 	def __init__(self, material, xsection, length):
+		""" Initialize Member
+		Parameters
+		----------
+		material (dict)
+		xsection (Region)
+		length (float)
+		"""
+		# Store given parameters
 		self.material = material
 		self.xsection = xsection
 		self.length = length
+		# Initialize variables
 		self.placed = False
 		self.img_ref = None
 		self.popups = 0
@@ -60,6 +81,7 @@ valid over the whole height, so the max and min values presented here may be ina
 		self.loads = []
 		self.has_weight = False
 		
+		# Indexed list of report functions
 		self.eval_reports = {
 			0: self.mass_prop_rep,
 			1: self.STEQ_rep,
@@ -68,7 +90,7 @@ valid over the whole height, so the max and min values presented here may be ina
 			4: self.sig_tau_rep,
 			5: self.buckling_rep
 		}
-	
+
 	def __repr__(self):
 		return "Member({},{},{})".format(self.material, self.xsection, self.length)
 	
@@ -76,8 +98,11 @@ valid over the whole height, so the max and min values presented here may be ina
 		s = self.material["name"] + " member with cross section=("
 		s += str(self.xsection) + "), and length=" + str(self.length)
 		return s
-	
+
 	def to_xml(self):
+		""" Create an xml-format string to save the Member to file
+		See Lab.to_xml
+		"""
 		data = """
 		<mem>
 			<def>
@@ -115,7 +140,8 @@ valid over the whole height, so the max and min values presented here may be ina
 		data += """
 		</mem>"""
 		return data
-	
+
+	#--Getter methods
 	@property
 	def E(self):
 		return self.material["E"]
@@ -159,19 +185,24 @@ valid over the whole height, so the max and min values presented here may be ina
 	@property
 	def weight(self):
 		return self.mass * grav
-	
-	#Return a string representation of the given support or joint,
-	#as it relates to this member.
+
 	def sj_str(self, sj):
+		""" Support or Joint string representation
+		Return a string representation of the given support or joint, with its
+		position along this member
+		"""
 		s = type(sj).__name__
 		s += " joint" if isinstance(sj, jt.Joint) else " support"
 		s += " ("+sj.tag+")"
 		s += " @axd="+m_str(sj.axd(self))
 		return s
-	
-	#Define the position in the xy plane. Units are meters.
-	#th is in degrees
+
 	def place(self, x, y, th):
+		""" Place member
+		Define and save the position of the member in the xy plane
+		(x,y): Position of end 0 (m)
+		th: Angle (deg)
+		"""
 		self.th = th
 		th *= math.pi / 180
 		self.x0 = x
@@ -179,34 +210,48 @@ valid over the whole height, so the max and min values presented here may be ina
 		v_ax = self.length*np.array((math.cos(th), math.sin(th)))
 		(self.x1, self.y1) = np.array((x,y)) + v_ax
 		self.placed = True
-	
+
 	def get_pos(self):
+		""" Get position
+		See place
+		"""
 		if self.placed:
 			return (self.x0, self.y0, self.x1, self.y1)
 		return None
-	
-	#Return an np.array of the coordinates of s0 of the member.
+
 	def get_s0(self):
+		""" Get side 0
+		Return an np.array of the coordinates of s0 of the member.
+		"""
 		return np.array((self.x0, self.y0))
-	
+
 	def half_h(self):
+		""" Return half of the height
+		See Region.y1_domain
+		"""
 		y1_dom = self.xsection.y1_domain()
 		assert y1_dom[0] == -y1_dom[1]
 		return abs(y1_dom[0])
-	
+
 	def v_axis(self):
+		""" Return the vector representing the axis of the member
+		axis = end1 - end0
+		"""
 		assert self.placed
 		return np.array((self.x1-self.x0, self.y1-self.y0))
-	
-	#Unit vector along the axis
+
 	def uv_axis(self):
+		""" Return a unit vector along the member axis
+		"""
 		#np.array(v_axis) / np.linalg.norm(v_axis)
 		return self.v_axis() / self.length
-	
-	#Find the intersection point of two members, if it exists.
-	#If axd0 is already known, it can be supplied as axd.
-	#Returns: ((xc, yc), axd0, axd1) or None
+
 	def intersection(self, mem, axd=None):
+		""" Find the intersection point of two members, if it exists.
+		If axd0 is already known, it can be supplied as axd.
+		Returns: ((xc, yc), axd0, axd1) or None
+		"""
+		# Unit vectors (as columns)
 		uv0 = np.array([self.uv_axis()]).transpose()
 		uv1 = np.array([mem.uv_axis()]).transpose()
 		A = np.zeros((2,2))
@@ -217,20 +262,24 @@ valid over the whole height, so the max and min values presented here may be ina
 		B = np.zeros((2,1))
 		B[0:2, 0:1] = s01-s00
 		#print(206, A, B)
+		# Solve for the distance along each member to reach intersection
 		try: N = np.linalg.solve(A, B)
 		except np.linalg.LinAlgError: return None #Parallel
 		#print(209, N)
+		# If the intersection is outside of either member, return None
 		if N[0,0] < 0 or N[0,0] > self.length: return None
 		if N[1,0] < 0 or N[1,0] > mem.length: return None
+		# Intersection point (in coordinates)
 		intsx = s00 + uv0*N[0,0]
 		if axd is not None and not eps_eq(N[0,0], axd):
 			return None
 		return ((intsx[0,0], intsx[1,0]), N[0,0], N[1,0])
-	
-	#Checks if there is a Load, Support, or Joint attached to this member
-	#at or close to the given axial distance.
-	#Returns: ((xc, yc), axd, lsj) or None
+
 	def lsj_at(self, axd, snap_dist):
+		""" Checks if there is a Load, Support, or Joint attached to this member
+		at or close to the given axial distance.
+		Returns: ((xc, yc), axd, lsj) or None
+		"""
 		assert self.placed
 		for p in self.loads:
 			if isinstance(p, Distr_Load):
@@ -257,17 +306,21 @@ valid over the whole height, so the max and min values presented here may be ina
 				(xc, yc) = (self.x0, self.y0) + self.uv_axis() * j.ax_dist
 				return ((xc, yc), j.ax_dist, j)
 		return None
-	
-	#Return a tuple representing the constraints on the member in each direction.
-	#It is in this order: (axial, perpindicular, th)
-	#I'm not sure if this will work correctly with the new angles.
-	#Correction: It does not work with joints!
+
 	def constraints(self):
+		""" Return a tuple representing the constraints on the member in each direction.
+		The tuple represents whether the member is constrained in each dof.
+		It is in this order: (axial, perpindicular, th)
+		See support.constraints
+		I'm not sure if this will work correctly with the new angles.
+		Correction: It does not work with joints!
+		"""
 		c = np.array((0,0,0))
 		axp_sup = []
 		for s in self.supports:
 			sc = s.constraints()
 			if eps_round(math.sqrt(sc[0]**2+sc[1]**2)) == 1:
+			 	# Delta theta: difference in angle btw support & member
 				del_th = s.th - self.th
 				if eps_round(del_th) == 0:
 					axp_sup.append(s)
@@ -282,9 +335,12 @@ valid over the whole height, so the max and min values presented here may be ina
 			c[2] += sc[2]
 		#print(269, c)
 		return tuple(c), axp_sup
-	
-	#Returns the degrees of freedom of the member (axial, perpindicular, th)
+
 	def d_of_f(self):
+		""" Degrees of freedom
+		Returns the degrees of freedom of the member (axial, perpindicular, th)
+		See constraints
+		"""
 		c, _ = list(self.constraints())
 		#2 perp. sup   ~~=   1 perp. and 1 moment
 		if c[1] > 1:
@@ -293,9 +349,10 @@ valid over the whole height, so the max and min values presented here may be ina
 		#2 Axial do not create a moment, since they're on the same axis!
 		d = np.array((1,1,1)) - c
 		return d
-	
-	#Returns True if the beam is statically determinate or an error
+
 	def is_stdet(self):
+		""" Returns True if the beam is statically determinate or an error
+		"""
 		DOF = self.d_of_f()
 		if DOF.max() > 0:
 			return self.rep_err[0]# "Underconstrained"
@@ -305,11 +362,14 @@ valid over the whole height, so the max and min values presented here may be ina
 			return self.rep_err[1]# "Overconstrained"
 		assert np.all(self.d_of_f() == 0)
 		return True
-	
-	#Returns True if the member can support an axial load
-	# 1. Must be constrained in translation and rotation
-	# 2. Must have precisely one constraint in axial direction
+
 	def sup_axp(self):
+		""" Supports axial load
+		Returns True if the member can support an axial load. Otherwise returns
+			an error message
+		1. Must be constrained in translation and rotation
+		2. Must have precisely one constraint in axial direction
+		"""
 		CON, _ = self.constraints()
 		#More compact, less descriptive:
 		#if CON[0] == 1 and CON[1] > 0: #Ax = 1, Prp constraint
@@ -325,22 +385,28 @@ valid over the whole height, so the max and min values presented here may be ina
 				return self.rep_err[0] #Underconstrained in Translation
 		else:
 			return self.rep_err[0] #Underconstrained in Moment
-	
-	#Return a distributed load representing the weight of the member
+
 	def weight_dl(self):
+		""" Return a distributed load representing the weight of the member
+		"""
 		q = grav*self.material["rho"]*self.xarea
 		wdl = Distr_Load(None, 0, -q, 0, 0, -q, self.length, self.th)
 		return wdl
-	
-	#Return a copy of acting loads. Include weight if we're counting weight.
+
 	def my_loads(self):
+		""" Return a copy of acting loads. Include weight if we're counting 
+		weight.
+		"""
 		loads_c = self.loads.copy()
 		if self.has_weight:
 			loads_c.append(self.weight_dl())
 		return loads_c
-	
-	#Return my_loads() after converting Distr_Loads to equivalent point loads.
+
 	def my_loads_pt(self):
+		""" My point loads
+		Return self.my_loads() after converting Distr_Loads to equivalent point 
+		loads.
+		"""
 		loads = self.my_loads()
 		ptlds = []
 		for ld in loads:
@@ -349,9 +415,12 @@ valid over the whole height, so the max and min values presented here may be ina
 			else:
 				ptlds.append(ld)
 		return ptlds
-	
-	#Returns two functions (of 'd') representing the sum of all distributed loads.
+
 	def sum_my_dl(self):
+		""" Sum my distributed loads
+		Returns two functions (of 'd') representing the sum of all distributed 
+		loads in x and y
+		"""
 		fx = sym.Integer(0)
 		fy = sym.Integer(0)
 		for p in self.my_loads():
@@ -360,9 +429,11 @@ valid over the whole height, so the max and min values presented here may be ina
 				fx += Qx
 				fy += Qy
 		return (fx, fy)
-	
-	#Takes my_loads() and sums on the reactions at supports and joints
+
 	def my_P_and_R(self):
+		""" My loads and reaction forces
+		Takes my_loads() and appends the reaction forces at supports and joints
+		"""
 		#print(337)
 		P = self.my_loads()
 		reactions = self.static_eq()
@@ -386,10 +457,12 @@ valid over the whole height, so the max and min values presented here may be ina
 			if xym[2]:
 				P.append(Moment(None, mz=R[i], ax_dist=sj.axd(self)))
 		return P
-	
-	#Return shear as a function of 'd'.
-	#Convention: shear that would cause clockwise rotation is positive.
+
 	def shear_symf(self):
+		""" Shear symbolic function
+		Return shear as a function of 'd'.
+		Convention: shear that would cause clockwise rotation is positive.
+		"""
 		(qx, qy) = self.sum_my_dl()
 		PR = self.my_P_and_R()
 		if isinstance(PR, str):
@@ -408,10 +481,12 @@ valid over the whole height, so the max and min values presented here may be ina
 				V += Vp*sym.Heaviside(d-p.ax_dist, 1) #, .5)
 		#Rewriting as piecewise helps it to integrate the Heaviside
 		return V.rewrite(sym.Piecewise).doit()
-	
-	#Return moment as a function of 'd'.
-	#Convention: moment that causes concave up curvature is positive.
+
 	def moment_symf(self):
+		""" Moment symbolic function
+		Return moment as a function of 'd'.
+		Convention: moment that causes concave up curvature is positive.
+		"""
 		PR = self.my_P_and_R()
 		if isinstance(PR, str):
 			return PR
@@ -429,11 +504,16 @@ valid over the whole height, so the max and min values presented here may be ina
 				M -= p.mz*sym.Heaviside(d-p.ax_dist, 1)
 		
 		return M.rewrite(sym.Piecewise).doit()
-	
-	#Returns a matrix representing the influence of the given joint or support on the 
-	#static equilibrium of the member.
-	#	sj: support or joint
+
 	def steq_mat(self, sj):
+		""" Static equilibrium matrix
+		Returns a matrix representing the influence of the given joint or 
+		support on the static equilibrium of the member.
+			sj: support or joint
+		The three rows in mat represent the sum of forces in x & y and the sum 
+			of moments in theta
+		Each column represents an unknown reaction force or moment
+		"""
 		mat = np.empty((3,0))
 		uv_ax = self.uv_axis()
 		sj_axd = sj.ax_dist
@@ -461,14 +541,17 @@ valid over the whole height, so the max and min values presented here may be ina
 			v2 = np.array([[0.], [0.], [1.]])
 			mat = np.concatenate((mat, v2), axis=1)
 		return mat
-	
-	#Returns the matrices for the static equilibrium equations related to all supports 
-	#and joints attached to the member and all other connected members.
-	#	neg_joints: joints to negate (equal and opposite), since we already
-	#		have the positive version.
-	#	done_joints: joints that have already been done, positive and negative.
-	#	returns: [([SE], m, sj), ([SE], m, sj), ...]
+
 	def steq_mats(self, neg_joints=None, done_joints=None):
+		""" Static equilibrium matrices
+		Returns the matrices for the static equilibrium equations related to 
+		all supports and joints attached to the member and all other connected 
+		members. (Recursive)
+			neg_joints: joints to negate (equal and opposite), since we already
+				have the positive version.
+			done_joints: joints that have already been done, positive and negative.
+			returns: [([SE], m, sj), ([SE], m, sj), ...]
+		"""
 		if neg_joints is None:
 			neg_joints = []
 		if done_joints is None:
@@ -495,11 +578,13 @@ valid over the whole height, so the max and min values presented here may be ina
 			#Recursive call
 			mats.extend(m.steq_mats(neg_joints, done_joints))
 		return mats
-	
-	#Run the calculations for finding reaction forces with static equilibrium
-	#The system must be statically determinate
-	#Returns: [(reactions, sj), (reactions, sj), ...]
+
 	def static_eq(self):
+		""" Static equilibrium calculation
+		Run the calculations for finding reaction forces with static equilibrium
+		The system must be statically determinate
+		Returns: [(reactions, sj), (reactions, sj), ...]
+		"""
 		SE_mats = self.steq_mats()
 		#print(469, len(SE_mats))
 		mems = []
@@ -516,15 +601,19 @@ valid over the whole height, so the max and min values presented here may be ina
 			if sj not in sjs:
 				sjs.append(sj)
 				sj_cols.append(SEm[0].shape[1])
+		# Each member has 3 DOF in 2D
 		eqs = 3*len(mems) #sum_x, sum_y, sum_th
+		# Each column of a support or joint constraint matrix represents one 
+		# 	unknown reaction
 		unknowns = sum(sj_cols)
+		# Check whether eqs = unknowns (statically determinate)
 		if eqs > unknowns:
 			print(511, eqs, unknowns, SE_mats)
 			return self.rep_err[0]
 		if eqs < unknowns:
 			print(514, eqs, unknowns, SE_mats)
 			return self.rep_err[1]
-		#print(518, eqs, unknowns)
+		# Build the system matrix to solve for reactions
 		STEQ = np.zeros((eqs, unknowns))
 		for SEm in SE_mats:
 			SE = SEm[0]
@@ -534,12 +623,14 @@ valid over the whole height, so the max and min values presented here may be ina
 			sji = sjs.index(sj)
 			col = sum(sj_cols[:sji])
 			rows, cols = SE.shape
+			# Insert this matrix into the master system matrix
 			STEQ[row:row+rows, col:col+cols] = SE
 		#print(440, SE_mats)
 		#print(401, sj_cols)
 		#print(442, STEQ)
 		
-		#The B in Ax = B. sum(R) = -sum(P)
+		# The B in Ax = B. sum(R) = -sum(P)
+		# 	The right hand side of the equation represents applied loads
 		M_B = np.zeros((eqs, 1))
 		for m in mems:
 			row = mems.index(m)*3
@@ -553,13 +644,14 @@ valid over the whole height, so the max and min values presented here may be ina
 				s_py += py
 				s_m += py*p.ax_dist*uv_ax[0] - px*p.ax_dist*uv_ax[1]
 			M_B[row:row+3, 0:1] = np.array([[-s_px], [-s_py], [-s_m]])
-		#print(418, M_B)
+		# Solve system of equations for static equilibrium
 		try:
 			SOL = np.linalg.solve(STEQ, M_B)
 		except np.linalg.LinAlgError:
-			print(552, STEQ, M_B)
+			print("Error solving STEQ", STEQ, M_B)
 			return self.rep_err[3]
 		
+		# Identify which reactions correspond to which support or joint
 		#print(458, sigfig(SOL))
 		result = []
 		rows_scanned = 0
@@ -569,13 +661,15 @@ valid over the whole height, so the max and min values presented here may be ina
 			if sj in self.supports or sj in self.joints:
 				result.append((R, sj))
 		return result
-	
-	#Do mohr's circle transformations on an element with sigma_x and tau_xy (assumes no sig_y)
-	#Return two vectors, each in polar and cartesian: smvp, smvc, tmvp, tmvc
-	#fm = module with appropriate functions. Default numpy.
-	#not quite working yet for symbolic expressions
+
 	@staticmethod
 	def mohr_trsfm(sigx, tau, fm=np):
+		""" Mohr's circle transformation
+		Do mohr's circle transformations on an element with sigma_x and tau_xy (assumes no sig_y)
+		Return two vectors, each in polar and cartesian: smvp, smvc, tmvp, tmvc
+		fm = module with appropriate functions. Default numpy.
+		not quite working yet for symbolic expressions
+		"""
 		#Force the angle to be more horizontal so you get negative instead of perpindicular
 		convert_to_neg = False
 		#numpy uses "arctan" but sympy and math use "atan"
@@ -622,15 +716,19 @@ valid over the whole height, so the max and min values presented here may be ina
 		tau_max_vc = (tau_max*fm.cos(th_tmax), tau_max*fm.sin(th_tmax))
 		#print(331, sig_max_vp, sig_max_vc, tau_max_vp, tau_max_vc)
 		return sig_max_vp, sig_max_vc, tau_max_vp, tau_max_vc
-	
-	#Return report text (& any figures) for each type of evaluation
-	#Be sure to make this line up with the dictionary in Lab
+
 	def gen_report(self, type):
+		""" Generate report
+		Return report text (& any figures) for each type of evaluation
+		Be sure to make this line up with the dictionary in Lab
+		See self.eval_reports in __init__
+		"""
 		return self.eval_reports[type]()
-	
-	#Static Equilibrium Report
-	#Lists the reaction forces at each support and joint along the member
+
 	def STEQ_rep(self):
+		""" Static Equilibrium Report
+		Lists the reaction forces at each support and joint along the member
+		"""
 		STEQ = self.static_eq()
 		if isinstance(STEQ, str):
 			return STEQ
@@ -656,9 +754,10 @@ valid over the whole height, so the max and min values presented here may be ina
 			if xym[2]:
 				rep_text += "\n\tR_M=" + Nm_to_kNm_str(R[i])
 		return rep_text
-	
-	#Mass Properties Report
+
 	def mass_prop_rep(self):
+		""" Mass Properties Report
+		"""
 		rep_text = "cross sectional area A = "+str(sigfig(self.xarea))+" m^2"
 		rep_text += "\n    | second moment of area about horizontal axis I_x = "+str(sigfig(self.xIx))+" m^4"
 		rep_text += "\n    | second moment of area about vertical axis I_y = "+str(sigfig(self.xIy))+" m^4"
@@ -671,17 +770,22 @@ valid over the whole height, so the max and min values presented here may be ina
 		rep_text += "\n    | yield stress \u03C3_y = "+str(self.material["sig_y"]/1e6)+" MPa"
 		rep_text += "\n    | ultimate stress \u03C3_y = "+str(self.material["sig_u"]/1e6)+" MPa"
 		return rep_text
-	
-	#Return internal axial loads as a function of 'd'.
-	#Convention: tension is positive.
+
 	def axial_loads_sym(self):
+		""" Axial loads symbolic function
+		Return internal axial loads as a function of axial distance 'd' from s0
+		Convention: tension is positive
+		"""
 		d = sym.symbols('d')
 		uv_ax = self.uv_axis()
+		# Start with the effect of all distributed loads
 		(qx, qy) = self.sum_my_dl()
 		P_ax = -( sym.integrate(qx*uv_ax[0], d) + sym.integrate(qy*uv_ax[1], d) )
 		PR = self.my_P_and_R()
 		if isinstance(PR, str):
+			# Error mesasge
 			return PR
+		# Add the effect of each load & reaction
 		for p in PR:
 			#The distributed loads were all counted already
 			#Moments have no influence on P_ax
@@ -689,10 +793,12 @@ valid over the whole height, so the max and min values presented here may be ina
 				p_ax = np.dot(uv_ax, p.get_comp())
 				P_ax -= p_ax*sym.Heaviside(d-p.ax_dist, 1) #, .5)
 		return P_ax.rewrite(sym.Piecewise).doit()
-	
-	#Return internal axial stress as a function of 'd' and 'h'.
-	#Counts axial loads as well as bending stress
+
 	def axial_stress_sym(self):
+		""" Axial stress symbolic function
+		Return internal axial stress as a function of 'd' and 'h'.
+		Counts axial loads as well as bending stress
+		"""
 		#sig_x = Px/A - My/I
 		h = sym.symbols('h')
 		P = self.axial_loads_sym()
@@ -704,19 +810,23 @@ valid over the whole height, so the max and min values presented here may be ina
 		Sig_P = P / self.xarea
 		Sig_M = - M * h / self.xIx
 		return Sig_P + Sig_M
-	
-	#Return internal shear stress due to bending as a function of 'd' and 'h'.
-	#Returns (tau, h domain)
+
 	def tau_sym(self):
+		""" Calculate transverse shear due to bending
+		Return internal shear stress due to bending as a function of 'd' and 'h'
+		Returns (tau, h domain)
+		"""
 		h = sym.symbols('h')
 		V = self.shear_symf()
 		if isinstance(V, str):
 			return V
 		tau = -V * self.xsection.Q_div_Ib(h)
 		return (tau, self.xsection.Q_domain())
-	
-	#Report of only the stress and strain due to axial loads
+
 	def axial_stress_rep(self):
+		""" Generate a report for axial stress and strain
+		This report only accounts for axial loads
+		"""
 		P = self.axial_loads_sym()
 		if isinstance(P, str):
 			return P
@@ -763,10 +873,11 @@ valid over the whole height, so the max and min values presented here may be ina
 		sp.set(xlabel="Axial Distance d (m)")
 		plt.subplots_adjust(*self.plot_margins, wspace=.09)
 		return (rep_text, fig)
-	
-	#Euler Buckling Report
-	#To Do: Fix it so it deals with st. overconstrained columns like Fixed-Slot(ax)
+
 	def buckling_rep(self):
+		""" Euler Buckling Report
+		To Do: Fix it so it deals with st. overconstrained columns like Fixed-Slot(ax)
+		"""
 		STEQ = self.static_eq()
 		if isinstance(STEQ, str):
 			#Maybe instead I could make a version of static_eq() that finds the axial reactions
@@ -851,7 +962,7 @@ valid over the whole height, so the max and min values presented here may be ina
 						sup_label = "Fixed-Fixed (Fixed-Thrust(axial))"
 					elif c[1] == 2 and c[2] == 0: #Pin-Sx
 						sup_label = "Pin-Pin (Pin-Slot(axial))"
-					elif c[1] == 1 and cp[2] == 2: #Fixed-M or Ty-Tx
+					elif c[1] == 1 and c[2] == 2: #Fixed-M or Ty-Tx
 						sup_label = "Thrust-Thrust"
 					else:
 						Pcr_i = None
@@ -873,10 +984,12 @@ valid over the whole height, so the max and min values presented here may be ina
 				#I could give it a shot later, but I think it includes messing with the
 				#differential equation and solving it generically instead of using the 4[/10] cases.
 		return rep_text
-	
-	#Old version of the Euler Buckling Report that deals with overconstrained columns
-	#(not overconstrained in the axial direction) but not with Joints
+
 	def old_buckling_rep(self):
+		""" Old Euler buckling report
+		Old version of the Euler Buckling Report that deals with overconstrained columns
+		(not overconstrained in the axial direction) but not with Joints
+		"""
 		sup_problem_msg = "I'm not sure how to deal with this combination of supports."
 		multiple_loads_msg = "I don't know how to deal with multiple loads in a column."
 		load_axd_problem_msg = "I don't know how to deal with a load in the middle of a column."
@@ -936,10 +1049,11 @@ valid over the whole height, so the max and min values presented here may be ina
 				rep_text += "\n\tSo the member is unstable."
 			rep_text += "\n\tThe detected support combination was " + sup_label
 			return rep_text
-	
-	#Report on shear and moment
-	#Returns text and a pyplot figure
+
 	def VM_rep(self):
+		""" Shear and Moment report
+		Returns text and a pyplot figure
+		"""
 		rep_text = "'d' is measured (in m) from end \"zero\" (W or S) of the member."
 		rep_text += "\nFor internal tension and stresses, see \"Axial and Shear Stress\""
 		#print(797)
@@ -989,8 +1103,10 @@ valid over the whole height, so the max and min values presented here may be ina
 		sp2.set_title("Moment M (kN-m)")
 		sp2.set(xlabel="Axial Distance d (m)")
 		return (rep_text, fig)
-	
+
 	def sig_tau_rep(self):
+		""" Axial and Shear Stress Report
+		"""
 		reps = []
 		d, h = sym.symbols("d h")
 		sig = self.axial_stress_sym()
