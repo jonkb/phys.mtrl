@@ -1,7 +1,12 @@
+""" lab.py
+Define the Lab class
+
+The Lab object represents the main canvas and the objects on it
+"""
+
 import tkinter as tk
 import math
 import numpy as np
-import sympy as sym
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 #My files
@@ -20,24 +25,37 @@ class Lab:
 	version = "0.2.0"
 	snap_dist = 15 #px
 	dash_len = 30
-	
+	# Default settings
+	defaults = {
+		"c_wd": 1080, #756
+		"c_ht": 669, #468
+		"px_per_m": 360,
+		"subdivision": 5, # How many grid lines per 1m
+		"px_per_kN": 20
+	}
+
 	def __init__(self, main_frm, add_mem_bar, add_sup_bar, add_load_bar):
 		""" Initialize Lab
 		"""
 		# Default canvas dimensions
-		self.c_wd = 756
-		self.c_ht = 468
+		#Remember that when c_wd = 1000 pixels, this corrosponds to x=[0,999]
+		self.c_wd = self.defaults["c_wd"]
+		self.c_ht = self.defaults["c_ht"]
 		
 		# Initialize options, to be controlled by the menus
 		self.options = PM_Options()
 		
+		# Bind the add buttons to the corresponding functions in Lab
 		add_mem_bar.add_btn.config(command=self.toggle_mem_mode)
-		self.add_mem_bar = add_mem_bar
 		add_sup_bar.add_btn.config(command=self.toggle_sup_mode)
-		self.add_sup_bar = add_sup_bar
 		add_load_bar.add_btn.config(command=self.toggle_load_mode)
+		
+		# Save the add toolbars to the Lab object
+		self.add_mem_bar = add_mem_bar
+		self.add_sup_bar = add_sup_bar
 		self.add_load_bar = add_load_bar
 		
+		# Create the main canvas
 		self.canv = tk.Canvas(main_frm, width=self.c_wd, height=self.c_ht, bg='white')
 		self.canv.config(borderwidth=0, highlightthickness=0)
 		self.canv.pack(side = tk.BOTTOM, fill=tk.BOTH, expand=1)
@@ -45,13 +63,19 @@ class Lab:
 		self.canv.bind("<Motion>", self.mouse_moved)
 		self.canv.bind("<Button-1>", self.mouse_click)
 		self.bgbox = self.canv.create_rectangle(0,0,self.c_wd-1,self.c_ht-1)
-		self.bggrid = [] #Switch this to a tag
+		# List of background grid lines. Maybe switch this to a tag
+		self.bggrid = []
 		
+		# Lists of members & popups
 		self.members = []
 		self.popups = []
+		
+		# Set default settings
 		self.reset_lab()
-	
+
 	def to_xml(self):
+		""" Create an xml-format string to save the Lab to file
+		"""
 		data = """
 <lab version=\""""+self.version+"""\">
 	<options>
@@ -68,33 +92,42 @@ class Lab:
 	</members>
 </lab>"""
 		return data
-	
-	#convert x,y coordinates in meters to their place on the canvas in pixels
+
 	def coords_to_px(self, xc, yc):
+		""" Coordinates to pixels
+		Convert x,y coordinates in meters to their place on the canvas in pixels
+		"""
 		xp = xc*self.px_per_m
 		yp = self.c_ht - yc*self.px_per_m
 		return (xp,yp)
-	
-	#convert a location on the canvas in pixels to x,y coordinates in meters
+
 	def px_to_coords(self, xp, yp):
+		""" Pixels to coordinates
+		Convert a location on the canvas in pixels to x,y coordinates in meters
+		"""
 		xc = xp / self.px_per_m
 		yc = (self.c_ht - yp) / self.px_per_m
 		return (xc,yc)
-	
-	#convert a vector in kN to px
+
 	def kN_to_px(self, xc, yc):
+		""" kN to pixels
+		Convert a vector in kN to px
+		"""
 		Pxp = xc*self.px_per_kN
 		Pyp = -yc*self.px_per_kN
 		return (Pxp, Pyp)
-	
+
 	def reset_lab(self):
-		self.c_wd = 756
-		#Remember that when c_wd = 800 pixels, this corrosponds to x=[0,799]
-		self.c_ht = 468
-		self.px_per_m = 360#scale
-		self.subdivision = 5 #For grid lines smaller than 1m
+		""" Reset lab to defaults, reset temporary variables, 
+		close popups, delete all members, &ct
+		"""
+		# Set default canvas scale settings
+		self.c_wd = self.defaults["c_wd"]
+		self.c_ht = self.defaults["c_ht"]
+		self.px_per_m = self.defaults["px_per_m"]
+		self.subdivision = self.defaults["subdivision"]
 		#how long is a 1kN force arrow
-		self.px_per_kN = 20.0#4.0 gives 200px=50kN
+		self.px_per_kN = self.defaults["px_per_kN"]
 		#A counter used to create unique tk tags
 		self.tag_n = 0
 		#Callback function to execute after selecting a member
@@ -106,17 +139,23 @@ class Lab:
 		self.add_mode = 0
 		#The tk tag for a floating image following the cursor
 		self.floating = None
-		#Temp 1/2 of distributed load
+		#Temp first half of distributed load
 		self.dlq0_temp = None
+		# Close & delete popups & everything in the lab
 		self.cleanup()
 		self.clear_all()
 		self.redraw()
 		self.members = []
 		self.popups = []
-	
-	#Snap x,y (in px) to the ends of existing members
-	#Returns ((xp, yp), closest_mem, side)
+
 	def snap_to_mem_ends(self, xp, yp):
+		""" Snap to member ends
+		Snap (xp, yp) in pixels to the ends of existing members
+		Returns the tuple ((xp, yp), closest_mem, side)
+			(xp, yp): pixel location snapped to end of member
+			closest: Member object snapped to
+			side: Which side of the member was snapped to (0,1)
+		"""
 		xc, yc = self.px_to_coords(xp,yp)
 		side = 0
 		closest_r = self.snap_dist / self.px_per_m
@@ -137,10 +176,16 @@ class Lab:
 		#xc, yc = self.px_to_coords(x,y)
 		#closest_r_px = closest_r * self.px_per_m
 		return ((xp, yp), closest, side)#((xp, yp), closest_r_px, side, closest)
-	
-	#Snap xp,yp to the axis of existing members
-	#Returns ((xp,yp), closest_mem, closest_axd)
+
 	def snap_to_mem_axis(self, xp, yp, exclude=None):
+		""" Snap to member axis
+		Snap (xp, yp) in pixels to the axis of existing members
+		Optional parameter exclude: a member to exclude from the search
+		Returns the tuple ((xp, yp), closest_mem, side) 
+			(xp, yp): pixel location snapped to end of member 
+			closest: Member object snapped to 
+			closest_axd: Axial distance along the member snapped to
+		"""
 		xc, yc = self.px_to_coords(xp,yp)
 		closest_r = self.snap_dist / self.px_per_m
 		closest = None
@@ -178,10 +223,14 @@ class Lab:
 					pf = s0 + closest_axd*uv_axis
 					xp,yp = self.coords_to_px(*pf)
 		return ((xp,yp), closest, closest_axd)
-	
-	#Snap xp,yp to the image of an existing member
-	#Returns ((xp,yp), closest_mem)
+
 	def snap_to_mem(self, xp, yp):
+		""" Snap to member
+		Snap (xp, yp) to the image of an existing member
+		Returns the tuple ((xp, yp), closest)
+			(xp, yp): pixel location snapped to member 
+			closest: Member object snapped to 
+		"""
 		xc, yc = self.px_to_coords(xp,yp)
 		closest_r = self.snap_dist / self.px_per_m
 		closest = None
@@ -210,12 +259,18 @@ class Lab:
 				P += O_ax*uv_axis + O_prp*uv_prp
 				xp,yp = self.coords_to_px(*P)
 		return ((xp,yp), closest)
-	
-	#Returns: ((xp0,yp0), (m0, m0_axd), (m1, m1_axd))
+
 	def snap_to_intsx(self, xp, yp):
-		#To Do: Include another case here for if they are in the same axis.
-		#This could be doable, esp. after adding the snap grid.
-		#Then m.intersection() will probably return None.
+		""" Snap to intersection
+		Returns the tuple ((xp,yp), (m0, m0_axd), (m1, m1_axd))
+			(xp, yp): Pixel location of intersection
+			(m0, m0_axd): Member m0 & axial distance for m0
+			(m1, m1_axd): Member m1 & axial distance for m1
+		
+		To Do: Include another case here for if they are in the same axis.
+			This could be doable, esp. after adding the snap grid.
+			Then m.intersection() will probably return None.
+		"""
 		((xp0,yp0), m0, m0_axd) = self.snap_to_mem_axis(xp, yp)
 		if m0 is None:
 			return ((xp,yp), (None, None), (None, None))
@@ -228,8 +283,13 @@ class Lab:
 		((xc, yc), axd0, axd1) = intsx
 		(xp, yp) = self.coords_to_px(xc,yc)
 		return ((xp, yp), (m0, axd0), (m1, axd1))
-	
+
 	def snap_to_lsj(self, xp, yp):
+		""" Snap to load, support, or joint
+		Returns the tuple ((xp,yp), lsj)
+			(xp, yp): Pixel location of lsj
+			lsj: Load, support, or joint found
+		"""
 		((xp0,yp0), m, m_axd) = self.snap_to_mem_axis(xp, yp)
 		if m is None:
 			return ((xp,yp), None)
@@ -239,8 +299,12 @@ class Lab:
 		((xc, yc), axd, lsj) = lsj_snap
 		(xp1, yp1) = self.coords_to_px(xc, yc)
 		return ((xp1,yp1), lsj)
-	
+
 	def redraw(self, w=None, h=None, set_size=False):
+		""" Redraw Lab
+		Redraw every object on the canvas where it should be
+		Should be called when the Lab is resized
+		"""
 		for m in self.members:
 			m.oldx, m.oldy = self.coords_to_px(m.x0, m.y0)
 		if w != None and h != None:
@@ -262,8 +326,11 @@ class Lab:
 				if j.m0 is m: #Only move the joint once
 					self.canv.move(j.tag, newx-m.oldx, newy-m.oldy)
 		self.redraw_grid()
-	
+
 	def redraw_grid(self):
+		""" Redraw grid
+		Redraw the grid lines on the canvas
+		"""
 		#Make it okay with no grid lines
 		self.canv.delete(*self.bggrid)
 		self.bggrid = []
@@ -290,15 +357,23 @@ class Lab:
 					self.c_wd-1, self.c_ht-1-lny, fill="light gray", dash=subdash))
 		for l in self.bggrid:
 			self.canv.tag_lower(l)
-	
+
 	def resize(self, event):
+		""" Event handler for when the window is resized
+		bound in __init__
+		"""
 		self.redraw(event.width, event.height)
-	
-	def mouse_moved(self, event):
+
+	def mouse_moved(self, event): 
+		""" Event handler for detecting mouse motion
+		bound in __init__
+		If we have a floating object that's being added, make it follow the mouse
+		"""
 		x = event.x
 		y = event.y
 		if self.add_mode == 1:
 			if self.floating == None:
+				# Create the floating image
 				if not self.add_mem_bar.has_float_vals():
 					return
 				self.floating_x = x
@@ -308,6 +383,7 @@ class Lab:
 				return
 		elif self.add_mode == 2:
 			if self.floating == None:
+				# Create the floating image
 				self.floating_x = x
 				self.floating_y = y
 				r = self.snap_dist
@@ -321,6 +397,7 @@ class Lab:
 					(x,y),*_ = snapfun(x,y)
 		elif self.add_mode == 3:
 			if self.floating == None:
+				# Create the floating image
 				if not self.add_load_bar.has_float_vals():
 					return
 				self.floating_x = x
@@ -341,12 +418,18 @@ class Lab:
 				(x,y),*_ = self.snap_to_mem_axis(x,y)
 		else:
 			return
+		# Move the floating image
 		self.canv.move(self.floating, x-self.floating_x, y-self.floating_y)
 		self.floating_x = x
 		self.floating_y = y
-	
-	#TO DO: add right click menu, including delete selected thing
+
 	def mouse_click(self, event):
+		""" Event handler for detecting mouse clicks
+		bound in __init__
+		If there's a floating object to be added, then add it.
+		TODO: add right click menu, including delete selected thing
+		"""
+		# For debugging
 		#print("self.canv.config(width=300, height=300)")
 		#self.canv.config(width=300, height=300)
 		if self.add_mode == 1:
@@ -369,8 +452,11 @@ class Lab:
 		#else:
 		#	self.sel_mem_cb = lambda m: print(m.static_eq())
 		#	self.sel_mem(event)
-	
+
 	def add_member(self, event):
+		""" Create a new member
+		event: mouse click event
+		"""
 		if not self.add_mem_bar.has_float_vals():
 			return
 		x = event.x
@@ -379,6 +465,7 @@ class Lab:
 		matl = getattr(Materials,self.add_mem_bar.get_matl())
 		rgb = matl["color"]
 		xsec = self.add_mem_bar.get_xsec()
+		# Convert cross section string to the appropriate region object
 		if xsec == "circle":
 			r = float(self.add_mem_bar.get_xparams()[0])/1000 #mm->m
 			xsec = Circle(r)
@@ -396,13 +483,17 @@ class Lab:
 			ro = float(self.add_mem_bar.get_xparams()[0])/1000
 			ri = float(self.add_mem_bar.get_xparams()[1])/1000
 			xsec = Annulus(ro, ri)
+		# Initialize the member
 		m = Member(matl, xsec, L)
 		if not self.options.wtls():
 			m.has_weight = True
 		self.place_member(m, xp=x, yp=y, th=self.add_mem_bar.get_th())
 		self.set_add_mode(0)
-	
+
 	def place_member(self, mem, xp=None, yp=None, xc=None, yc=None, th=0):
+		""" Place member
+		Places the given member object at the specified location in the Lab
+		"""
 		if th == "V": th = 90
 		elif th == "H": th = 0
 		if not (xp is None) and not (yp is None):
@@ -419,8 +510,11 @@ class Lab:
 			L=mem.length, hh=mem.half_h(), th=th)
 		mem.img_ref = self.canv.create_polygon(*rcoords, outline="black", fill=rgb)
 		self.members.append(mem)
-	
+
 	def add_support(self, event):
+		""" Create a new support
+		event: mouse click event
+		"""
 		x = event.x
 		y = event.y
 		if self.options.endsnap():
@@ -446,8 +540,10 @@ class Lab:
 				return
 			self.place_support(mem, stype, xp, yp, axd, th)
 			self.set_add_mode(0)
-	
+
 	def place_support(self, mem, stype, xp=None, yp=None, axd=0, th=0):
+		""" Places the specified support on the given member in the Lab
+		"""
 		if xp is None or yp is None:
 			xc, yc = mem.get_s0() + mem.uv_axis()*axd
 			xp, yp = self.coords_to_px(xc, yc)
@@ -466,8 +562,11 @@ class Lab:
 			sup = support.Thrust(stag, axd, th)
 			sup.draw(self.canv, xp, yp)
 		mem.supports.append(sup)
-	
+
 	def add_joint(self, event):
+		""" Create a new joint
+		event: mouse click event
+		"""
 		x = event.x
 		y = event.y
 		((xp, yp), (m0, axd0), (m1, axd1)) = self.snap_to_intsx(x, y)
@@ -477,17 +576,23 @@ class Lab:
 			th = m0.th if self.options.thsnap() else self.add_sup_bar.get_th()
 			self.place_joint(m0, m1, jtype, xp, yp, axd0, axd1, th)
 			self.set_add_mode(0)
-	
+
 	def load_joint(self, m, jtype, axd, th):
+		""" Create a joint as loaded from file
+		m: member the joint is attached to
+		jtype: joint type
+		axd: axial distance along member
+		th: rotation of joint
+		"""
+		# Search for the second member that the joint connects to
 		for m1 in self.members:
-			#print(475, m1, m, jtype, axd)
 			if m1 is m: continue
 			intsx = m.intersection(m1, axd)
 			if intsx is None: continue
 			((xc, yc), axd0, axd1) = intsx
 			break
 		else:
-			raise Exception("481: Not a valid intersection of members.")
+			raise Exception("Error placing joint: Not a valid intersection of members.")
 		(xp, yp) = self.coords_to_px(xc, yc)
 		#Check if the joint object already exists
 		for j in m1.joints:
@@ -498,9 +603,12 @@ class Lab:
 					m.joints.append(j)
 				break
 		else:
+			# If the joint does not already exist, place it
 			self.place_joint(m, m1, jtype, xp, yp, axd0, axd1, th)
-	
+
 	def place_joint(self, m0, m1, jtype, xp=None, yp=None, axd0=None, axd1=None, th=0):
+		""" Place a joint in the Lab & attach it to members m0 & m1.
+		"""
 		if xp is None or yp is None:
 			intsx = m0.intersection(m1)
 			if intsx is None:
@@ -509,6 +617,7 @@ class Lab:
 			(xp, yp) = self.coords_to_px(xc, yc)
 		jtag = "jt"+str(self.tag_n)+'_m'+str(m0.img_ref)+'_m'+str(m1.img_ref)
 		self.tag_n += 1
+		# Create and draw the joint
 		if jtype == 0:
 			jt = joint.Fixed(jtag, m0, m1, axd0, axd1)
 			jt.draw(self.canv, xp, yp)
@@ -523,8 +632,11 @@ class Lab:
 			jt.draw(self.canv, xp, yp)
 		m0.joints.append(jt)
 		m1.joints.append(jt)
-	
+
 	def add_load(self, event):
+		""" Create a load
+		event: mouse click event
+		"""
 		x = event.x
 		y = event.y
 		(xp,yp), mem, axd = self.snap_to_mem_axis(x,y)
@@ -535,18 +647,25 @@ class Lab:
 			self.set_add_mode(0)
 	
 	def place_load(self, mem, Px, Py, axd, xp=None, yp=None):
+		""" Place a load on the given member in the Lab
+		"""
 		if xp is None or yp is None:
+			# Infer position from axial distance
 			xc, yc = mem.get_s0() + axd*mem.uv_axis()
 			xp, yp = self.coords_to_px(xc, yc)
 		ltag = "ld_"+str(self.tag_n)
 		self.tag_n += 1
 		#ltag = 'load_'+str(mem.img_ref)+'_d'+str(ax_dist)
 		#self.canv.delete(ltag)
+		# Create & draw the new load
 		load = Load(ltag, Px, Py, axd)
 		load.draw(self, xp, yp)
 		mem.loads.append(load)
 	
 	def add_distr_load(self, event):
+		""" Create a distributed load
+		event: mouse click event
+		"""
 		x = event.x
 		y = event.y
 		(xp,yp), mem, ax_dist = self.snap_to_mem_axis(x,y)
@@ -566,8 +685,10 @@ class Lab:
 				self.canv.delete(self.dlq0_temp.tag)
 				self.dlq0_temp = None
 				self.set_add_mode(0)
-	
+
 	def place_distr_load(self, mem, q0x, q0y, axd0, q1x, q1y, axd1, xp=None, yp=None):
+		""" Place a distributed load on the given member in the Lab
+		"""
 		if xp is None or yp is None:
 			xc, yc = mem.get_s0() + axd0*mem.uv_axis()
 			xp, yp = self.coords_to_px(xc, yc)
@@ -578,19 +699,25 @@ class Lab:
 		dl = Distr_Load(dltag, q0x, q0y, axd0, q1x, q1y, axd1, th)
 		mem.loads.append(dl)
 		dl.draw(self, xp, yp)
-	
+
 	def sel_mem(self, event):
+		""" Select a member
+		event: mouse click event
+		"""
 		x = event.x
 		y = event.y
 		(xp,yp), mem = self.snap_to_mem(x,y)
 		if mem != None:
-			#print("251: "+str(mem))
 			cb = self.sel_mem_cb
 			self.sel_mem_cb = None
 			self.canv.delete(self.sel_txt)
+			# Run the callback function sel_mem_cb
 			cb(mem)
-	
+
 	def sel_lsj(self, event):
+		""" Select a load, support, or joint
+		event: mouse click event
+		"""
 		x = event.x
 		y = event.y
 		(xp,yp), lsj = self.snap_to_lsj(x,y)
@@ -598,12 +725,20 @@ class Lab:
 			cb = self.sel_lsj_cb
 			self.sel_lsj_cb = None
 			self.canv.delete(self.sel_txt)
+			# Run the callback function sel_lsj_cb
 			cb(lsj)
-	
-	#Return the coordinates in pixels for the rectangular image of a member
-	#Now to be passed to create_polygon
-	#th is in degrees
+
 	def rect_mem_coords(self, x, y, L=None, hh=None, th=None):
+		""" Rectangular member coordinates
+		Return the coordinates in pixels for the rectangular image of a member
+		Now to be passed to create_polygon
+		(x,y): Position of side 0
+		L: Length (m)
+		hh: Half height (m)
+		th: Angle (deg)
+		If any of L, hh, th were not passed, pull them from the add member 
+			toolbar.
+		"""
 		if L is None:
 			L = self.add_mem_bar.get_L()
 		if hh is None:
@@ -612,20 +747,23 @@ class Lab:
 			return "NaN"
 		if th is None:
 			th = self.add_mem_bar.get_th()
+		# Convert to pixels & radians
 		L *= self.px_per_m
 		hh *= self.px_per_m
 		th *= math.pi / 180
+		# Unit vector along axis & perpindicular to axis
 		uv_ax = np.array((math.cos(th), -math.sin(th)))
 		uv_prp = np.array((uv_ax[1], -uv_ax[0]))
 		s0 = np.array((x,y))
 		
+		# Four corners of rectangle
 		s0N = s0 + uv_prp*hh
 		s0S = s0 - uv_prp*hh
 		s1N = s0N + uv_ax*L
 		s1S = s0S + uv_ax*L
 		
 		return (*s0N, *s1N, *s1S, *s0S)
-	
+
 	def set_add_mode(self, mode):
 		""" Set add mode
 		The "add mode" refers to what kind of object is currently being added 
@@ -649,8 +787,11 @@ class Lab:
 		self.floating = None
 		# Set add mode to mode
 		self.add_mode = mode
-	
+
 	def del_mem(self, mem):
+		""" Delete the given member
+		Also clean up any loads, supports, and joints attached to it
+		"""
 		for l in mem.loads:
 			self.canv.delete(l.tag)
 		for s in mem.supports:
@@ -662,6 +803,8 @@ class Lab:
 		self.members.remove(mem)
 	
 	def del_lsj(self, lsj):
+		""" Delete the given load, support, or joint
+		"""
 		for m in self.members:
 			if lsj in m.loads:
 				self.canv.delete(lsj.tag)
@@ -677,10 +820,12 @@ class Lab:
 				m.joints.remove(lsj)
 				break
 		else:
-			s = "664: Somehow the selected Load, Support, or Joint"
-			s += "is not attached to any of the members in the lab."
+			s = "Error deleting lsj: Somehow the selected Load, Support, or "
+			s += "Joint is not attached to any of the members in the lab."
 			return s
-	
+
+	#--Functions to toggle the add mode
+	#	These are bound to the toolbar Add buttons in Lab.__init__
 	def toggle_mem_mode(self):
 		self.set_add_mode(0) if self.add_mode==1 else self.set_add_mode(1)
 	
@@ -688,9 +833,8 @@ class Lab:
 		self.set_add_mode(0) if self.add_mode==2 else self.set_add_mode(2)
 	
 	def toggle_load_mode(self):
-		#print(354, self.add_mode)
 		self.set_add_mode(0) if self.add_mode==3 else self.set_add_mode(3)
-	
+
 	#--Start of Menu Command functions
 	#		Meaning, these are the functions that are executed when the user
 	#		selects an option in the menu.
@@ -699,9 +843,11 @@ class Lab:
 	
 	def open_lab(self):
 		pmfs.open(self)
-	
-	#Open window to edit px_per_m and px_per_kN
+
 	def edit_scale(self):
+		""" Edit Lab scaling
+		Open window to edit px_per_m, px_per_kN, and grid lines per meter
+		"""
 		popup = Tk_rt("Edit Lab Scale")
 		popup.grid_columnconfigure(0, minsize=120)
 		popup.grid_columnconfigure(1, minsize=120)
@@ -729,6 +875,9 @@ class Lab:
 		note_lbl.grid(row=3, column=0, columnspan=2)
 		
 		def set_scale():
+			""" Set the scale as specified
+			Bound to the Save button in this dialog
+			"""
 			try:
 				ppm = int(ppm_e.get())
 				self.px_per_m = ppm
@@ -758,8 +907,11 @@ class Lab:
 		popup.protocol("WM_DELETE_WINDOW", del_pop)
 		self.popups.append(popup)
 		popup.mainloop()
-	
+
 	def show_allt(self):
+		""" Show all toolbars
+		Bound to button in View menu
+		"""
 		if not self.options.smem():
 			self.add_mem_bar.tb_frm.pack(side=tk.TOP, fill=tk.X)
 			self.options.show_mem.set(True)
@@ -769,8 +921,11 @@ class Lab:
 		if not self.options.sld():
 			self.add_load_bar.tb_frm.pack(side=tk.TOP, fill=tk.X)
 			self.options.show_ld.set(True)
-	
+
 	def hide_allt(self):
+		""" Hide all toolbars
+		Bound to button in View menu
+		"""
 		if self.options.smem():
 			self.add_mem_bar.tb_frm.pack_forget()
 			self.options.show_mem.set(False)
@@ -780,81 +935,117 @@ class Lab:
 		if self.options.sld():
 			self.add_load_bar.tb_frm.pack_forget()
 			self.options.show_ld.set(False)
-	
+
 	def toggle_smem(self):
+		""" Toggle show add member toolbar
+		"""
 		if self.options.smem():
 			self.add_mem_bar.tb_frm.pack(side=tk.TOP, fill=tk.X)
 		else:
 			self.add_mem_bar.tb_frm.pack_forget()
-	
+
 	def toggle_ssup(self):
+		""" Toggle show add support toolbar
+		"""
 		if self.options.ssup():
 			self.add_sup_bar.tb_frm.pack(side=tk.TOP, fill=tk.X)
 		else:
 			self.add_sup_bar.tb_frm.pack_forget()
-	
+
 	def toggle_sld(self):
+		""" Toggle show add load toolbar
+		"""
 		if self.options.sld():
 			self.add_load_bar.tb_frm.pack(side=tk.TOP, fill=tk.X)
 		else:
 			self.add_load_bar.tb_frm.pack_forget()
-	
+
 	def toggle_wtls(self):
+		""" Toggle weightless members
+		"""
 		for m in self.members:
 			m.has_weight = not self.options.wtls()
-	
+
 	def toggle_thsnap(self):
+		""" Toggle snap support angle
+		"""
 		self.add_sup_bar.auto_th(self.options.thsnap())
-	
+
 	def eval_report(self, rtype):
+		""" Select a report to evaluate
+		Sets the callback for selecting a member to opening the requested
+			report type for that member
+		"""
 		self.set_sel_mem_cb(lambda m: self.popup_report(m,rtype))
-	
+
 	def clear_all(self):
+		""" Delete all members
+		"""
 		mem_copy = self.members.copy()
 		for m in mem_copy:
 			self.del_mem(m)
-	
+
 	def del_mem_mode(self):
+		""" Turn on delete member mode
+		Sets the callback for selecting a member to deleting that member
+		"""
 		self.set_sel_mem_cb(lambda m: self.del_mem(m))
-	
+
 	def del_lsj_mode(self):
+		""" Turn on delete lsj mode
+		Sets the callback for selecting a [lsj] to deleting that member
+		[lsj] = load, support, or joint
+		"""
 		self.set_sel_lsj_cb(lambda lsj: self.del_lsj(lsj))
 	#--End of Menu Command functions
-	
-	#Set a function to be executed upon selecting a member.
-	#callback is a function that accepts a reference to a member
+
 	def set_sel_mem_cb(self, callback):
+		""" Set the callback for selecting a member, turning on SELECT A MEMBER
+			mode
+		Upon selecting a member, the callback function is run
+		callback should accept a reference to the selected member
+		"""
 		self.canv.delete(self.sel_txt)
 		self.sel_txt = self.canv.create_text(self.c_wd - 72, self.c_ht - 12, 
 			text="SELECT A MEMBER")
 		self.sel_lsj_cb = None
 		self.sel_mem_cb = callback
-	
-	#Ditto selecting a Load, Support, or Joint.
+
 	def set_sel_lsj_cb(self, callback):
+		""" Set the callback for selecting a Load, Support, or Joint
+		See set_sel_mem_cb -- it's analogous
+		"""
 		self.canv.delete(self.sel_txt)
 		self.sel_txt = self.canv.create_text(self.c_wd - 124, self.c_ht - 12, 
 			text="SELECT A LOAD, SUPPORT, OR JOINT")
 		self.sel_mem_cb = None
 		self.sel_lsj_cb = callback
-	
-	#Open a popup window for a report of the given type for the member mem
+
 	def popup_report(self, mem, rtype):
+		""" Open a popup window for a report of the given type for the given
+			member mem
+		"""
+		# Create a popup window that says CALCULATING
 		popup = Tk_rt(mem.eval_names[rtype]+" Report")
 		loading_lbl = tk.Label(popup, text="CALCULATING", padx=48, pady=24)
 		loading_lbl.pack()
 		cleanup_popup = None
+		# Fill the popup window with the results of the report
 		def add_report():
+			# Run the analysis and get the report content
 			report = mem.gen_report(rtype)
+			# Remove the loading label
 			loading_lbl.destroy()
+			# Put a label describing the member at the top
 			mem_lbl = tk.Label(popup, text=str(mem))
 			mem_lbl.pack()
 			cleanup = lambda : None
 			if isinstance(report, str):
-				#This can be either a text-only report or an error message
+				# This can be either a text-only report or an error message
 				rep_lbl = Txt_wig(popup, report)
 				rep_lbl.packslf()
 			elif isinstance(report, tuple):
+				# Report with text and a figure
 				rep_text, fig = report
 				Txt_wig(popup, rep_text).packslf()
 				figcanv = FigureCanvasTkAgg(fig, popup)
@@ -863,7 +1054,10 @@ class Lab:
 					fig.clear()
 					plt.close(fig)
 			elif isinstance(report, list):
+				# Report with multiple sub-reports
+				#	Format: report = [(name1, text1, fig1), (name2, text2, fig2 ...]
 				tk.Label(popup, text="Choose which report to show:").pack()
+				# Pull out a list of sub-report names and corresponding tk widgets
 				rep_names = []
 				rep_widgets = []
 				for rep in report:
@@ -884,13 +1078,17 @@ class Lab:
 				rep_widgets[popup.current_rep][0].packslf()
 				rep_widgets[popup.current_rep][1].pack(fill=tk.BOTH, expand=1)
 				def switch_rep(*args):
+					# Hide the current report
 					rep_widgets[popup.current_rep][0].pack_forget()
 					rep_widgets[popup.current_rep][1].pack_forget()
+					# Show the selected report
 					popup.current_rep = rep_names.index(rep_option.get())
 					rep_widgets[popup.current_rep][0].packslf()
 					rep_widgets[popup.current_rep][1].pack(fill=tk.BOTH, expand=1)
+				# Bind the switch_rep function to a change in the pulldown
 				rep_option.trace("w", switch_rep)
 				def cleanup():
+					# Clear resources when closing the popup
 					for rep in report:
 						f = rep[2]
 						f.clear()
@@ -900,7 +1098,7 @@ class Lab:
 			nonlocal cleanup_popup
 			cleanup_popup = cleanup
 		
-		#Flash blue
+		# Outline the member in blue
 		self.canv.itemconfig(mem.img_ref, outline="blue")
 		mem.popups += 1
 		def del_pop():
@@ -915,18 +1113,20 @@ class Lab:
 		self.popups.append(popup)
 		popup.after(200, add_report)
 		popup.mainloop()
-	
-	#Cleanup windows and resources
+
 	def cleanup(self):
-		#Destroy any popups before exiting
+		""" Cleanup popups and resources
+		"""
 		for w in self.popups:
 			w.destroy()
+		# Close any remaining matplotlib resources
 		plt.close("all")
 
 class PM_Options:
 	""" Options for Phys.Mtrl
 	Each option is to be replaced with a Tk variable
 		See tk_wig.py > PM_Menu.__init__
+	This seems like a weird way to do it, but it works
 	"""
 
 	def __init__(self):
