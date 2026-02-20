@@ -5,4 +5,5 @@
 # datetime -- installed by default
 numpy
 sympy
+pandas
 
