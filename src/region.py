@@ -1,12 +1,24 @@
+""" region.py
+Define the Region class & subclasses
+
+A Region object represents a cross-sectional shape
+
+Supported regions: Circle, Rectangle, I-beam (W_F_I), Annulus
+"""
+
 import math
 
-#A closed 2D Region.
-#Used for cross sections of members.
 class Region:
+	""" Parent class for closed 2D Regions
+	Used for cross sections of members
+	"""
+	# Names of supported regions
 	regions = ("circle", "rectangle", "I-beam", "annulus")
 
-	#Ix,Iy - second moment of area about (horizontal,vertical) axes
 	def __init__(self, area, Ix, Iy):
+		""" Define a generic region
+		Ix,Iy - second moment of area about (horizontal,vertical) axes
+		"""
 		self.area = area
 		self.Ix = Ix
 		self.Iy = Iy
@@ -62,6 +74,9 @@ class Circle(Region):
 	def __str__(self):
 		return "circle with radius=" + str(self.radius)
 	def to_xml(self):
+		""" Create an xml-format string to save the Region to file
+		See Lab.to_xml
+		"""
 		data = """
 				<xsec region="{}">
 					<radius>{}</radius>
@@ -98,6 +113,9 @@ class Rectangle(Region):
 	def __str__(self):
 		return "rectangle with base=" +str(self.base)+ ", and height=" +str(self.height)
 	def to_xml(self):
+		""" Create an xml-format string to save the Region to file
+		See Lab.to_xml
+		"""
 		data = """
 				<xsec region="{}">
 					<base>{}</base>
@@ -139,6 +157,9 @@ class W_F_I(Region):
 	def __str__(self):
 		return "wide flanged I-beam with height=" +str(self.depth)
 	def to_xml(self):
+		""" Create an xml-format string to save the Region to file
+		See Lab.to_xml
+		"""
 		data = """
 				<xsec region="{}">
 					<depth>{}</depth>
@@ -181,6 +202,9 @@ class Annulus(Region):
 	def __str__(self):
 		return "annulus with outer radius=" +str(self.ro)+", and inner radius=" +str(self.ri)
 	def to_xml(self):
+		""" Create an xml-format string to save the Region to file
+		See Lab.to_xml
+		"""
 		data = """
 				<xsec region="{}">
 					<ro>{}</ro>

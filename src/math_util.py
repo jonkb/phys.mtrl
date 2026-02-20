@@ -155,7 +155,7 @@ def discontinuities(f, x, dom=None):
 		if pt > dom[0] and pt < dom[1]:
 			d_in_dom = np.append(d_in_dom, pt)
 	return d_in_dom
-	
+
 #Returns (Max, Max_x), (Min, Min_x)
 def max1d(f, x, dom):
 	#interval = Interval(*dom)
@@ -180,10 +180,9 @@ def max1d(f, x, dom):
 	critpts = np.append(critpts, dom)
 	critvals = f_lam(critpts)
 	f_max = np.max(critvals)
-	#x_max = critpts[np.where(critvals == f_max)[0][0]]
-	x_max = critpts[critvals == f_max]
+	x_max = critpts[critvals == f_max][0]
 	f_min = np.min(critvals)
-	x_min = critpts[critvals == f_min]
+	x_min = critpts[critvals == f_min][0]
 	return (f_max, x_max), (f_min, x_min)
 
 #Calculates the max and min of a 2d function on the given domain
