@@ -25,8 +25,8 @@ class Add_mem:
 		matl_lbl.grid(row=0, column=1)
 		#Choose material pulldown
 		self.matl = tk.StringVar(self.tb_frm)
-		self.matl.set(Materials.materials[0])
-		matl_option = tk.OptionMenu(self.tb_frm, self.matl, *Materials.materials)
+		self.matl.set(materials_list[0])
+		matl_option = tk.OptionMenu(self.tb_frm, self.matl, *materials_list)
 		matl_option.config(width=12)
 		matl_option.grid(row=1, column=1)
 		

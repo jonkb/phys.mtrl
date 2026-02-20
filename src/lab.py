@@ -372,7 +372,7 @@ class Lab:
 		x = event.x
 		y = event.y
 		L = float(self.add_mem_bar.get_L())
-		matl = getattr(Materials,self.add_mem_bar.get_matl())
+		matl = material_dict(self.add_mem_bar.get_matl())
 		rgb = matl["color"]
 		xsec = self.add_mem_bar.get_xsec()
 		if xsec == "circle":

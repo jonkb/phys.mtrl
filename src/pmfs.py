@@ -58,7 +58,7 @@ def open(lab):
 		y0 = float(mem_place.find("y0").text)
 		th = float(mem_place.find("th").text)
 		L = float(mem_def.find("length").text)
-		matl = getattr(Materials, mem_def.find("material").text)
+		matl = material_dict(mem_def.find("material").text)
 		xsec = mem_def.find("xsec")
 		xsec_reg = xsec.attrib["region"]
 		xs_param = {param.tag: float(param.text) for param in list(xsec)}

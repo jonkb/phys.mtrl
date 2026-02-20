@@ -2,11 +2,20 @@ import math
 import numpy as np
 import sympy as sym
 import matplotlib.pyplot as plt
+import pandas as pd
 from load import *
 import joint as jt
 #from region import Region
 from math_util import *
 
+# Load material database
+materials_df = pd.read_csv("materials.csv")
+materials_list = list(materials_df["vname"])
+def material_dict(vname):
+	""" Return the dictionary for the requested material
+	"""
+	material_ix = materials_list.index(vname)
+	return dict(materials_df.loc[material_ix, :])
 
 
 #WARNING: reactions() and axial_loads() are broken under the new system!!!
@@ -1156,78 +1165,6 @@ valid over the whole height, so the max and min values presented here may be ina
 		reps.append(("Out-of-plane \u03C4", t2_rep_text, fig4))
 		
 		return reps
-
-#This class is really just for reference. I'm not sure if this is the best way to do this.
-class Materials:
-	materials = ("steel", "aluminum", "pla", "cell_pvc", "oak")
-	
-	#Used values for ASTM-A514 steel
-	steel = {
-		"vname": "steel", #Variable name
-		"name": "structural steel",
-		"color": "#43464B",
-		#Mass density
-		"rho": 7850, #kg/m^3
-		#Young's modulus
-		"E": 200e9, #200GPa
-		#yield stress
-		"sig_y": 700e6, #700MPa
-		#ultimate stress
-		"sig_u": 830e6 #830MPa
-	}
-	
-	#Used values for 6061-T6 alloy
-	aluminum = {
-		"vname": "aluminum",
-		"name": "aluminum",
-		"color": "#848789",
-		#Mass density
-		"rho": 2700, #kg/m^3
-		#Young's modulus
-		"E": 70e9, #70GPa
-		#yield stress
-		"sig_y": 270e6, #270MPa
-		#ultimate stress
-		"sig_u": 310e6 #310MPa
-	}
-	
-	#PLA Plastic (average values from http://www.matweb.com/search/DataSheet.aspx?MatGUID=ab96a4c0655c4018a8785ac4031b9278&ckck=1)
-	pla = {
-		"vname": "pla",
-		"name": "PLA Plastic",
-		"color": "#65b565",
-		#Mass density
-		"rho": 1290, #1.00 - 2.47 g/cc
-		#Young's modulus
-		"E": 2.91e9, #0.0850 - 13.8 GPa	
-		#yield stress (TENSILE)
-		"sig_y": 38.0e6, #2.00 - 103 MPa	
-		#ultimate stress (TENSILE)
-		"sig_u": 47.2e6 #14.0 - 117 MPa	
-	}
-	
-	#cellular PVC board (https://azekexteriors.com/docs/technical/azek-csi-format-spec-1-22-19v1-1.pdf)
-	cell_pvc = {
-		"vname": "cell_pvc",
-		"name": "Cellular PVC",
-		"color": "#f0f0f0",
-		"rho": 550,
-		"E": 992845050, #.99 GPa
-		"sig_y": 0, #Unknown
-		"sig_u": 15.56e6
-	}
-	
-	#Oak wood (http://www.matweb.com/search/datasheet_print.aspx?matguid=3a971164050b4313930591eed2539366)
-	oak = {
-		"vname": "oak",
-		"name": "Oak Wood",
-		"color": "#d0ac7c",
-		"rho": 630,
-		"E": 12.56e9,
-		"sig_y": 47.0e6, #Compressive, perpindicular to grain
-		"sig_u": 5.5e6 #Tensile
-	}
-
 
 
 def steq_test():
