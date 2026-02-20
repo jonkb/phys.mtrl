@@ -627,7 +627,7 @@ class Lab:
 		elif jtype == 2:
 			jt = joint.Slot(jtag, m0, m1, axd0, axd1, th)
 			jt.draw(self.canv, xp, yp)
-		elif jtype == 4:
+		elif jtype == 3:
 			jt = joint.Thrust(jtag, m0, m1, axd0, axd1, th)
 			jt.draw(self.canv, xp, yp)
 		m0.joints.append(jt)

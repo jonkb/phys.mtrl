@@ -1,3 +1,10 @@
+""" support.py
+Define the Support class and subclasses
+
+A Support object stores the degrees of freedom that the support constrains,
+and a draw() method for creating the image on the canvas
+"""
+
 import math
 import math_util as m_u
 

@@ -3,12 +3,8 @@ Define the Member class
 
 A Member object represents a structural element in the Lab
 
-The Materials are also defined as a class in this file. TODO: Replace with an
-	external database of material properties.
-
 WARNING: reactions() and axial_loads() are broken under the new system!!!
 	Not sure what this comment was actually about :/
-
 """
 
 import math
@@ -30,8 +26,10 @@ def material_dict(vname):
 	material_ix = materials_list.index(vname)
 	return dict(materials_df.loc[material_ix, :])
 
-#prismatic uniform members
 class Member:
+	""" Class definition for members
+	For now, only prismatic uniform members are supported
+	"""
 	# Number of points in each direction to plot
 	d_resolution = 100
 	h_resolution = 50

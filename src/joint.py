@@ -1,10 +1,21 @@
+""" joint.py
+Define the Joint class and subclasses
+
+A Joint object stores the degrees of freedom that the joint constrains,
+and a draw() method for creating the image on the canvas
+
+See support.py
+"""
+
 import support as sup
 
 
 class Joint:
-	#Each Joint instance should inherit also from a Support.
-	#This sounds dumb, but it kind of makes sense to me.
-	#Again, maybe not the best way to do this... IDK
+	""" Parent class for joints
+	Each Joint instance should inherit also from a Support. This is because
+	each support has an analogous joint that constrains the same DOF.
+	Again, maybe not the best way to do this... IDK
+	"""
 	def __init__(self, m0, m1, axd0=None, axd1=None):
 		self.m0 = m0
 		self.m1 = m1
@@ -21,9 +32,15 @@ class Joint:
 			self.tag, sup.m_u.m_str(self.axd0))
 	
 	def other_mem(self, m):
+		""" Given one of the two members that this joint joins, return the
+		other member connected to this joint
+		"""
 		return self.m0 if m is self.m1 else self.m1
 		
 	def axd(self, m):
+		""" Given one of the two members that this joint is attached to, return
+		the axial distance along that member that this joint is located
+		"""
 		if m is self.m0:
 			return self.axd0
 		if m is self.m1:
@@ -31,6 +48,8 @@ class Joint:
 		return None
 		
 	def jtype(self):
+		""" Getter function for joint type (inherited from support parent class)
+		"""
 		return self.stype
 
 class Fixed(Joint, sup.Fixed):
