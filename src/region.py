@@ -24,15 +24,19 @@ class Region:
 		self.Iy = Iy
 	def __repr__(self):
 		return "Region({},{},{})".format(self.area, self.Ix, self.Iy)
+
 	@property
 	def Ip(self):
 		return self.Ix+self.Iy
 	@property
 	def Imin(self):
-		#This isn't necessarily correct
-		#If x and y aren't principle axes, this needs to be calculated
-		#https://calcresource.com/moment-of-inertia-rotation.html
+		""" Minimum moment of inertia
+		This isn't necessarily correct
+		If x and y aren't principle axes, this needs to be calculated
+		https://calcresource.com/moment-of-inertia-rotation.html
+		"""
 		return min(self.Ix, self.Iy)
+
 	@staticmethod
 	def reg_dict():
 		return {"circle": Circle, 
@@ -67,12 +71,16 @@ class Region:
 		return "Unknown cross-section"
 
 class Circle(Region):
+	""" Circular cross section
+	"""
 	rtype = "circle"
+
 	def __init__(self, radius):
 		self.radius = radius
 		#Do I need the super() thing?
 	def __str__(self):
 		return "circle with radius=" + str(self.radius)
+
 	def to_xml(self):
 		""" Create an xml-format string to save the Region to file
 		See Lab.to_xml
@@ -82,6 +90,7 @@ class Circle(Region):
 					<radius>{}</radius>
 				</xsec>""".format(self.rtype, self.radius)
 		return data
+
 	@property
 	def area(self):
 		return math.pi*self.radius**2
@@ -91,6 +100,7 @@ class Circle(Region):
 	@property
 	def Iy(self):
 		return self.Ix
+
 	#Return the interval of y1 in the area (from centroid)
 	def y1_domain(self):
 		return (-self.radius, self.radius)
@@ -106,12 +116,16 @@ class Circle(Region):
 		return self.Q(0) / (self.Ix*2*self.radius)
 
 class Rectangle(Region):
+	""" Rectangular cross section
+	"""
 	rtype = "rectangle"
+
 	def __init__(self, base, height):
 		self.base = base
 		self.height = height
 	def __str__(self):
 		return "rectangle with base=" +str(self.base)+ ", and height=" +str(self.height)
+
 	def to_xml(self):
 		""" Create an xml-format string to save the Region to file
 		See Lab.to_xml
@@ -122,6 +136,7 @@ class Rectangle(Region):
 					<height>{}</height>
 				</xsec>""".format(self.rtype, self.base, self.height)
 		return data
+
 	@property
 	def area(self):
 		return self.base * self.height
@@ -131,6 +146,7 @@ class Rectangle(Region):
 	@property
 	def Iy(self):
 		return self.height * self.base**3 / 12
+
 	#Return the interval of y1 in the area (from centroid)
 	def y1_domain(self):
 		return (-self.height/2, self.height/2)
@@ -145,17 +161,25 @@ class Rectangle(Region):
 	def Q_div_Ib(self, y1):
 		return self.Q(y1) / (self.Ix * self.base)
 
-#Wide Flanged I-beam
 class W_F_I(Region):
+	""" Wide Flanged I-beam cross section
+	"""
 	rtype = "I-beam"
-	#Major depth(height), flange width, flange thickness, web thickness
+
 	def __init__(self, depth, width, tflg, tweb):
+		"""
+		depth: Major depth(height)
+		width: Flange width
+		tflg: Flange thickness
+		tweb: Web thickness
+		"""
 		self.depth = depth
 		self.width = width
 		self.tflg = tflg
 		self.tweb = tweb
 	def __str__(self):
 		return "wide flanged I-beam with height=" +str(self.depth)
+
 	def to_xml(self):
 		""" Create an xml-format string to save the Region to file
 		See Lab.to_xml
@@ -168,6 +192,7 @@ class W_F_I(Region):
 					<tweb>{}</tweb>
 				</xsec>""".format(self.rtype, self.depth, self.width, self.tflg, self.tweb)
 		return data
+
 	@property
 	def area(self):
 		return 2*self.tflg*self.width + self.tweb*(self.depth-2*self.tflg)
@@ -179,6 +204,7 @@ class W_F_I(Region):
 	@property
 	def Iy(self):
 		return (self.depth-2*self.tflg)*self.tweb**3/12 + self.tflg*self.width**3/6
+
 	#Return the interval of y1 in the area (from centroid)
 	def y1_domain(self):
 		return (-self.depth/2, self.depth/2)
@@ -195,12 +221,16 @@ class W_F_I(Region):
 		return self.Q(y1) / (self.Ix * self.tweb)
 
 class Annulus(Region):
+	""" Annular cross section
+	"""
 	rtype = "annulus"
+
 	def __init__(self, ro, ri):
 		self.ro = ro
 		self.ri = ri
 	def __str__(self):
 		return "annulus with outer radius=" +str(self.ro)+", and inner radius=" +str(self.ri)
+
 	def to_xml(self):
 		""" Create an xml-format string to save the Region to file
 		See Lab.to_xml
@@ -211,6 +241,7 @@ class Annulus(Region):
 					<ri>{}</ri>
 				</xsec>""".format(self.rtype, self.ro, self.ri)
 		return data
+
 	@property
 	def area(self):
 		return math.pi * (self.ro**2 - self.ri**2)
@@ -220,6 +251,7 @@ class Annulus(Region):
 	@property
 	def Iy(self):
 		return self.Ix
+
 	#Return the interval of y1 in the area (from centroid)
 	def y1_domain(self):
 		return (-self.ro, self.ro)

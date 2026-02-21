@@ -10,6 +10,8 @@ import math_util as m_u
 
 
 class Support:
+	""" Parent class for supports
+	"""
 	sup_types = {
 		0: "Fixed",
 		1: "Pin",
@@ -26,16 +28,21 @@ class Support:
 		return "{} support ({}) @axd={}".format(type(self).__name__, 
 			self.tag, m_u.m_str(self.ax_dist))
 	
-	#The *args is used by Joints; they care which member is asking.
 	def axd(self, *args):
+		""" Axial distance
+		The *args is used by Joints; they care which member is asking.
+		"""
 		return self.ax_dist
 	
-	#Returns a binary tuple (x,y,th) for which directions the joint constrains
 	def constraints(self):
+		""" Returns a binary tuple (x,y,th) for which directions the joint 
+		constrains motion in
+		"""
 		return (0,0,0)
 	
-	#Draws self on the given canvas
 	def draw(self, canv, x, y):
+		""" Draw self on canvas canv
+		"""
 		canv.create_oval(x-10,y-10,x+10,y+10)
 
 class Fixed(Support):

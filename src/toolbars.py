@@ -1,3 +1,7 @@
+""" toolbars.py
+Define the toolbars for adding Members, Supports/Joints, and Loads
+"""
+
 import tkinter as tk
 import math
 
@@ -5,11 +9,12 @@ from member import *
 from region import *
 from support import Support
 
-
+# Width of numerical entry fields
 num_e_wid = 8
 
-#Toolbar to add a new member
 class Add_mem:
+	""" Add member toolbar
+	"""
 	def __init__(self, main_frm):
 		self.tb_frm = tk.Frame(main_frm)
 		self.tb_frm.config(highlightcolor="grey", highlightbackground="grey", highlightthickness=1)
@@ -70,8 +75,12 @@ class Add_mem:
 		self.add_btn = tk.Button(self.tb_frm, text="Add")
 		#self.add_btn.config(command=self.toggle_add)
 		self.add_btn.grid(row=0, column=6, padx=2, pady=2, ipadx=8, rowspan=2, sticky=tk.N+tk.S)
-	
+
 	def update_xparam(self, *args):
+		""" Update cross-section parameters
+		When the cross-section option is changed, the relevant parameters
+		to define that cross section change
+		"""
 		region = self.xsec.get()
 		self.xparam_entries.clear()
 		for widget in self.xparam_frm.winfo_children():
@@ -125,19 +134,23 @@ class Add_mem:
 			ri_entry = tk.Entry(self.xparam_frm, width=num_e_wid)
 			ri_entry.grid(row=1, column=1)
 			self.xparam_entries.append(ri_entry)
-	
-	#Return half of the height of the beam being added (in m)
+
 	def half_h(self):
+		""" Half height of member to create
+		Return half of the height of the beam being added (in m)
+		"""
 		xsec = self.xsec.get()
 		return Region.half_h(xsec, self.get_xparams())
-	
-	#Return the parameters for the cross section
+
+	#--Getter functions
 	def get_xparams(self):
+		""" Get cross section parameters
+		"""
 		params = []
 		for param in self.xparam_entries:
 			params.append(float(param.get()))
 		return params
-	
+
 	def get_L(self):
 		return float(self.L_entry.get())
 	
@@ -149,9 +162,11 @@ class Add_mem:
 	
 	def get_th(self):
 		return float(self.th_entry.get())
-	
-	#Return true if all fields have numbers. Also returns false if any dim<=0
+
 	def has_float_vals(self):
+		""" Return true if all fields have numbers. 
+		Also returns false if any dim<=0
+		"""
 		try:
 			if float(self.L_entry.get()) <= 0:
 				return False
@@ -165,8 +180,9 @@ class Add_mem:
 		else:
 			return True
 
-#Add support toolbar
 class Add_sup:
+	""" Add support toolbar
+	"""
 	add_sp_txt = "Add New\nSupport"
 	add_jt_txt = "Add New\nJoint"
 	def __init__(self, main_frm):
@@ -214,7 +230,8 @@ class Add_sup:
 		self.add_btn = tk.Button(self.tb_frm, text="Add")
 		#self.add_btn.config(command=self.toggle_add)
 		self.add_btn.grid(row=0, column=next_col, rowspan=2, padx=2, pady=2, ipadx=8, sticky=tk.N+tk.S)
-	
+
+	##--Getter functions
 	def get_sup_type(self):
 		return self.sup_type.get()
 	
@@ -235,10 +252,11 @@ class Add_sup:
 	
 	def setjt(self):
 		self.tb_lbl.config(text=self.add_jt_txt)
-	
-	#Turn on or off auto angle mode
-	#	onoff - boolean to say if it should be turned on or off
+
 	def auto_th(self, onoff):
+		""" Auto angle mode
+		onoff - boolean to say if it should be turned on or off
+		"""
 		if onoff:
 			self.th_entry.delete(0, "end")
 			self.th_entry.insert(0, "[auto]")
@@ -248,8 +266,9 @@ class Add_sup:
 			self.th_entry.delete(0, "end")
 			self.th_entry.insert(0, "0")
 
-#Add load toolbar
 class Add_load:
+	""" Add load toolbar
+	"""
 	xctext = "x-comp. (kN):"
 	yctext = "y-comp. (kN):"
 	rtext = "load (kN):"
@@ -258,6 +277,7 @@ class Add_load:
 	qytext = "y-comp. (kN/m)"
 	qrtext = "mag (kN/m)"
 	qthtext = "angle (deg)"
+
 	def __init__(self, main_frm):
 		self.tb_frm = tk.Frame(main_frm)
 		self.tb_frm.config(highlightcolor="grey", highlightbackground="grey", highlightthickness=1)
@@ -297,10 +317,16 @@ class Add_load:
 		#Button to add the new load
 		self.add_btn = tk.Button(self.tb_frm, text="Add")
 		self.add_btn.grid(row=0, column=5, padx=2, pady=2, ipadx=8, rowspan=2, sticky=tk.N+tk.S)
-		
+
 	def is_ds(self):
+		""" Is distributed?
+		Returns true if distributed load is selected
+		"""
 		return self.pt_ds.get()
+
 	def setcomp(self):
+		""" Switch to component entry mode
+		"""
 		if self.pt_ds.get() == 0: #Pt. load comp. labels
 			self.Pc1_lbl.config(text=self.xctext)
 			self.Pc2_lbl.config(text=self.yctext)
@@ -309,7 +335,10 @@ class Add_load:
 			self.Pc2_lbl.config(text="q0 "+self.qytext)
 			self.Pc3_lbl.config(text="q1 "+self.qxtext)
 			self.Pc4_lbl.config(text="q1 "+self.qytext)
+
 	def setpol(self):
+		""" Switch to polar entry mode
+		"""
 		if self.pt_ds.get() == 0: #Pt. load polar labels
 			self.Pc1_lbl.config(text=self.rtext)
 			self.Pc2_lbl.config(text=self.thtext)
@@ -318,7 +347,10 @@ class Add_load:
 			self.Pc2_lbl.config(text="q0 "+self.thtext)
 			self.Pc3_lbl.config(text="q1 "+self.qrtext)
 			self.Pc4_lbl.config(text="q1 "+self.qthtext)
+
 	def setpt(self):
+		""" Set to Point Load
+		"""
 		for widget in self.comp_frm.winfo_children():
 			widget.destroy()
 		#Load comp. 1 label
@@ -338,8 +370,10 @@ class Add_load:
 		#If in polar mode, fix the labels.
 		if self.c_p.get():
 			self.setpol()
-	
+
 	def setds(self):
+		""" Set to Distributed Load
+		"""
 		for widget in self.comp_frm.winfo_children():
 			widget.destroy()
 		#Q 0 comp. 1 label
@@ -374,9 +408,10 @@ class Add_load:
 		#If in polar mode, fix the labels.
 		if self.c_p.get():
 			self.setpol()
-	
-	#Returns the components of the load in N
+
 	def get_P(self):
+		""" Returns the components of the load in N
+		"""
 		try:
 			Pc1 = float(self.Pc1_entry.get())
 			Pc2 = float(self.Pc2_entry.get())
@@ -397,7 +432,10 @@ class Add_load:
 				return ( (Pc1*1000, Pc2*1000), (Pc3*1000, Pc4*1000) )
 			if self.c_p.get() == 1:
 				return ( self.p_to_c(Pc1*1000, Pc2), self.p_to_c(Pc3*1000, Pc4))
+
 	def mag(self):
+		""" Returns the magnitude of the load
+		"""
 		if self.pt_ds.get() == 0:
 			x,y = self.get_P()
 			if self.c_p.get() == 0:
@@ -410,15 +448,20 @@ class Add_load:
 				return ( math.sqrt(x0**2+y0**2), math.sqrt(x1**2+y1**2) )
 			if self.c_p.get() == 1:
 				return ( x0, x1 )
-	#Polar to Coords. th in deg
+
 	@staticmethod
 	def p_to_c(r, th):
+		""" Convert polar vector to coordinates
+		th in deg
+		"""
 		x = r*math.cos(math.radians(th))
 		y = r*math.sin(math.radians(th))
 		return (x,y)
-	#Return true if all fields have numbers. Also returns false if mag==0
+
 	def has_float_vals(self):
-		#print(361)
+		""" Return true if all fields have numbers. 
+		Also returns false if any dim<=0
+		"""
 		try:
 			if self.mag() == 0:
 				return False

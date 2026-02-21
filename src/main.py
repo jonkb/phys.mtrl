@@ -4,7 +4,6 @@ Main script to run phys.mtrl
 Creates the Root window, the main frame, the toolbars, the menu, and the lab
 """
 
-
 import tkinter as tk
 
 from lab import Lab
@@ -12,29 +11,30 @@ from toolbars import Add_mem, Add_sup, Add_load
 from tk_wig import Tk_rt, PM_Menu
 
 
-#Root window
+# Root window
 root = Tk_rt("Materials Physics")
 
-#Main frame: container for everything else
+# Main frame: container for everything else
 main_frm = tk.Frame(root)
 main_frm.pack(fill=tk.BOTH, expand=1)
 
-#Toolbars
+# Toolbars
 add_mem_bar = Add_mem(main_frm)
 add_sup_bar = Add_sup(main_frm)
 add_load_bar = Add_load(main_frm)
 
-#"Materials" Lab with canvas
+# "Materials" Lab with canvas
 mlab = Lab(main_frm, add_mem_bar, add_sup_bar, add_load_bar)
 
-#Menu bar
+# Menu bar
 menubar = PM_Menu(root, mlab)
 root.config(menu=menubar)
 
+# Define cleanup function for when the root window is closed
 def cleanup():
 	mlab.cleanup()
 	root.destroy()
 root.protocol("WM_DELETE_WINDOW", cleanup)
 
-#Start
+# Start
 root.mainloop()

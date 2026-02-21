@@ -1,8 +1,22 @@
+""" load.py
+
+Define the Load class & subclasses
+
+Load types (ltype):
+0: Point load (Load)
+1: Distributed load (Distr_Load)
+2: Applied Moment (Moment)
+"""
+
 import math
 import numpy as np
 import sympy as sym
 
 class Load:
+	""" Standard point load
+	Also serves as a parent class for other kinds of loads
+	"""
+	# Constants
 	ah_width = 6#px
 	ball_rad = ah_width*.65
 	load_types = {
@@ -10,12 +24,17 @@ class Load:
 		1: "Distributed"
 	}
 	ltype = 0
+
 	def __init__(self, tag, xc, yc, ax_dist=0):
 		self.tag = tag
 		self.xc = xc
 		self.yc = yc
 		self.ax_dist = ax_dist
+
 	def to_xml(self):
+		""" Create an xml-format string to save the Load to file
+		See Lab.to_xml
+		"""
 		data = """
 			<ld type="{}">
 				<xc>{}</xc>
@@ -23,10 +42,16 @@ class Load:
 				<axd>{}</axd>
 			</ld>""".format(self.ltype, self.xc, self.yc, self.ax_dist)
 		return data
+
 	def get_comp(self):
+		""" Return x-y components of load
+		"""
 		return (self.xc,self.yc)
-	#Draw a point load. All args in pixels. The tip is at the point specified by (px,py)
+
 	def draw(self, lab, px, py):
+		""" Draw this point load
+		(px, py): Tip position in pixels
+		"""
 		if self.xc == 0 and self.yc == 0:
 			lab.canv.create_oval(px - self.ball_rad, py - self.ball_rad, px + self.ball_rad, 
 				py + self.ball_rad, fill="red", outline="red", tags=self.tag)
@@ -45,11 +70,23 @@ class Load:
 
 #Quadrelateral distributed loads, defined by 2 q vectors @ axd0 & axd1
 class Distr_Load(Load):
-	#Dist btw arrows in px
+	""" Quadrelateral distributed load
+	Defined by two q vectors @ axd0 & axd1, with the value varying linearly 
+	between the two ends
+	"""
+	# Constants
+	# Approximate distance btw arrows in px
 	ad_px = 25
 	ltype = 1
-	#Note: th is the angle (deg) of the axis of the member
+
 	def __init__(self, tag, xc0, yc0, axd0, xc1, yc1, axd1, th):
+		""" Initialize Distr_Load
+		(xc0, yc0): x & y components of q0 vector
+		axd0: Axial distance of q0 vector
+		(xc1, yc1): x & y components of q1 vector
+		axd1: Axial distance of q1 vector
+		th: angle (deg) of the member axis
+		"""
 		super().__init__(tag, xc0, yc0)
 		self.xc0 = xc0
 		self.yc0 = yc0
@@ -59,7 +96,11 @@ class Distr_Load(Load):
 		self.axd1 = axd1
 		self.th = th
 		self.a_dist = self.ad_px / 360
+
 	def to_xml(self):
+		""" Create an xml-format string to save the Load to file
+		See Lab.to_xml
+		"""
 		data = """
 			<ld type="{}">
 				<xc0>{}</xc0>
@@ -71,7 +112,10 @@ class Distr_Load(Load):
 			</ld>""".format(self.ltype, self.xc0, self.yc0, 
 			self.axd0, self.xc1, self.yc1, self.axd1)
 		return data
+
 	def pt_equiv(self):
+		""" Equivalent point load(s)
+		"""
 		ptlds = []
 		L = self.axd1 - self.axd0
 		#TO DO: Check to see if this all works when it's backwards so L<0
@@ -81,9 +125,9 @@ class Distr_Load(Load):
 		
 		#break x-component into loads
 		if self.xc0 != 0 or self.xc1 != 0:
+			# If the sign flips, convert to two loads to preserve the moment
 			if np.sign(self.xc0) == -np.sign(self.xc1):
-				#Must be 2 loads, since the sign flipped. Otherwise the moment will be lost.
-				#axdi: axd of inflection point
+				# axdi: axd of inflection point
 				axdi = self.axd0 + L*self.xc0/(self.xc0-self.xc1)
 				p0 = self.xc0*(axdi-self.axd0)/2
 				axdp0 = self.axd0 + (axdi-self.axd0)/3
@@ -93,11 +137,13 @@ class Distr_Load(Load):
 				ptlds.append(Load(self.tag, p1, 0, axdp1))
 			else:
 				p = (self.xc0+self.xc1)/2*L
+				# axdp: axd of centroid of distributed load
 				axdp = self.axd0 + (self.xc0/2*L**2 + (self.xc1-self.xc0)/3*L**2)/p
 				ptlds.append(Load(self.tag, p, 0, axdp))
 		
 		#break y-component into loads
 		if self.yc0 != 0 or self.yc1 != 0:
+			# If the sign flips, convert to two loads to preserve the moment
 			if np.sign(self.yc0) == -np.sign(self.yc1):
 				#print(102, self.axd0, self.axd1, L, self.yc0, self.yc1)
 				axdi = self.axd0 + L*self.yc0/(self.yc0-self.yc1)
@@ -109,37 +155,52 @@ class Distr_Load(Load):
 				ptlds.append(Load(self.tag, 0, p1, axdp1))
 			else:
 				p = (self.yc0+self.yc1)/2*L
+				# axdp: axd of centroid of distributed load
 				axdp = self.axd0 + (self.yc0/2*L**2 + (self.yc1-self.yc0)/3*L**2)/p
 				ptlds.append(Load(self.tag, 0, p, axdp))
 				
 		return ptlds
-	
+
 	def get_comp(self):
+		""" Get components is not well-defined for distributed loads
+		"""
 		print("WARNING load.py 117")
 		return "WARNING: Not sure what you mean"
 		ptl = self.pt_equiv()
 		return ptl.get_comp()
+
 	@property
 	def ax_dist(self):
 		ptl = self.pt_equiv()
 		return ptl.ax_dist
-	#Set axd doesn't mean anything here
+
 	@ax_dist.setter
 	def ax_dist(self, axd):
+		""" Set axd: doesn't mean anything here
+		"""
 		pass
-	#Return axd0 and axd1, in increasing order
+
 	def limits(self):
+		""" Limits of region that the load is applied to
+		Returns axd0 and axd1, in increasing order
+		"""
 		return (min(self.axd0, self.axd1), max(self.axd0, self.axd1))
-	#Include both ends, but keep the spacing relatively standard
+
 	def ax_rng(self, ax0, ax1):
+		""" Return a vector of axial distances for spacing arrows when drawing
+		Include both ends, but keep the spacing relatively standard
+		"""
 		L = ax1 - ax0
 		n = abs(round(L / self.a_dist))
 		if n == 0:
 			n = 1
 		step = L / n
 		return np.arange(ax0, ax1+step/2, step)
-	#(px,py) is for the position in pixels of q0
+
 	def draw(self, lab, px, py):
+		""" Draw this distributed load on the canvas of lab
+		(px,py) is the position in pixels of q0
+		"""
 		self.a_dist = self.ad_px / lab.px_per_m
 		Ld = self.axd1 - self.axd0 #(Neg. if backwards)
 		for axd in self.ax_rng(self.axd0, self.axd1):
@@ -172,8 +233,11 @@ class Distr_Load(Load):
 		q1ax = px - q1xc + Ld*lab.px_per_m*math.cos(math.radians(self.th))
 		q1ay = py - q1yc - Ld*lab.px_per_m*math.sin(math.radians(self.th))
 		lab.canv.create_line(q0ax, q0ay, q1ax, q1ay, width=2, fill="red", tags=self.tag)
-	#Return two sympy functions for the load at a given axial d (Qx(d), Qy(d))
+
 	def to_symf(self):
+		""" To sympy functions
+		Return two sympy functions for the load at a given axial d (Qx(d), Qy(d))
+		"""
 		d = sym.symbols("d")
 		Ld = self.axd1 - self.axd0
 		chr_pls = (sym.Heaviside(d-self.axd0, 1)-sym.Heaviside(d-self.axd1, 1))
@@ -182,6 +246,9 @@ class Distr_Load(Load):
 		return (px*chr_pls, py*chr_pls)
 
 class Moment(Load):
+	""" Applied moment
+	Not fully implemented yet
+	"""
 	def __init__(self, tag, mx=0, my=0, mz=0, ax_dist=0):
 		super().__init__(tag, 0, 0, ax_dist)
 		self.mx = mx

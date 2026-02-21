@@ -1,3 +1,9 @@
+""" pmfs.py
+phys.mtrl file system
+
+Define functions for saving and loading the Lab
+"""
+
 import tkinter as tk
 from datetime import datetime
 import xml.etree.ElementTree as ET
@@ -9,10 +15,13 @@ from support import *
 from load import *
 
 
+# Constants
 ftypes = [('All Files', '*.*'), ('XML Files', '*.xml')]
 save_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../data")
 
 def save(lab):
+	""" Save the Lab to an xml file
+	"""
 	data = """<?xml version="1.0" encoding="UTF-8"?>
 <!-- This is a lab file created with phys.mtrl -->
 <!-- https://github.com/jonkb/phys.mtrl -->\n"""
@@ -20,6 +29,7 @@ def save(lab):
 	#print(data)
 	now = datetime.now()
 	ifile = "lab_"+now.strftime("%Y%m%d-%H%M%S")+".xml"
+	# Prompt the user for the save location
 	file = tk.filedialog.asksaveasfile(mode='w', 
 		initialdir=save_dir, initialfile=ifile,
 		filetypes=ftypes, defaultextension=".xml")
@@ -29,6 +39,9 @@ def save(lab):
 	file.close()
 
 def open(lab):
+	""" Load a Lab from an xml file
+	"""
+	# Prompt the user for the file to open
 	file = tk.filedialog.askopenfile(mode="r", 
 		initialdir=save_dir, defaultextension=".xml")
 	if file is None:
@@ -51,6 +64,7 @@ def open(lab):
 	lab.redraw(int(options.find("c_wd").text), int(options.find("c_ht").text), True)
 	members = data.find("members")
 	jts = []
+	# Place each member
 	for mem in members.findall("mem"):
 		mem_def = mem.find("def")
 		mem_place = mem.find("place")
@@ -66,16 +80,20 @@ def open(lab):
 		xsection = regions[xsec_reg](**xs_param)
 		m = Member(matl, xsection, L)
 		lab.place_member(m, xc=x0, yc=y0, th=th)
+		# Add every support on this member
 		for sup in mem.findall("sup"):
 			stype = int(sup.attrib["type"])
 			axd = float(sup.find("axd").text)
 			th = float(sup.find("th").text)
 			lab.place_support(m, stype, axd=axd, th=th)
+		# Keep track of every joint on this member to add later, after all the
+		#	members have been placed
 		for jt in mem.findall("jt"):
 			jtype = int(jt.attrib["type"])
 			axd = float(jt.find("axd").text)
 			th = float(jt.find("th").text)
-			jts.append((m, jtype, axd, th)) #To add later, after all members are down.
+			jts.append((m, jtype, axd, th))
+		# Add every load on this member
 		for ld in mem.findall("ld"):
 			is_distr = int(ld.attrib["type"])
 			if is_distr:
@@ -91,6 +109,8 @@ def open(lab):
 				Py = float(ld.find("yc").text)
 				axd = float(ld.find("axd").text)
 				lab.place_load(m, Px, Py, axd)
+	# Load the joints
+	#	They need to be added after all the members because they join members
 	for jt in jts:
 		lab.load_joint(*jt)
 	print("Loaded Successfully")

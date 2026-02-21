@@ -17,8 +17,10 @@ from member import Member
 default_font_size = 11
 font_list = ["TkDefaultFont", "TkMenuFont", "TkTextFont"]
 
-#Wrapper for tk.Tk() incorporating the title and icon already
 class Tk_rt(tk.Tk):
+	""" Wrapper class for tk.Tk() 
+	Incorporates the title and icon already and sets font sizes
+	"""
 	def __init__(self, title):
 		super().__init__()
 
@@ -44,10 +46,11 @@ class Tk_rt(tk.Tk):
 			# Probably won't ever work on Ubuntu without creating a .desktop file
 			print("Error loading icon ("+ico_path+")")
 
-#Phys.Mtrl Menu bar
-#Honestly, this isn't a very useful class, since it's not reused.
-#	It's just moving code from main.py to here.
 class PM_Menu(tk.Menu):
+	""" Phys.Mtrl Menu bar
+	Honestly, this isn't a very useful class, since it's not reused.
+		It's just moving code from main.py to here.
+	"""
 	def __init__(self, root, mlab):
 		super().__init__(root)
 		#File Menu
@@ -106,14 +109,16 @@ class PM_Menu(tk.Menu):
 		delmenu.add_command(label="Ld/Sup/Jt", command=mlab.del_lsj_mode)
 		self.add_cascade(label="Delete", menu=delmenu)
 
-#Expansion of tk.Text, used for displaying text, not receiving any input
-#You can't copy text from a Label, which is a problem
 class Txt_wig(tk.Text):
+	""" Text display widget
+	Expansion of tk.Text, used for displaying text, not receiving any input
+	You can't copy text from a Label, which is a problem
+	tk.Text allows for copy / paste
+	"""
 	ft_fam = "Helvetica"#"MS Sans Serif"#"System"
 	ft_size = default_font_size
 	padw = 4
 	#rep_lbl = tk.Label(root, text=report, justify=tk.LEFT)
-	#tk.Text allows for copy / paste
 	def __init__(self, root, txt):
 		numlines = txt.count("\n") + 1
 		#TO DO: One too few when there's a blank line ?????
@@ -133,6 +138,7 @@ class Txt_wig(tk.Text):
 		#self.config(font=("System", 12))
 		self.config(state="disabled")
 		self.bind("<Configure>", self.resize)
+
 	def packslf(self):
 		self.pack(fill="both", padx=1, pady=1)
 	def resize(self, event):

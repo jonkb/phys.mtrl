@@ -1,16 +1,23 @@
+""" math_util.py
+Math utilities
+"""
+
 import math
 import numpy as np
 import sympy as sym
 #from sympy.sets import Interval
 
+# Constants
 eps = 1e-14
 default_sigfig = 6
-grav = 9.81 #m/s^2
+grav = 9.81 # m/s^2
 
-#round x to n significant figures
 def sigfig(x, n=default_sigfig):
+	""" Significant Figures
+	Round x to n significant figures
+	"""
 	if isinstance(x, np.ndarray):
-		#There seems to be a bug here that causes things like 1.234999999999999
+		# There seems to be a bug here that causes things like 1.234999999999999
 		x_log10 = np.log10(abs(x))	
 		x_log10 = np.nan_to_num(x_log10, nan=0, posinf=0, neginf=0)
 		round_dec = np.floor(-x_log10+n)
@@ -21,53 +28,76 @@ def sigfig(x, n=default_sigfig):
 		round_dec = int(-math.log10(abs(x))+n)
 		return round(x, round_dec)
 
-#Takes an iterable and rounds those elements that are very close to int
-#Use for a list, not for an np.array
 def eps_round_iter(A):
+	""" Epsilon round iterable
+	Takes an iterable and rounds those elements that are very close to int
+	Use for a list, not for an np.array
+	"""
 	for i,e in enumerate(A):
 		if (abs(e)+eps/2) % 1 < eps:
 			A[i] = round(e)
 	return A
 
 def eps_round(n):
+	""" Epsilon round
+	Round n to the nearest integer if it only differs from an integer by 
+	eps or less
+	"""
 	if (abs(n)+eps/2) % 1 < eps:
 		n = round(n)
 	return n
 
-#Check if two numbers are equal, allowing for small errors
 def eps_eq(a, b):
+	""" Epsilon equality
+	Check if a and b are equal, allowing for small errors
+	"""
 	return abs(a - b) < eps
 
-#Use for a list, not for an np.array
 def sigfig_iter(A, n=default_sigfig):
+	""" Round elements of a list to n significant figures
+	Use for a list, not for an np.array
+	"""
 	for i,e in enumerate(A):
 		A[i] = sigfig(e,n)
 	return A
 
 def N_to_kN_str(N, n=default_sigfig):
+	""" Format a force in N to a string in kN
+	"""
 	k = float(N/1e3)
 	return str(sigfig(k, n)) + "kN"
 
 def Nm_to_kNm_str(Nm, n=default_sigfig):
+	""" Format a moment in Nm to a string in kNm
+	"""
 	km = float(Nm/1e3)
 	return str(sigfig(km, n))+"kN-m"
 
 def Pa_to_MPa_str(P, n=default_sigfig):
+	""" Format a pressure in Pa to a string in MPa
+	"""
 	M = float(P/1e6)
 	return str(sigfig(M, n))+"MPa"
 
 def m_str(m, n=default_sigfig):
+	""" Format a length in m to a string
+	"""
 	return str(sigfig(float(m), n))+"m"
 
 def coords_str(x,y, n=default_sigfig):
+	""" Format an (x,y) coordinate in a string
+	"""
 	return "("+str(sigfig(float(x),n))+","+str(sigfig(float(y),n))+")"
 
-#Returns the limits of the subdomains of an expression that may contain piecewise
 def pw_sdls(f, x):
-	#NOTE: should have used sym.piecewise_fold to simplify this
+	""" Piecewise subdomain limits
+	Returns the limits of the subdomains of an expression that may contain 
+	piecewise
+	NOTE: should have used sym.piecewise_fold to simplify this
+	"""
 	lims = []
-	#look for all piecewise func in the expr tree 
-	#(see https://docs.sympy.org/latest/tutorial/manipulation.html)
+	# look for all piecewise func in the expr tree 
+	# (see https://docs.sympy.org/latest/tutorial/manipulation.html)
 	def rec_search(expr):
 		nonlocal lims
 		if type(expr) == sym.Piecewise:
@@ -83,10 +113,12 @@ def pw_sdls(f, x):
 	rec_search(f)
 	return lims
 
-#Returns the roots of a piecewise expression
 def pw_roots(f, x):
+	""" Piecewise roots
+	Returns the roots of a piecewise expression
+	"""
 	roots = []
-	#This combines any addition or multiplication into the piecewise
+	# This combines any addition or multiplication into the piecewise
 	f = sym.piecewise_fold(f)
 	def rec_search(expr):
 		nonlocal roots
@@ -97,10 +129,10 @@ def pw_roots(f, x):
 				limits = list(sdom[1].boundary)
 				#print(65, limits)
 				sf_eq0 = sym.Eq(subf, 0)
-				if sf_eq0 == True: #function is zero
+				if sf_eq0 == True: # function is zero
 					numlims = len(limits)
-					if numlims == 0: #(-inf, inf)
-						#Arbitrarily return zero if the range is infinite
+					if numlims == 0: # (-inf, inf)
+						# Arbitrarily return zero if the range is infinite
 						root = 0
 					elif numlims == 1:
 						root = limits[0]
@@ -117,22 +149,25 @@ def pw_roots(f, x):
 		roots = sym.solve(f, x)
 	return roots
 
-#Return a simplified version of the function, restricted to the given domain
-#dom = (xmin, xmax)
 def f_restrict(f, x, dom, lims=True):
+	""" Restrict f(x) to domain dom
+	Return a simplified version of the function, restricted to the given domain
+	dom = (xmin, xmax)
+	"""
 	condition = (x>=dom[0]) & (x<=dom[1]) if lims else (x>dom[0]) & (x<dom[1])
 	domf = sym.Piecewise((1, condition))
 	return (f*domf).simplify()
 
-#Returns the discontinuities in the function along the interval
-#Supports everything that sym.singularities supports as well as Piecewise
 def discontinuities(f, x, dom=None):
+	""" Returns the discontinuities in f(x) along the interval dom
+	Supports everything that sym.singularities supports as well as Piecewise
+	"""
 	discont = np.array([])
-	#Try the pre-made singularities function to see if it's enough
+	# Try the pre-made singularities function to see if it's enough
 	try: sings = sym.singularities(f, x)#, domain=Interval.open(*dom))
 	except NotImplementedError: pass #singularities throws exceptions for Piecewise
 	else: discont = np.array(list(sings)).astype(np.float64)
-	#Now inspect the limits of any piecewise subdomains
+	# Now inspect the limits of any piecewise subdomains
 	pw_sd_limits = pw_sdls(f,x)
 	flam = sym.lambdify(x, f, "numpy")
 	for sdlim in pw_sd_limits:
@@ -140,12 +175,12 @@ def discontinuities(f, x, dom=None):
 		f_xl = flam(sdlim - dx)
 		f_xll = flam(sdlim - dx*2)
 		dfdxl = (f_xl - f_xll)/dx
-		#Linear extrapolation 2*dx to the right to skip over the discontinuity
+		# Linear extrapolation 2*dx to the right to skip over the discontinuity
 		expected_f_xr = f_xl + dfdxl*(dx*2)
 		f_xr = flam(sdlim + dx)
 		eps_y = abs(f_xr - expected_f_xr)
-		#Anything with 2nd derivitave greater than 1e3 will trigger as discontinuous
-		#Anything with a discontinuous derivitave, like sqrt(0), may also fire
+		# Anything with 2nd derivitave greater than 1e3 will trigger as discontinuous
+		# Anything with a discontinuous derivitave, like sqrt(0), may also fire
 		if eps_y > 2e3*eps:
 			discont = np.append(discont, sdlim)
 	if dom is None:
@@ -156,8 +191,10 @@ def discontinuities(f, x, dom=None):
 			d_in_dom = np.append(d_in_dom, pt)
 	return d_in_dom
 
-#Returns (Max, Max_x), (Min, Min_x)
 def max1d(f, x, dom):
+	""" Find max & min of a 1d symbolic function f(x)
+	Returns (Max, Max_x), (Min, Min_x)
+	"""
 	#interval = Interval(*dom)
 	#f_max = sym.maximum(f, x, interval)
 	#x_max = sym.solve(sym.Eq(f, f_max))[0]
@@ -185,10 +222,12 @@ def max1d(f, x, dom):
 	x_min = critpts[critvals == f_min][0]
 	return (f_max, x_max), (f_min, x_min)
 
-#Calculates the max and min of a 2d function on the given domain
-#First, it tries to do it analytically, then if that fails, numerically.
-#Returns (Max, Max_x, Max_y), (Min, Min_x, Min_y)
 def max2d(f, x, y, xdom, ydom, xres=100, yres=100):
+	""" Find max & min of a 2d symbolic function f(x,y)
+	Calculates the max and min of a 2d function on the given domain
+	First, it tries to do it analytically, then if that fails, numerically.
+	Returns (Max, Max_x, Max_y), (Min, Min_x, Min_y)
+	"""
 	try:
 		return max2d_grad(f, x, y, xdom, ydom)
 	except Exception as e:
@@ -208,9 +247,12 @@ def max2d(f, x, y, xdom, ydom, xres=100, yres=100):
 		min_y = min_coords[0][0] * (ydom[1]-ydom[0])/(yres-1) + ydom[0]
 		return (fmax, max_x, max_y), (fmin, min_x, min_y)
 
-#Symbolically calculate the max and min of the given 2d function on the given domain
-#Returns (Max, Max_x, Max_y), (Min, Min_x, Min_y)
 def max2d_grad(f, x, y, xdom, ydom):
+	""" Find max & min of a 2d symbolic function f(x,y)
+	Symbolically calculate the max and min of the given 2d function on the 
+	given domain
+	Returns (Max, Max_x, Max_y), (Min, Min_x, Min_y)
+	"""
 	x0, x1 = xdom
 	y0, y1 = ydom
 	#print(61, xdom, ydom)
@@ -266,11 +308,13 @@ def max2d_grad(f, x, y, xdom, ydom):
 	xy_min = critpts[np.where(critvals == f_min)[0][0]]
 	return (f_max, xy_max[0], xy_max[1]), (f_min, xy_min[0], xy_min[1])
 
-#Accepts any number of points and rotates them the given angle
-#th is in degrees
-#To be used in graphics, so it's inverted.
 def rot_pts(th, *pts, origin=(0,0)):
-	#The negative is placed here since down is positive in graphics world.
+	""" Rotate points pts by angle th
+	Accepts any number of points and rotates them the given angle
+	th is in degrees
+	To be used in graphics, so it's inverted.
+	"""
+	# The negative is placed here since down is positive in graphics world.
 	thr = - math.radians(th)
 	rot = np.array([[math.cos(thr), -math.sin(thr)], [math.sin(thr), math.cos(thr)]])
 	rotated = []
@@ -320,12 +364,12 @@ def test_solve_pw():
 	except NotImplementedError:
 		print(211)
 
-#IDEA: first strip Piecewise of anything outside of the domain of interest
-#Piecewise((x, x < L and x > 0), (0, True)) --> f = x (on (0,L))
-#I think all the boundaries should be considered anyway
+# IDEA: first strip Piecewise of anything outside of the domain of interest
+# Piecewise((x, x < L and x > 0), (0, True)) --> f = x (on (0,L))
+# I think all the boundaries should be considered anyway
 #	--> Use f_restrict()
 
-#Another problem is when an interval is constant "solve cannot represent interval solutions"
+# Another problem is when an interval is constant "solve cannot represent interval solutions"
 
 #test_solve_pw()
 
