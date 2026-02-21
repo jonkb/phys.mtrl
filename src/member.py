@@ -31,8 +31,8 @@ class Member:
 	For now, only prismatic uniform members are supported
 	"""
 	# Number of points in each direction to plot
-	d_resolution = 100
-	h_resolution = 50
+	d_resolution = 1000
+	h_resolution = 500
 	# Number of points in each direction for quiver plots
 	dq_resolution = 50
 	hq_resolution = 25
@@ -466,7 +466,7 @@ valid over the whole height, so the max and min values presented here may be ina
 		if isinstance(PR, str):
 			return PR
 		V = sym.Integer(0)
-		d = sym.symbols('d')
+		d = sym.symbols('d', real=True)
 		uvax = self.uv_axis()
 		uvprp = np.array((-uvax[1], uvax[0]))
 		#Dot product spelled out here (b/c it's all sym)
@@ -492,7 +492,7 @@ valid over the whole height, so the max and min values presented here may be ina
 		if isinstance(V, str):
 			return V
 		
-		d = sym.symbols('d')
+		d = sym.symbols('d', real=True)
 		M = sym.integrate(V, d)
 		#Zero out s0 - constant of integration
 		M -= M.subs(d, 0)
@@ -774,7 +774,7 @@ valid over the whole height, so the max and min values presented here may be ina
 		Return internal axial loads as a function of axial distance 'd' from s0
 		Convention: tension is positive
 		"""
-		d = sym.symbols('d')
+		d = sym.symbols('d', real=True)
 		uv_ax = self.uv_axis()
 		# Start with the effect of all distributed loads
 		(qx, qy) = self.sum_my_dl()
@@ -798,7 +798,7 @@ valid over the whole height, so the max and min values presented here may be ina
 		Counts axial loads as well as bending stress
 		"""
 		#sig_x = Px/A - My/I
-		h = sym.symbols('h')
+		h = sym.symbols('h', real=True)
 		P = self.axial_loads_sym()
 		if isinstance(P, str):
 			return P
@@ -814,7 +814,7 @@ valid over the whole height, so the max and min values presented here may be ina
 		Return internal shear stress due to bending as a function of 'd' and 'h'
 		Returns (tau, h domain)
 		"""
-		h = sym.symbols('h')
+		h = sym.symbols('h', real=True)
 		V = self.shear_symf()
 		if isinstance(V, str):
 			return V
@@ -828,7 +828,7 @@ valid over the whole height, so the max and min values presented here may be ina
 		P = self.axial_loads_sym()
 		if isinstance(P, str):
 			return P
-		d = sym.symbols("d")
+		d = sym.symbols("d", real=True)
 		(Pmax, dPmax), (Pmin, dPmin) = max1d(P, d, (0, self.length))
 		
 		rep_text = "'d' is measured (in m) from end \"zero\" of the member."
@@ -887,7 +887,7 @@ valid over the whole height, so the max and min values presented here may be ina
 		P = self.axial_loads_sym()
 		if isinstance(P, str):
 			return P
-		d = sym.symbols("d")
+		d = sym.symbols("d", real=True)
 		
 		STEQ.sort(key=lambda r_sj: r_sj[1].axd(self))
 		#Make a list of intervals along the member between each support or joint
@@ -1063,7 +1063,7 @@ valid over the whole height, so the max and min values presented here may be ina
 		if M in self.rep_err:
 			return M
 		#Make plots for V and M
-		d = sym.symbols("d")
+		d = sym.symbols("d", real=True)
 		Vf = sym.lambdify(d, V/1000)
 		Mf = sym.lambdify(d, M/1000)
 		dax = np.linspace(0, self.length, self.d_resolution)
@@ -1106,7 +1106,7 @@ valid over the whole height, so the max and min values presented here may be ina
 		""" Axial and Shear Stress Report
 		"""
 		reps = []
-		d, h = sym.symbols("d h")
+		d, h = sym.symbols("d h", real=True)
 		sig = self.axial_stress_sym()
 		if isinstance(sig, str):
 			return sig #ERROR
