@@ -1,6 +1,8 @@
 # Phys.Mtrl: A Mechanics of Materials Workbench
 phys.mtrl is GUI Workbench for performing Mechanics of Materials calculations.
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/jonkb/phys.mtrl)
+
 ## Dependencies
 - Python 3
 - tkinter
